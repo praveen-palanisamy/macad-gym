@@ -1,5 +1,6 @@
 """
-env.py: CARLA-Gym interface. Run this file for a demo.
+multi_env.py CARLA-Gym env interface with support for multiple actors.
+Run this file for a demo.
 __author__: PP
 """
 
@@ -30,6 +31,7 @@ import gym
 from gym.spaces import Box, Discrete, Tuple
 
 from .scenarios import DEFAULT_SCENARIO_TOWN2,update_scenarios_parameter
+import multi_actor_env
 
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
@@ -132,7 +134,11 @@ signal.signal(signal.SIGINT, termination_cleanup)
 atexit.register(cleanup)
 
 
-class CarlaEnv(gym.Env):
+class CarlaEnv(multi_actor_env.MultiActorEnv):
+"""
+CARLA-Gym env interface that supports multiple actors
+W.I.P
+"""
 
     def __init__(self, config=ENV_CONFIG):
         self.config = config
