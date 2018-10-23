@@ -141,7 +141,7 @@ ENV_CONFIG = {
     "use_depth_camera": False,
     "discrete_actions": True,
     "squash_action_logits": False,
-    "manual_control": False,
+    "manual_control": True,
 }
 
 
@@ -483,7 +483,7 @@ class MultiCarlaEnv(object):
         #print(image)
         #print('GET IMAGE >>>>>')
         self.original_image = image
-        #self._parse_image(image)
+        self._parse_image(image) # py_game render use
         self.image = self.preprocess_image(image)
         #print('FINISH IMAGE <<<<<')
         
