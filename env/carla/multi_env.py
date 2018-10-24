@@ -55,9 +55,9 @@ except Exception:
 
 import gym
 from gym.spaces import Box, Discrete, Tuple
-
-from scenarios import DEFAULT_SCENARIO_TOWN1,update_scenarios_parameter
-
+from scenarios import *
+#from scenarios import DEFAULT_SCENARIO_TOWN1,update_scenarios_parameter
+from settings import CarlaSettings
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
 if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
@@ -91,12 +91,12 @@ NUM_VEHICLE = 2
 MAX_STEP = 1000
 
 # Set of the start and end position
-POS_S = []
-POS_E = []
-POS_S.append([180.0,199.0,40.0])
-POS_S.append([180.0,195.0,40.0])
-POS_E.append([200.0,199.0,40.0])
-POS_E.append([200.0,195.0,40.0])
+#POS_S = []
+#POS_E = []
+#POS_S.append([180.0,199.0,40.0])
+#POS_S.append([180.0,195.0,40.0])
+#POS_E.append([200.0,199.0,40.0])
+#POS_E.append([200.0,195.0,40.0])
 
 # Carla planner commands
 COMMANDS_ENUM = {
@@ -136,12 +136,12 @@ ENV_CONFIG = {
     "render_y_res": 600,
     "x_res": 80,
     "y_res": 80,
-    "server_map": "", #In 0.9.0, run default map in stead of 0.8.x "/Game/Maps/Town02",
-    "scenarios": [DEFAULT_SCENARIO_TOWN1], # no scenarios
+    "server_map": "/Game/Carla/Maps/Town01", 
+    "scenarios": {}, #[DEFAULT_SCENARIO_TOWN1], # no scenarios
     "use_depth_camera": False,
     "discrete_actions": True,
     "squash_action_logits": False,
-    "manual_control": True,
+    "manual_control": False,
 }
 
 
@@ -213,8 +213,14 @@ atexit.register(cleanup)
 
 
 class MultiCarlaEnv(object):
-    def __init__(self, config=ENV_CONFIG):
+    def __init__(self, args):#config=ENV_CONFIG
+        config=ENV_CONFIG
+        
+        #print("---->",config["scenarios"])
+        #print("++++", args.scenario)
+        #time.sleep(1000)
         self.config = config
+        self.config["scenarios"] = self.get_scenarios(args.scenario)
         self.city = self.config["server_map"].split("/")[-1]
         if self.config["enable_planner"]:
             self.planner = Planner(self.city)
@@ -264,6 +270,14 @@ class MultiCarlaEnv(object):
         self._surface = None
         self.obs_dict = {}
 
+    def get_scenarios(self, choice):
+        if choice == "1":
+            self.config["server_map"] = "/Game/Carla/Maps/Town01"
+            return DEFAULT_SCENARIO_TOWN1
+        elif choice == "2":
+            self.config["server_map"] = "/Game/Carla/Maps/Town02"
+            return DEFAULT_SCENARIO_TOWN2
+
     def init_server(self):
         print("Initializing new Carla server...")
         # Create a new server process and start the client.
@@ -292,33 +306,21 @@ class MultiCarlaEnv(object):
         time.sleep(5)
 
         self.actor_list = []
-        client = carla.Client("localhost", self.server_port)
-        client.set_timeout(2000)    
-        world = client.get_world()
-        for i in range(self.num_vehicle):
-            blueprints = world.get_blueprint_library().filter('vehicle')
-            blueprint = random.choice(blueprints)
-            color = random.choice(blueprint.get_attribute('color').recommended_values)
-            blueprint.set_attribute('color', color)
-            transform = carla.Transform(
-	        carla.Location(x=POS_S[i][0], y=POS_S[i][1], z=POS_S[i][2]),
-	        carla.Rotation(yaw=0.0))
-            print('spawning vehicle %r with %d wheels' % (blueprint.id, blueprint.get_attribute('number_of_wheels')))
-            vehicle = world.try_spawn_actor(blueprint, transform)
-            print('vehicle at %s' % vehicle.get_location())
-            self.actor_list.append(vehicle)
-         
-        print('All vehicles are created.')
+        self.client = carla.Client("localhost", self.server_port)
+        
+        
+        
         
         #  Original in 0.8.2
         #for i in range(RETRIES_ON_ERROR):
         #    try:
-        #        self.client = CarlaClient("localhost", self.server_port)
-        #        return self.client.connect()
+        #        self.client = carla.Client("localhost", self.server_port)
+                #self.client = CarlaClient("localhost", self.server_port)
+        #        return self.client.ping()
         #    except Exception as e:
         #        print("Error connecting: {}, attempt {}".format(e, i))
         #        time.sleep(2)
-        
+            
 
     def clear_server_state(self):
         print("Clearing Carla server state")
@@ -379,7 +381,7 @@ class MultiCarlaEnv(object):
         # the CarlaSettings.ini file. Here we set the configuration we
         # want for the new episode.
         #  The setting do not work in Carla 0.9.0.
-        #settings = CarlaSettings()
+        settings = CarlaSettings()
 
         # If config["scenarios"] is a single scenario, then use it if it's an array of scenarios, randomly choose one and init
         #  no update_scenarios_parameter, it is from the old planner API.
@@ -390,36 +392,15 @@ class MultiCarlaEnv(object):
             self.scenario = self.config["scenarios"]
         else: #ininstance array of dict
             self.scenario = random.choice(self.config["scenarios"])
-        #assert self.scenario["city"] == self.city, (self.scenario, self.city)
+        assert self.scenario["city"] == self.city, (self.scenario, self.city)
         self.weather = random.choice(self.scenario["weather_distribution"])
-        #settings.set(
-        #    SynchronousMode=True,
-        #    SendNonPlayerAgentsInfo=True,
-        #    NumberOfVehicles=self.scenario["num_vehicles"],
-        #    NumberOfPedestrians=self.scenario["num_pedestrians"],
-        #    WeatherId=self.weather)
-        #settings.randomize_seeds()
-        
-        #  Create new camera instead of the old API in the following block.
-        #if self.config["use_depth_camera"]:
-        #    camera1 = Camera("CameraDepth", PostProcessing="Depth")
-        #    camera1.set_image_size(
-        #        self.config["render_x_res"], self.config["render_y_res"])
-        #    camera1.set_position(30, 0, 130)
-        #    settings.add_sensor(camera1)	
-        
-        #camera2 = Camera("CameraRGB")
-        #camera2.set_image_size(
-        #    seslf.config["render_x_res"], self.config["render_y_res"])
-        #camera2.set_position(30, 0, 130)
-        #settings.add_sensor(camera2)
-
-        # Setup start and end positions
-        #  currently use exact number instead of the API in old planner.
-        #scene = self.client.load_settings(settings)
-        #positions = scene.player_start_spots
-        
-
+        settings.set(
+            SynchronousMode=True,
+            SendNonPlayerAgentsInfo=True,
+            NumberOfVehicles=self.scenario["num_vehicles"],
+            NumberOfPedestrians=self.scenario["num_pedestrians"],
+            WeatherId=self.weather)
+        settings.randomize_seeds()
         #  Create new camera in Carla_0.9.0.
         client = carla.Client("localhost", self.server_port)
         client.set_timeout(2000)
@@ -437,6 +418,68 @@ class MultiCarlaEnv(object):
         #print('image111:', self.image)
         #time.sleep(5)
         #print('image222:', self.image)
+        #settings.add_sensor(camera)
+        
+        print(settings)
+        #time.sleep(1000)
+        #  Create new camera instead of the old API in the following block.
+        #if self.config["use_depth_camera"]:
+        #    camera1 = Camera("CameraDepth", PostProcessing="Depth")
+        #    camera1.set_image_size(
+        #        self.config["render_x_res"], self.config["render_y_res"])
+        #    camera1.set_position(30, 0, 130)
+        #    settings.add_sensor(camera1)	
+        
+        #camera2 = Camera("CameraRGB")
+        #camera2.set_image_size(
+        #    seslf.config["render_x_res"], self.config["render_y_res"])
+        #camera2.set_position(30, 0, 130)
+        #settings.add_sensor(camera2)
+
+        # Setup start and end positions
+        #  currently use exact number instead of the API in old planner.
+        #scene = self.client.load_settings(settings)
+        POS_S = self.scenario["start_pos_id"]
+        POS_E = self.scenario["end_pos_id"]
+        world = self.client.get_world()
+        for i in range(self.num_vehicle):
+            blueprints = world.get_blueprint_library().filter('vehicle')
+            blueprint = random.choice(blueprints)
+            color = random.choice(blueprint.get_attribute('color').recommended_values)
+            blueprint.set_attribute('color', color)
+            transform = carla.Transform(
+	        carla.Location(x=POS_S[i][0], y=POS_S[i][1], z=POS_S[i][2]),
+	        carla.Rotation(yaw=0.0))
+            print('spawning vehicle %r with %d wheels' % (blueprint.id, blueprint.get_attribute('number_of_wheels')))
+            vehicle = world.try_spawn_actor(blueprint, transform)
+            
+            print('vehicle at %s' % vehicle.get_location())
+            #print('vehicle at %s' % vehicle.get_velocity())
+            
+            self.actor_list.append(vehicle)
+            #while True:
+            #    s_time = time.time()
+            #    print('vehicle at %s' % vehicle.get_location())       
+            #    print('time: ', time.time()-s_time)
+        print('All vehicles are created.')
+
+        
+        #positions = scene.player_start_spots
+        #self.start_pos = positions[self.scenario["start_pos_id"]]
+        #self.end_pos = positions[self.scenario["end_pos_id"]]
+        #self.start_coord = [
+        #    self.start_pos.location.x // 100, self.start_pos.location.y // 100]
+        #self.end_coord = [
+        #    self.end_pos.location.x // 100, self.end_pos.location.y // 100]
+        #print(
+        #    "Start pos {} ({}), end {} ({})".format(
+        #        self.scenario["start_pos_id"], self.start_coord,
+        #        self.scenario["end_pos_id"], self.end_coord))
+        
+
+        
+
+        
         
         
         #  Need to print for multiple client
@@ -784,15 +827,22 @@ class MultiCarlaEnv(object):
         #print('start calculate distance')
         #s_dis = time.time()
         #  A simple planner
+        current_x = self.actor_list[i].get_location().x
+        current_y = self.actor_list[i].get_location().y
+
+        print('start calculate distance')
+        s_dis = time.time()
         distance_to_goal_euclidean = float(np.linalg.norm(
-            [self.actor_list[i].get_location().x - self.end_pos[i][0],
-             self.actor_list[i].get_location().y - self.end_pos[i][1]]) / 100)
+            [current_x - self.end_pos[i][0],
+             current_y - self.end_pos[i][1]]) / 100)
         
         distance_to_goal = distance_to_goal_euclidean
-        if self.actor_list[i].get_location().x >= self.end_pos[i][0]:
+        if current_x >= self.end_pos[i][0]:
             next_command = "REACH_GOAL"
         else:
             next_command = "LANE_FOLLOW"
+         
+        
         #print('calculate distance finished')
         #print('cal dist time: ', time.time() - s_dis)
 
@@ -811,12 +861,13 @@ class MultiCarlaEnv(object):
         #else:
         #    distance_to_goal = -1
 
-        
+        #print('store py: ')
+        #s_dis = time.time()
         py_measurements = {
             "episode_id": self.episode_id,
             "step": self.num_steps,
-            "x": self.actor_list[i].get_location().x,
-            "y": self.actor_list[i].get_location().y,
+            "x": current_x,
+            "y": current_y,
             #"x_orient": cur.transform.orientation.x,
             #"y_orient": cur.transform.orientation.y,
             "forward_speed": 0,
@@ -839,6 +890,8 @@ class MultiCarlaEnv(object):
             "max_steps": 1000, # set 1000 now. self.scenario["max_steps"],
             "next_command": next_command,
         }
+        #print('store py finished')
+        #print('store py time: ', time.time() - s_dis)
         #print('Start save disk:')
         save_to_disk(self.original_image)
         #if CARLA_OUT_PATH and self.config["log_images"]:
@@ -852,7 +905,8 @@ class MultiCarlaEnv(object):
         #        scipy.misc.imsave(out_file, image.data)
 
         #assert observation is not None, sensor_data
-
+        print('calculate distance finished')
+        print('cal dist time: ', time.time() - s_dis)
         return py_measurements
 
 
@@ -999,9 +1053,17 @@ def collided_done(py_measurements):
 
 if __name__ == "__main__":
     #  Episode for loop  
+    argparser = argparse.ArgumentParser(
+        description='CARLA Manual Control Client')
+    argparser.add_argument(
+        '--scenario',
+        help='print debug information')
+    args = argparser.parse_args()
+
+    
     for _ in range(1):
         #  Initialize server and clients.
-        env = MultiCarlaEnv()
+        env = MultiCarlaEnv(args)
         print('env finished')
         obs = env.reset() 
         print('obs infor:')
@@ -1019,15 +1081,17 @@ if __name__ == "__main__":
             vehcile_name += `n`
             total_reward_dict[vehcile_name] = 0 
 
+        
+        #  3 in action_list means go straight. 
+        action_list = {
+            'Vehcile0' : 3,
+            'Vehcile1' : 3,
+        }
+
         all_done = False
         while not all_done:
             i += 1
             if ENV_CONFIG["discrete_actions"]:
-                #  3 in action_list means go straight. 
-                action_list = {
-                    'Vehcile0' : 3,
-                    'Vehcile1' : 3,
-                }
                 obs, reward, done, info = env.step(action_list)
             else:
                 obs, reward, done, info = env.step([0, 1, 0])
