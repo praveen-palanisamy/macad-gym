@@ -19,24 +19,14 @@ def build_scenario(
         "max_steps": max_steps,
     }
 
-POS_S = []
-POS_E = []
-POS_S.append([180.0,199.0,40.0])
-POS_S.append([180.0,195.0,40.0])
-POS_E.append([200.0,199.0,40.0])
-POS_E.append([200.0,195.0,40.0])
-# Simple scenario for Town02 that involves driving down a road
-DEFAULT_SCENARIO_TOWN2 = build_scenario(
-    city="Town02", start=POS_S, end=POS_E, vehicles=20, pedestrians=40,
+# Simple scenario for Town01 that involves driving down a road
+DEFAULT_SCENARIO_TOWN1 = build_scenario(
+    city="Town01", start=126, end=128, vehicles=20, pedestrians=40,
     max_steps=200, weathers=[0])
 
-# Simple scenario for Town01 that involves driving down a road
-#DEFAULT_SCENARIO_TOWN1 = build_scenario(
-#    city="Town01", start=36, end=40, vehicles=20, pedestrians=40,
-#    max_steps=200, weathers=[0])
-
+#  Town1 curve test. 
 DEFAULT_SCENARIO_TOWN1 = build_scenario(
-    city="Town01", start=POS_S, end=POS_E, vehicles=20, pedestrians=40,
+    city="Town01", start=126, end=128, vehicles=20, pedestrians=40,
     max_steps=200, weathers=[0])
 
 # Simple scenario for Town02 that involves driving down a road
