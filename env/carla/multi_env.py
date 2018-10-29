@@ -83,9 +83,9 @@ GO_STRAIGHT = ""
 TURN_RIGHT = ""
 TURN_LEFT = ""
 LANE_FOLLOW = ""
- 
+POS_COOR_MAP = None 
 # Number of vehicles/cars   
-NUM_VEHICLE = 2
+NUM_VEHICLE = 1
 
 # Number of max step
 MAX_STEP = 1000
@@ -303,7 +303,7 @@ class MultiCarlaEnv(object):
         live_carla_processes.add(os.getpgid(self.server_process.pid))
 
         # wait for carlar server to start
-        time.sleep(5)
+        time.sleep(15)
 
         self.actor_list = []
         self.client = carla.Client("localhost", self.server_port)
@@ -401,17 +401,19 @@ class MultiCarlaEnv(object):
             NumberOfPedestrians=self.scenario["num_pedestrians"],
             WeatherId=self.weather)
         settings.randomize_seeds()
+        print("-----> this is", settings)
         #  Create new camera in Carla_0.9.0.
-        client = carla.Client("localhost", self.server_port)
-        client.set_timeout(2000)
-        world = client.get_world()
+        #client = carla.Client("localhost", self.server_port)
+        #client.set_timeout(2000)
+        world = self.client.get_world()
         cam_blueprint = world.get_blueprint_library().find('sensor.camera')
         camera = world.spawn_actor(cam_blueprint, GLOBAL_CAM_POS)
         self.camera = camera
         camera.listen(lambda image: self.get_image(image))
         #wait the camera's launching time to get first image
+        print("camera finished")
         time.sleep(3)
-
+        
         #  Asynchronously camera test:
         #print('image000:', self.image)
         #time.sleep(5)
@@ -420,7 +422,6 @@ class MultiCarlaEnv(object):
         #print('image222:', self.image)
         #settings.add_sensor(camera)
         
-        print(settings)
         #time.sleep(1000)
         #  Create new camera instead of the old API in the following block.
         #if self.config["use_depth_camera"]:
@@ -439,9 +440,21 @@ class MultiCarlaEnv(object):
         # Setup start and end positions
         #  currently use exact number instead of the API in old planner.
         #scene = self.client.load_settings(settings)
-        POS_S = self.scenario["start_pos_id"]
-        POS_E = self.scenario["end_pos_id"]
+        
+        start_id = self.scenario["start_pos_id"]
+        end_id = self.scenario["end_pos_id"]
+        start_id = str(start_id).decode("utf-8") # unicode is needed. this trans is for py2
+        end_id = str(end_id).decode("utf-8")
+        
+        
+        POS_S = [[0] * 3] * self.num_vehicle
+        POS_E = [[0] * 3] * self.num_vehicle
+        POS_S[0] = POS_COOR_MAP[start_id]
+        POS_E[0] = POS_COOR_MAP[end_id]
+
         world = self.client.get_world()
+        testlib = world.get_blueprint_library()
+        
         for i in range(self.num_vehicle):
             blueprints = world.get_blueprint_library().filter('vehicle')
             blueprint = random.choice(blueprints)
@@ -463,7 +476,9 @@ class MultiCarlaEnv(object):
             #    print('time: ', time.time()-s_time)
         print('All vehicles are created.')
 
-        
+        #scene = self.client.load_settings(settings)
+        #print ("scene: ", scene)
+        #time.sleep(1000)
         #positions = scene.player_start_spots
         #self.start_pos = positions[self.scenario["start_pos_id"]]
         #self.end_pos = positions[self.scenario["end_pos_id"]]
@@ -1060,6 +1075,7 @@ if __name__ == "__main__":
         help='print debug information')
     args = argparser.parse_args()
 
+    POS_COOR_MAP = json.load(open("POS_COOR/pos_cordi_map_town1.txt"))
     
     for _ in range(1):
         #  Initialize server and clients.
@@ -1085,7 +1101,7 @@ if __name__ == "__main__":
         #  3 in action_list means go straight. 
         action_list = {
             'Vehcile0' : 3,
-            'Vehcile1' : 3,
+            #'Vehcile1' : 3,
         }
 
         all_done = False
