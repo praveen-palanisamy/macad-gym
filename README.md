@@ -1,6 +1,10 @@
 ### CARLA environment Codebase for CARLA-Gym
 
-**NOTE**: The following instructions are for CARLA 0.8.x. Will get updated once 0.9.x is mature in CARLA upstream
+**NOTE**:
+> The following instructions are for CARLA 0.9.x.
+If you are looking for a stable version that "works", use the master branch.
+This branch will soon replace the master branch and will become the mainstream.
+
 
 ### Getting Started
 
@@ -15,14 +19,14 @@
 
     `conda env create -f conda_env.yaml`
     
-3. Download stable release version of Carla
+3. Download 0.9.x release version of Carla
 
     `mkdir ~/software && cd ~/software`
 
-    Download the 0.8.2 release version from: [Here](https://drive.google.com/open?id=1ZtVt1AqdyGxgyTm69nzuwrOYoPUn_Dsm)
+    Example: Download the 0.9.0 release version from: [Here](https://drive.google.com/open?id=1JprRbFf6UlvpqX98hQiUG9U4W_E-keiv)
     Extract it into `~/software`
 
-    `export CARLA_SERVER=~/software/CARLA_0.8.2/CarlaUE4.sh`
+    `export CARLA_SERVER=~/software/CARLA_0.9.0/CarlaUE4.sh`
     
 4. Clone this repository into your workspace (assuming the path is $workspace on your laptop)
 
@@ -30,10 +34,9 @@
 
     `git clone ssh://git@bitbucket.org:carla-gym/carla_gym.git
     
-5. Test if everything is fine
+5. [Work in progress] Test if everything is fine
  
     `cd CARLA-Gym`
-
-    `python -m env.carla.env`
+    
+    `python -m env.carla.multi_env`
   
-     Should bring up a carla window in test mode
