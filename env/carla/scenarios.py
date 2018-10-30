@@ -1,4 +1,9 @@
-"""Collection of Carla scenarios, including those from the CoRL 2017 paper."""
+"""
+scenarios.py CARLA-Gym collection of Carla scenarios based on node IDs
+from 0.8.x. Currently needs a conversion tool to convert between node IDs and
+(x, y, z) coordinate locations
+__author__:PP
+"""
 
 
 TEST_WEATHERS = [0, 2, 5, 7, 9, 10, 11, 12, 13]
