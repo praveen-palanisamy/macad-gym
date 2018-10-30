@@ -9,9 +9,12 @@ from enum import Enum
 from datetime import datetime
 import sys
 
+#sys.path.append(
+#    'PythonAPI/carla-0.9.0-py%d.%d-linux-x86_64.egg' % (sys.version_info.major,
+#                                                        sys.version_info.minor))
 sys.path.append(
-    'PythonAPI/carla-0.9.0-py%d.%d-linux-x86_64.egg' % (sys.version_info.major,
-                                                        sys.version_info.minor))
+    'PythonAPI/carla-0.9.0-py3.6-linux-x86_64.egg')
+
 import argparse#pygame
 import logging#pygame
 try:
@@ -32,7 +35,7 @@ except ImportError:
     raise RuntimeError('cannot import pygame, make sure pygame package is installed')
 
 
-
+#from .multi_actor_env import MultiActorEnv
 
 import atexit
 #import cv2
@@ -69,15 +72,7 @@ SERVER_BINARY = os.environ.get(
 
 assert os.path.exists(SERVER_BINARY)
 
-# Note: the followings are the old API from 0.8.x
-# Import Carla python client API funcs 
-#from .carla.client import CarlaClient
-#from .carla.sensor import Camera
-#from .carla.settings import CarlaSettings
-#from .carla.planner.planner import Planner, REACH_GOAL, GO_STRAIGHT, \
-#    TURN_RIGHT, TURN_LEFT, LANE_FOLLOW
-
-# Assign initial value since they are not importable from an old APT carla.planner
+#  Assign initial value since they are not importable from an old APT carla.planner
 REACH_GOAL = ""
 GO_STRAIGHT = ""
 TURN_RIGHT = ""
@@ -183,15 +178,17 @@ def save_to_disk(image):
         except ImportError:
             raise RuntimeError(
                 'cannot import PIL, make sure pillow package is installed')
-        
+        #image = PImage.frombytes()
+        array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
         image = PImage.frombytes(
             mode='RGBA',
             size=(image.width, image.height),
-            data=image.raw_data,
-            decoder_name='raw')
-        color = image.split()
-        image = PImage.merge("RGB", color[2::-1])
-
+            data = array) # work in python3
+            #data=image.raw_data, # work in python2
+            #decoder_name='raw')  # work in python 2
+        #color = image.split() # work in python2
+        #image = PImage.merge("RGB", color[2::-1])
+        
         folder = os.path.dirname(filename)
         if not os.path.isdir(folder):
             os.makedirs(folder)
@@ -212,15 +209,18 @@ atexit.register(cleanup)
  
 
 
-class MultiCarlaEnv(object):
+class MultiCarlaEnv(): #MultiActorEnv
     def __init__(self, args):#config=ENV_CONFIG
-        config=ENV_CONFIG
+
+        config_name = args.config
+       
+        #config=ENV_CONFIG
+        config = json.load(open(config_name))
+        print(config)
         
-        #print("---->",config["scenarios"])
-        #print("++++", args.scenario)
-        #time.sleep(1000)
         self.config = config
         self.config["scenarios"] = self.get_scenarios(args.scenario)
+        self.config["server_map"] = "/Game/Carla/Maps/" + args.map
         self.city = self.config["server_map"].split("/")[-1]
         if self.config["enable_planner"]:
             self.planner = Planner(self.city)
@@ -441,17 +441,24 @@ class MultiCarlaEnv(object):
         #  currently use exact number instead of the API in old planner.
         #scene = self.client.load_settings(settings)
         
+        for x in POS_COOR_MAP:
+            print(type(x))
+            print(type(POS_COOR_MAP[x]))
+
+
         start_id = self.scenario["start_pos_id"]
         end_id = self.scenario["end_pos_id"]
-        start_id = str(start_id).decode("utf-8") # unicode is needed. this trans is for py2
-        end_id = str(end_id).decode("utf-8")
+        start_id = str(start_id)
+        end_id = str(end_id)
+        #start_id = str(start_id).decode("utf-8") # unicode is needed. this trans is for py2
+        #end_id = str(end_id).decode("utf-8")
         
         
         POS_S = [[0] * 3] * self.num_vehicle
         POS_E = [[0] * 3] * self.num_vehicle
         POS_S[0] = POS_COOR_MAP[start_id]
         POS_E[0] = POS_COOR_MAP[end_id]
-
+        
         world = self.client.get_world()
         testlib = world.get_blueprint_library()
         
@@ -528,7 +535,7 @@ class MultiCarlaEnv(object):
             #  start read observation. each loop read one vehcile infor
             py_mt = self._read_observation(i)
             vehcile_name = 'Vehcile'
-            vehcile_name += `i`
+            vehcile_name += str(i)
             self.py_measurement[vehcile_name] = py_mt
             self.prev_measurement[vehcile_name] = py_mt
             
@@ -578,7 +585,7 @@ class MultiCarlaEnv(object):
                 obs, reward, done, info = self._step(action_dict[action], actor_num)
                 
                 vehcile_name = 'Vehcile'
-                vehcile_name +=`actor_num`
+                vehcile_name +=str(actor_num)
                 actor_num += 1
                 obs_dict[vehcile_name] = obs
                 reward_dict[vehcile_name] = reward
@@ -655,7 +662,7 @@ class MultiCarlaEnv(object):
             "hand_brake": hand_brake,
         }
         vehcile_name = 'Vehcile'
-        vehcile_name += `i`
+        vehcile_name += str(i)
         reward = compute_reward(
             self, self.prev_measurement[vehcile_name], py_measurements)
         
@@ -905,9 +912,7 @@ class MultiCarlaEnv(object):
             "max_steps": 1000, # set 1000 now. self.scenario["max_steps"],
             "next_command": next_command,
         }
-        #print('store py finished')
-        #print('store py time: ', time.time() - s_dis)
-        #print('Start save disk:')
+        
         save_to_disk(self.original_image)
         #if CARLA_OUT_PATH and self.config["log_images"]:
         #    for name, image in sensor_data.items():
@@ -1068,11 +1073,25 @@ def collided_done(py_measurements):
 
 if __name__ == "__main__":
     #  Episode for loop  
+    #from multi_env import MultiCarlaEnv
     argparser = argparse.ArgumentParser(
         description='CARLA Manual Control Client')
     argparser.add_argument(
         '--scenario',
+        default = '1',
         help='print debug information')
+
+    argparser.add_argument(
+        '--config',
+        default = 'config.json',
+        help='print debug information')
+
+    argparser.add_argument(
+        '--map',
+        default = 'Town01',
+        help='print debug information')
+
+
     args = argparser.parse_args()
 
     POS_COOR_MAP = json.load(open("POS_COOR/pos_cordi_map_town1.txt"))
@@ -1094,7 +1113,7 @@ if __name__ == "__main__":
         total_reward_dict = {}
         for n in range(NUM_VEHICLE):
             vehcile_name = 'Vehcile'
-            vehcile_name += `n`
+            vehcile_name += str(n)
             total_reward_dict[vehcile_name] = 0 
 
         
