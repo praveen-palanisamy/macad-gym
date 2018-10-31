@@ -35,7 +35,6 @@ except ImportError:
     raise RuntimeError('cannot import pygame, make sure pygame package is installed')
 
 
-#from .multi_actor_env import MultiActorEnv
 
 import atexit
 #import cv2
@@ -59,6 +58,9 @@ except Exception:
 import gym
 from gym.spaces import Box, Discrete, Tuple
 from scenarios import *
+#import multi_actor_env
+#from .multi_actor_env import MultiActorEnv
+#from ..multi_actor_env import MultiActorEnv
 #from scenarios import DEFAULT_SCENARIO_TOWN1,update_scenarios_parameter
 from settings import CarlaSettings
 # Set this where you want to save image outputs (or empty string to disable)
@@ -408,6 +410,7 @@ class MultiCarlaEnv(): #MultiActorEnv
         world = self.client.get_world()
         cam_blueprint = world.get_blueprint_library().find('sensor.camera')
         camera = world.spawn_actor(cam_blueprint, GLOBAL_CAM_POS)
+        print('camera at %s' % camera.get_location())  
         self.camera = camera
         camera.listen(lambda image: self.get_image(image))
         #wait the camera's launching time to get first image
@@ -441,9 +444,10 @@ class MultiCarlaEnv(): #MultiActorEnv
         #  currently use exact number instead of the API in old planner.
         #scene = self.client.load_settings(settings)
         
-        for x in POS_COOR_MAP:
-            print(type(x))
-            print(type(POS_COOR_MAP[x]))
+        #  in python2, key is unicode, in python3, key is string
+        #for x in POS_COOR_MAP:
+        #    print(type(x))
+        #    print(type(POS_COOR_MAP[x]))
 
 
         start_id = self.scenario["start_pos_id"]
@@ -641,6 +645,8 @@ class MultiCarlaEnv(): #MultiActorEnv
                 control2 = self._get_keyboard_control2(pygame.key.get_pressed())
                 self.actor_list[i].apply_control(control2)
                 self._on_render()
+        elif self.config["auto_control"]:    
+            self.actor_list[i].set_autopilot()
         else:
             self.actor_list[i].apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake, hand_brake=hand_brake, reverse=reverse))
 
@@ -859,7 +865,9 @@ class MultiCarlaEnv(): #MultiActorEnv
              current_y - self.end_pos[i][1]]) / 100)
         
         distance_to_goal = distance_to_goal_euclidean
-        if current_x >= self.end_pos[i][0]:
+        diff_x =  abs(current_x - self.end_pos[i][0])
+        diff_y =  abs(current_y - self.end_pos[i][1])
+        if diff_x < 1 and diff_y < 1:
             next_command = "REACH_GOAL"
         else:
             next_command = "LANE_FOLLOW"
