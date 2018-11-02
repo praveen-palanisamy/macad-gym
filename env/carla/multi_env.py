@@ -13,7 +13,7 @@ import sys
 #    'PythonAPI/carla-0.9.0-py%d.%d-linux-x86_64.egg' % (sys.version_info.major,
 #                                                        sys.version_info.minor))
 sys.path.append(
-    'PythonAPI/carla-0.9.0-py3.6-linux-x86_64.egg')
+    'PythonAPI/lib/carla-0.9.0-py3.6-linux-x86_64.egg')
 
 import argparse#pygame
 import logging#pygame
@@ -82,7 +82,7 @@ TURN_LEFT = ""
 LANE_FOLLOW = ""
 POS_COOR_MAP = None 
 # Number of vehicles/cars   
-NUM_VEHICLE = 1
+#NUM_VEHICLE = 1
 
 # Number of max step
 MAX_STEP = 1000
@@ -250,7 +250,7 @@ class MultiCarlaEnv(): #MultiActorEnv
         self._spec = lambda: None
         self._spec.id = "Carla-v0"
 
-        self.num_vehicle = NUM_VEHICLE
+        #self.num_vehicle = NUM_VEHICLE
 
         self.server_port = None
         self.server_process = None
@@ -279,7 +279,9 @@ class MultiCarlaEnv(): #MultiActorEnv
         elif choice == "2":
             self.config["server_map"] = "/Game/Carla/Maps/Town02"
             return DEFAULT_SCENARIO_TOWN2
-
+        elif choice == "3":
+            self.config["server_map"] = "/Game/Carla/Maps/Town01"
+            return DEFAULT_SCENARIO_MULTI_TOWN1
     def init_server(self):
         print("Initializing new Carla server...")
         # Create a new server process and start the client.
@@ -449,19 +451,26 @@ class MultiCarlaEnv(): #MultiActorEnv
         #    print(type(x))
         #    print(type(POS_COOR_MAP[x]))
 
-
+        
         start_id = self.scenario["start_pos_id"]
         end_id = self.scenario["end_pos_id"]
-        start_id = str(start_id)
-        end_id = str(end_id)
+        #start_id = str(start_id)
+        #end_id = str(end_id)
         #start_id = str(start_id).decode("utf-8") # unicode is needed. this trans is for py2
         #end_id = str(end_id).decode("utf-8")
-        
+
+        NUM_VEHICLE = len(start_id)
+        self.num_vehicle = NUM_VEHICLE
         
         POS_S = [[0] * 3] * self.num_vehicle
         POS_E = [[0] * 3] * self.num_vehicle
-        POS_S[0] = POS_COOR_MAP[start_id]
-        POS_E[0] = POS_COOR_MAP[end_id]
+
+
+        for i in range(self.num_vehicle):
+            s_id = str(start_id[i])
+            e_id = str(end_id[i])    
+            POS_S[i] = POS_COOR_MAP[s_id]
+            POS_E[i] = POS_COOR_MAP[e_id]
         
         world = self.client.get_world()
         testlib = world.get_blueprint_library()
@@ -865,12 +874,16 @@ class MultiCarlaEnv(): #MultiActorEnv
              current_y - self.end_pos[i][1]]) / 100)
         
         distance_to_goal = distance_to_goal_euclidean
+        
+
         diff_x =  abs(current_x - self.end_pos[i][0])
         diff_y =  abs(current_y - self.end_pos[i][1])
-        if diff_x < 1 and diff_y < 1:
+
+        next_command = "LANE_FOLLOW"
+        if diff_x < 15 and diff_y < 15:
             next_command = "REACH_GOAL"
-        else:
-            next_command = "LANE_FOLLOW"
+        
+            
          
         
         #print('calculate distance finished')
@@ -1086,7 +1099,7 @@ if __name__ == "__main__":
         description='CARLA Manual Control Client')
     argparser.add_argument(
         '--scenario',
-        default = '1',
+        default = '3',
         help='print debug information')
 
     argparser.add_argument(
@@ -1116,26 +1129,30 @@ if __name__ == "__main__":
         start = time.time()
         done = False
         i = 0
-
+        total_vehcile = len(obs)
         #  Initialize total reward dict.
         total_reward_dict = {}
-        for n in range(NUM_VEHICLE):
+        for n in range(total_vehcile):
             vehcile_name = 'Vehcile'
             vehcile_name += str(n)
             total_reward_dict[vehcile_name] = 0 
 
-        
+        #  Initialize all vehciles' action to be 3
+        action_dict = {}
+        for v in range(total_vehcile):
+            vehcile_name = 'Vehcile' + str(v)
+            action_dict[vehcile_name] = 3
         #  3 in action_list means go straight. 
-        action_list = {
-            'Vehcile0' : 3,
+        #action_list = {
+            #'Vehcile0' : 3,
             #'Vehcile1' : 3,
-        }
-
+        #}
+        
         all_done = False
         while not all_done:
             i += 1
             if ENV_CONFIG["discrete_actions"]:
-                obs, reward, done, info = env.step(action_list)
+                obs, reward, done, info = env.step(action_dict)
             else:
                 obs, reward, done, info = env.step([0, 1, 0])
             
