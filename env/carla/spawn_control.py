@@ -37,6 +37,7 @@ import argparse
 import logging
 import random
 import time
+import os
 
 try:
     import pygame
@@ -63,9 +64,33 @@ except ImportError:
 
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
-START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0))
+START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0))  #
 CAMERA_POSITION = carla.Transform(carla.Location(x=0.5, z=1.40))
 
+from PythonAPI.converter import Converter 
+#from PythonAPI.map import CarlaMap
+
+class CarlaMap(object):
+    def __init__(self, city, pixel_density=0.1643, node_density=50):
+        dir_path = os.path.dirname(__file__)
+        city_file = os.path.join(dir_path, city + '.txt')    
+        self._converter = Converter(city_file, pixel_density, node_density)  
+    def convert_to_pixel(self, input_data):
+        """
+        Receives a data type (Can Be Node or World )
+        :param input_data: position in some coordinate
+        :return: A node object
+        """
+        return self._converter.convert_to_pixel(input_data)
+
+    def convert_to_world(self, input_data):
+        """
+        Receives a data type (Can Be Pixel or Node )
+        :param input_data: position in some coordinate
+        :return: A node object
+        """
+        return self._converter.convert_to_world(input_data)  
+    
 
 class CarlaGame(object):
     def __init__(self, args):
@@ -78,9 +103,14 @@ class CarlaGame(object):
         self.spawned_list = []
         self._autopilot_enabled = args.autopilot
         self._is_on_reverse = False
+        self.test_map = CarlaMap('Town01')             #loading the map
 
     def execute(self):
         pygame.init()
+#        pixel_start_position = self.test_map.convert_to_pixel([180, 199.0, 40.0])  #[1195, 1311] 
+#        print('pixel start position')
+#        print(pixel_start_position) 
+        
         try:
             self._display = pygame.display.set_mode(
                 (WINDOW_WIDTH, WINDOW_HEIGHT),
@@ -124,19 +154,24 @@ class CarlaGame(object):
         control = self._get_keyboard_control(pygame.key.get_pressed())
         if spawn_flag and event.type == pygame.MOUSEBUTTONUP:
             mouse_x, mouse_y = event.pos
-            print(mouse_x, mouse_y) 
+#            print(mouse_x, mouse_y) 
+            benchmark_world_location = self._vehicle.get_location()  #[193.03, 199.025, 38.1521]
+            real_location = [benchmark_world_location.x,benchmark_world_location.y, benchmark_world_location.z]
+            benchmark_image_location = self.test_map.convert_to_pixel(real_location)     
+
             world = self._client.get_world()
             blueprint = random.choice(world.get_blueprint_library().filter('vehicle')) 
-#TODO:  get mouse location map to real-map location 			
-#            transform = carla.Transform(carla.Location(x=mouse_x, y=mouse_y, z= self._vehicle.get_location().z ),  carla.Rotation(yaw=0.0))			
+#TODO:  get mouse location from image to real-3D location 			
+            transform = carla.Transform(carla.Location(x=benchmark_world_location.x - 10, y=benchmark_world_location.y, z=benchmark_world_location.z ), carla.Rotation(yaw=0.0))
+            print('spawned vehicle at world location')
+            print(real_location) 
             vehicle = world.try_spawn_actor(blueprint, transform)
-            time.sleep(3)
-            print('spawnd new vehicle at ( ' + str(mouse_x) + ', ' + str(mouse_y) +')' )
+            time.sleep(5)
             self.spawned_list.append(vehicle)
 
         if self.spawned_list:
             for vehicle in self.spawned_list:
-                print('setting auto pilot for spawned vehicle')
+#                print('setting auto pilot for spawned vehicle')
                 vehicle.set_autopilot(True)	
 
         if autopilot != self._autopilot_enabled:
@@ -146,8 +181,7 @@ class CarlaGame(object):
             self._vehicle.apply_control(control)
             if self.spawned_list:
                 for vehicle in self.spawned_list:
-                    print('apply control on spawned vehicle') 
-                    print(type(vehicle)) 
+#                    print('apply control on spawned vehicle') 
                     vehicle.apply_control(control)
 
         self.spawned_list = []
