@@ -13,7 +13,7 @@ import sys
 #    'PythonAPI/carla-0.9.0-py%d.%d-linux-x86_64.egg' % (sys.version_info.major,
 #                                                        sys.version_info.minor))
 sys.path.append(
-    'PythonAPI/lib/carla-0.9.0-py3.6-linux-x86_64.egg')
+    'PythonAPI/lib/carla-0.9.0-py3.5-linux-x86_64.egg')
 
 import argparse#pygame
 import logging#pygame
@@ -37,7 +37,7 @@ except ImportError:
 
 
 import atexit
-#import cv2
+import cv2
 import os
 import json
 import random
@@ -139,6 +139,7 @@ ENV_CONFIG = {
     "discrete_actions": True,
     "squash_action_logits": False,
     "manual_control": False,
+    "camera_type": "LogarithmicDepth" 
 }
 
 
@@ -164,37 +165,9 @@ DISCRETE_ACTIONS = {
 }
 
 # The cam for pygame
-GLOBAL_CAM_POS = carla.Transform(carla.Location(x=170, y = 199, z = 45))
+GLOBAL_CAM_POS = carla.Transform(carla.Location(x=178, y = 198, z = 40))
 
-live_carla_processes = set()
-
-
-
-def save_to_disk(image):
-        """Save this image to disk (requires PIL installed)."""
-
-        filename = '_images/{:0>6d}_{:s}.png'.format(image.frame_number, image.type)
-    
-        try:
-            from PIL import Image as PImage
-        except ImportError:
-            raise RuntimeError(
-                'cannot import PIL, make sure pillow package is installed')
-        #image = PImage.frombytes()
-        array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-        image = PImage.frombytes(
-            mode='RGBA',
-            size=(image.width, image.height),
-            data = array) # work in python3
-            #data=image.raw_data, # work in python2
-            #decoder_name='raw')  # work in python 2
-        #color = image.split() # work in python2
-        #image = PImage.merge("RGB", color[2::-1])
-        
-        folder = os.path.dirname(filename)
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
-        image.save(filename)   
+live_carla_processes = set()  
 
 def cleanup():
     print("Killing live carla processes", live_carla_processes)
@@ -405,14 +378,11 @@ class MultiCarlaEnv(): #MultiActorEnv
             NumberOfPedestrians=self.scenario["num_pedestrians"],
             WeatherId=self.weather)
         settings.randomize_seeds()
-        print("-----> this is", settings)
+        print("This is settings: ", settings)
         #  Create new camera in Carla_0.9.0.
-        #client = carla.Client("localhost", self.server_port)
-        #client.set_timeout(2000)
         world = self.client.get_world()
-        cam_blueprint = world.get_blueprint_library().find('sensor.camera')
-        camera = world.spawn_actor(cam_blueprint, GLOBAL_CAM_POS)
-        print('camera at %s' % camera.get_location())  
+        cam_blueprint = world.get_blueprint_library().find('sensor.camera.depth')
+        camera = world.spawn_actor(cam_blueprint, GLOBAL_CAM_POS) 
         self.camera = camera
         camera.listen(lambda image: self.get_image(image))
         #wait the camera's launching time to get first image
@@ -473,50 +443,28 @@ class MultiCarlaEnv(): #MultiActorEnv
             POS_E[i] = POS_COOR_MAP[e_id]
         
         world = self.client.get_world()
-        testlib = world.get_blueprint_library()
-        
+        self.weather = [
+            world.get_weather().cloudyness,
+            world.get_weather().precipitation,
+            world.get_weather().precipitation_deposits,
+            world.get_weather().wind_intensity]
+
+
         for i in range(self.num_vehicle):
             blueprints = world.get_blueprint_library().filter('vehicle')
             blueprint = random.choice(blueprints)
-            color = random.choice(blueprint.get_attribute('color').recommended_values)
-            blueprint.set_attribute('color', color)
+            #color = random.choice(blueprint.get_attribute('color').recommended_values)
+            #blueprint.set_attribute('color', color)
             transform = carla.Transform(
 	        carla.Location(x=POS_S[i][0], y=POS_S[i][1], z=POS_S[i][2]),
 	        carla.Rotation(yaw=0.0))
             print('spawning vehicle %r with %d wheels' % (blueprint.id, blueprint.get_attribute('number_of_wheels')))
             vehicle = world.try_spawn_actor(blueprint, transform)
-            
-            print('vehicle at %s' % vehicle.get_location())
-            #print('vehicle at %s' % vehicle.get_velocity())
-            
+            print('vehicle at ', vehicle.get_location().x, vehicle.get_location().y, vehicle.get_location().z)       
             self.actor_list.append(vehicle)
-            #while True:
-            #    s_time = time.time()
-            #    print('vehicle at %s' % vehicle.get_location())       
-            #    print('time: ', time.time()-s_time)
+
         print('All vehicles are created.')
-
-        #scene = self.client.load_settings(settings)
-        #print ("scene: ", scene)
-        #time.sleep(1000)
-        #positions = scene.player_start_spots
-        #self.start_pos = positions[self.scenario["start_pos_id"]]
-        #self.end_pos = positions[self.scenario["end_pos_id"]]
-        #self.start_coord = [
-        #    self.start_pos.location.x // 100, self.start_pos.location.y // 100]
-        #self.end_coord = [
-        #    self.end_pos.location.x // 100, self.end_pos.location.y // 100]
-        #print(
-        #    "Start pos {} ({}), end {} ({})".format(
-        #        self.scenario["start_pos_id"], self.start_coord,
-        #        self.scenario["end_pos_id"], self.end_coord))
-        
-
-        
-
-        
-        
-        
+     
         #  Need to print for multiple client
         self.start_pos = POS_S
         self.end_pos = POS_E
@@ -554,16 +502,36 @@ class MultiCarlaEnv(): #MultiActorEnv
             
             obs = self.encode_obs(self.image, self.py_measurement[vehcile_name], i)
             self.obs_dict[vehcile_name] = obs
-            
+         
         return self.obs_dict
 
     def get_image(self, image):
-        #print(image)
-        #print('GET IMAGE >>>>>')
+        
+        if self.config["camera_type"] == "rgb":
+            cc = carla.ColorConverter.Raw
+            self.config["use_depth_camera"] = False
+        elif self.config["camera_type"] == "depth_raw":
+            cc = carla.ColorConverter.Raw
+            self.config["use_depth_camera"] = False
+        elif self.config["camera_type"] == "depth_gray_scale":
+            cc = carla.ColorConverter.Depth
+            self.config["use_depth_camera"] = True
+        elif self.config["camera_type"] == "depth_log_gray_scale":
+            cc = carla.ColorConverter.LogarithmicDepth
+            self.config["use_depth_camera"] = True
+        elif self.config["camera_type"] == "seg_raw":
+            cc = carla.ColorConverter.Raw
+            self.config["use_depth_camera"] = False
+        elif self.config["camera_type"] == "seg_city_space":
+            cc = carla.ColorConverter.CityScapesPalette
+            self.config["use_depth_camera"] = False
+     
+        image.save_to_disk('_out/%06d.png' % image.frame_number, cc)
         self.original_image = image
         self._parse_image(image) # py_game render use
         self.image = self.preprocess_image(image)
-        #print('FINISH IMAGE <<<<<')
+        
+        
         
     def encode_obs(self, image, py_measurements, vehcile_number):
         
@@ -715,9 +683,9 @@ class MultiCarlaEnv(): #MultiActorEnv
                 #    self.measurements_file = None
                 #    if self.config["convert_images_to_video"]:
                 #        self.images_to_video()
-        
+        image = self.preprocess_image(self.original_image)
         return (
-            self.encode_obs(self.image, py_measurements, i), reward, done,
+            self.encode_obs(image, py_measurements, i), reward, done,
             py_measurements)
 
     def _get_keyboard_control1(self, keys):
@@ -776,49 +744,26 @@ class MultiCarlaEnv(): #MultiActorEnv
     def preprocess_image(self, image):
         if self.config["use_depth_camera"]:
             assert self.config["use_depth_camera"]
-            data = (image.raw_data - 0.5) * 2
-            data = data.reshape(
-                self.config["render_y_res"], self.config["render_x_res"], 1)
+            data = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+            data = np.reshape(data, (self.config["render_y_res"], self.config["render_x_res"], 4))
+            data = data[:, :, :1]
+            data = data[:, :, ::-1]
             data = cv2.resize(
                 data, (self.config["x_res"], self.config["y_res"]),
                 interpolation=cv2.INTER_AREA)
             data = np.expand_dims(data, 2)
         else:
-            #data = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            #data = np.reshape(data, (self.config["render_y_res"], self.config["render_x_res"], 3))
-            data = np.reshape(image.raw_data,
-                (self.config["render_y_res"], self.config["render_x_res"],4))
-            data = np.resize(
-                data, (self.config["x_res"], self.config["y_res"]))
+            data = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+            data = np.reshape(data, (self.config["render_y_res"], self.config["render_x_res"], 4))
+            data = data[:, :, :3]
+            data = data[:, :, ::-1]
+            data = cv2.resize(
+                data, (self.config["x_res"], self.config["y_res"]),
+                interpolation=cv2.INTER_AREA)
             data = (data.astype(np.float32) - 128) / 128
+        
         return data
 
-    def _save_to_disk(self, image):
-
-        filename = '_images/{:0>6d}_{:s}.png'.format(image.frame_number, image.type)
-    
-        try:
-            from PIL import Image as PImage
-        except ImportError:
-            raise RuntimeError(
-                'cannot import PIL, make sure pillow package is installed')
-        
-        image = PImage.frombytes(
-            mode='RGBA',
-            size=(image.width, image.height),
-            data=image.raw_data,
-            decoder_name='raw')
-        color = image.split()
-        image = PImage.merge("RGB", color[2::-1])
-
-
-        out_dir = os.path.join(CARLA_OUT_PATH, filename)
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-        out_file = os.path.join(
-            out_dir,
-            "{}_{:>04}.jpg".format(self.episode_id, self.num_steps))
-        scipy.misc.imsave(out_file, image.raw_data)
         
 
         
@@ -861,14 +806,11 @@ class MultiCarlaEnv(): #MultiActorEnv
         #else:
         #    next_command = "LANE_FOLLOW"
 
-        #print('start calculate distance')
-        #s_dis = time.time()
+        
         #  A simple planner
         current_x = self.actor_list[i].get_location().x
         current_y = self.actor_list[i].get_location().y
 
-        print('start calculate distance')
-        s_dis = time.time()
         distance_to_goal_euclidean = float(np.linalg.norm(
             [current_x - self.end_pos[i][0],
              current_y - self.end_pos[i][1]]) / 100)
@@ -913,7 +855,7 @@ class MultiCarlaEnv(): #MultiActorEnv
             "y": current_y,
             #"x_orient": cur.transform.orientation.x,
             #"y_orient": cur.transform.orientation.y,
-            "forward_speed": 0,
+            "forward_speed": self.actor_list[i].get_velocity().x,
             "distance_to_goal": distance_to_goal,#use planner
             "distance_to_goal_euclidean": distance_to_goal_euclidean,
             #"collision_vehicles": cur.collision_vehicles,
@@ -921,20 +863,21 @@ class MultiCarlaEnv(): #MultiActorEnv
             #"collision_other": cur.collision_other,
             #"intersection_offroad": cur.intersection_offroad,
             #"intersection_otherlane": cur.intersection_otherlane,
-            #"weather": self.weather,
-            #"map": self.config["server_map"],
+            "weather": self.weather,
+            "map": self.config["server_map"],
             "start_coord": self.start_coord,
             "end_coord": self.end_coord,
-            #"current_scenario": self.scenario,
-            #"x_res": self.config["x_res"],
-            #"y_res": self.config["y_res"],
+            "current_scenario": self.scenario,
+            "x_res": self.config["x_res"],
+            "y_res": self.config["y_res"],
             #"num_vehicles": self.scenario["num_vehicles"],
             #"num_pedestrians": self.scenario["num_pedestrians"],
             "max_steps": 1000, # set 1000 now. self.scenario["max_steps"],
             "next_command": next_command,
         }
         
-        save_to_disk(self.original_image)
+        #  self.original_image.save_to_disk can also implemented here.
+        #save_to_disk(self.original_image)
         #if CARLA_OUT_PATH and self.config["log_images"]:
         #    for name, image in sensor_data.items():
         #        out_dir = os.path.join(CARLA_OUT_PATH, name)
@@ -946,8 +889,7 @@ class MultiCarlaEnv(): #MultiActorEnv
         #        scipy.misc.imsave(out_file, image.data)
 
         #assert observation is not None, sensor_data
-        print('calculate distance finished')
-        print('cal dist time: ', time.time() - s_dis)
+        
         return py_measurements
 
 
@@ -1166,6 +1108,6 @@ if __name__ == "__main__":
             for d in done:
                 done_temp  = done_temp and done[d]
             all_done = done_temp
-        
+            time.sleep(1)
         print("{} fps".format(100 / (time.time() - start)))
     
