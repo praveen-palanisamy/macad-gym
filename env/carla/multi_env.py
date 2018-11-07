@@ -8,15 +8,15 @@ from enum import Enum
 
 from datetime import datetime
 import sys
+import os
 
-#sys.path.append(
-#    'PythonAPI/carla-0.9.0-py%d.%d-linux-x86_64.egg' % (sys.version_info.major,
-#                                                        sys.version_info.minor))
+sys.path.append(os.path.abspath(os.path.join('../..', 'env')))
 sys.path.append(
-    'PythonAPI/lib/carla-0.9.0-py3.5-linux-x86_64.egg')
+    'env/carla/PythonAPI/lib/carla-0.9.0-py3.5-linux-x86_64.egg')
 
-import argparse#pygame
-import logging#pygame
+from env.multi_actor_env import *
+import argparse #pygame
+import logging #pygame
 try:
     import pygame
     from pygame.locals import K_DOWN
@@ -38,7 +38,7 @@ except ImportError:
 
 import atexit
 import cv2
-import os
+
 import json
 import random
 import signal
@@ -57,12 +57,9 @@ except Exception:
 
 import gym
 from gym.spaces import Box, Discrete, Tuple
-from scenarios import *
-#import multi_actor_env
-#from .multi_actor_env import MultiActorEnv
-#from ..multi_actor_env import MultiActorEnv
-#from scenarios import DEFAULT_SCENARIO_TOWN1,update_scenarios_parameter
-from settings import CarlaSettings
+from .scenarios import *
+from .settings import CarlaSettings
+
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
 if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
@@ -125,7 +122,7 @@ ENV_CONFIG = {
     "enable_planner": False,
     "render": True,  # Whether to render to screen or send to VFB
     "framestack": 2,  # note: only [1, 2] currently supported
-    "convert_images_to_video": False,
+    "convert_images_to_video": True,
     "early_terminate_on_collision": True,
     "verbose": False,
     "reward_function": "corl2017",
@@ -184,7 +181,7 @@ atexit.register(cleanup)
  
 
 
-class MultiCarlaEnv(): #MultiActorEnv
+class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
     def __init__(self, args):#config=ENV_CONFIG
 
         config_name = args.config
@@ -244,7 +241,7 @@ class MultiCarlaEnv(): #MultiActorEnv
         self.image = None
         self._surface = None
         self.obs_dict = {}
-
+        self.video = False
     def get_scenarios(self, choice):
         if choice == "1":
             self.config["server_map"] = "/Game/Carla/Maps/Town01"
@@ -256,6 +253,7 @@ class MultiCarlaEnv(): #MultiActorEnv
             self.config["server_map"] = "/Game/Carla/Maps/Town01"
             return DEFAULT_SCENARIO_MULTI_TOWN1
     def init_server(self):
+        '''
         print("Initializing new Carla server...")
         # Create a new server process and start the client.
         self.server_port = 2000 #random.randint(10000, 60000)
@@ -281,9 +279,9 @@ class MultiCarlaEnv(): #MultiActorEnv
 
         # wait for carlar server to start
         time.sleep(15)
-
+        '''
         self.actor_list = []
-        self.client = carla.Client("localhost", self.server_port)
+        self.client = carla.Client("localhost", 2000)#self.server_port)
         
         
         
@@ -525,8 +523,11 @@ class MultiCarlaEnv(): #MultiActorEnv
         elif self.config["camera_type"] == "seg_city_space":
             cc = carla.ColorConverter.CityScapesPalette
             self.config["use_depth_camera"] = False
-     
-        image.save_to_disk('_out/%06d.png' % image.frame_number, cc)
+        
+        image_dir = os.path.join(CARLA_OUT_PATH, 'img_%04d.png' % image.frame_number)
+        #image.save_to_disk('_out/%06d.png' % image.frame_number, cc)
+        self.first_frame_num = image.frame_number
+        image.save_to_disk(image_dir, cc)
         self.original_image = image
         self._parse_image(image) # py_game render use
         self.image = self.preprocess_image(image)
@@ -678,11 +679,12 @@ class MultiCarlaEnv(): #MultiActorEnv
                         "w")
                 self.measurements_file.write(json.dumps(self.py_measurement))
                 self.measurements_file.write("\n")
-                #if done:
-                #    self.measurements_file.close()
-                #    self.measurements_file = None
-                #    if self.config["convert_images_to_video"]:
-                #        self.images_to_video()
+                if done:
+                    self.measurements_file.close()
+                    self.measurements_file = None
+                    if self.config["convert_images_to_video"] and (not self.video):
+                        self.images_to_video()
+                        self.video = True
         image = self.preprocess_image(self.original_image)
         return (
             self.encode_obs(image, py_measurements, i), reward, done,
@@ -729,15 +731,17 @@ class MultiCarlaEnv(): #MultiActorEnv
         videos_dir = os.path.join(CARLA_OUT_PATH, "Videos")
         if not os.path.exists(videos_dir):
             os.makedirs(videos_dir)
+        
         ffmpeg_cmd = (
-            "ffmpeg -loglevel -8 -r 60 -f image2 -s {x_res}x{y_res} "
-            "-start_number 0 -i "
-            "{img}_%04d.jpg -vcodec libx264 {vid}.mp4 && rm -f {img}_*.jpg "
+            "ffmpeg -r 20 -f image2pipe -s {x_res}x{y_res} "
+            "-start_number {first_frame_num}"
+            "-i pipe:.png -vframes 50 -vcodec libx264 {vid}.mp4"#-vframes 50 {img}_%04d.png
         ).format(
             x_res=self.config["render_x_res"],
             y_res=self.config["render_y_res"],
+            first_frame_num = self.first_frame_num,
             vid=os.path.join(videos_dir, self.episode_id),
-            img=os.path.join(CARLA_OUT_PATH, "CameraRGB", self.episode_id))
+            img=os.path.join(CARLA_OUT_PATH, "img"))
         print("Executing ffmpeg command", ffmpeg_cmd)
         subprocess.call(ffmpeg_cmd, shell=True)
 
@@ -822,10 +826,11 @@ class MultiCarlaEnv(): #MultiActorEnv
         diff_y =  abs(current_y - self.end_pos[i][1])
 
         next_command = "LANE_FOLLOW"
-        if diff_x < 15 and diff_y < 15:
+        #if diff_x < 15 and diff_y < 15:
+        if current_x - self.end_pos[i][0] > 0:
             next_command = "REACH_GOAL"
-        
-            
+        print("Position", i,current_x,self.end_pos[i][0])
+             
          
         
         #print('calculate distance finished')
@@ -1046,7 +1051,7 @@ if __name__ == "__main__":
 
     argparser.add_argument(
         '--config',
-        default = 'config.json',
+        default = 'env/carla/config.json',
         help='print debug information')
 
     argparser.add_argument(
@@ -1057,7 +1062,7 @@ if __name__ == "__main__":
 
     args = argparser.parse_args()
 
-    POS_COOR_MAP = json.load(open("POS_COOR/pos_cordi_map_town1.txt"))
+    POS_COOR_MAP = json.load(open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))
     
     for _ in range(1):
         #  Initialize server and clients.
@@ -1110,4 +1115,3 @@ if __name__ == "__main__":
             all_done = done_temp
             time.sleep(1)
         print("{} fps".format(100 / (time.time() - start)))
-    
