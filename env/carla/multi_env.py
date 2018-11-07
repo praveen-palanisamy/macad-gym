@@ -15,6 +15,7 @@ sys.path.append(
     'env/carla/PythonAPI/lib/carla-0.9.0-py3.5-linux-x86_64.egg')
 
 from env.multi_actor_env import *
+from env.carla.PythonAPI.manual_control import HUD, CameraManager
 import argparse #pygame
 import logging #pygame
 try:
@@ -524,7 +525,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             cc = carla.ColorConverter.CityScapesPalette
             self.config["use_depth_camera"] = False
         
-        image_dir = os.path.join(CARLA_OUT_PATH, 'img_%04d.png' % image.frame_number)
+        image_dir = os.path.join(CARLA_OUT_PATH, 'images/img_%04d.png' % image.frame_number)
         #image.save_to_disk('_out/%06d.png' % image.frame_number, cc)
         self.first_frame_num = image.frame_number
         image.save_to_disk(image_dir, cc)
@@ -733,15 +734,15 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             os.makedirs(videos_dir)
         
         ffmpeg_cmd = (
-            "ffmpeg -r 20 -f image2pipe -s {x_res}x{y_res} "
-            "-start_number {first_frame_num}"
-            "-i pipe:.png -vframes 50 -vcodec libx264 {vid}.mp4"#-vframes 50 {img}_%04d.png
+            "ffmpeg -r 20 -f image2 -s {x_res}x{y_res} "
+            "-pattern_type glob "
+            "-i '{img}/*.png' -vcodec libx264 {vid}.mp4"#-vframes 50 
         ).format(
             x_res=self.config["render_x_res"],
             y_res=self.config["render_y_res"],
             first_frame_num = self.first_frame_num,
             vid=os.path.join(videos_dir, self.episode_id),
-            img=os.path.join(CARLA_OUT_PATH, "img"))
+            img=os.path.join(CARLA_OUT_PATH,"images"))
         print("Executing ffmpeg command", ffmpeg_cmd)
         subprocess.call(ffmpeg_cmd, shell=True)
 
@@ -829,7 +830,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #if diff_x < 15 and diff_y < 15:
         if current_x - self.end_pos[i][0] > 0:
             next_command = "REACH_GOAL"
-        print("Position", i,current_x,self.end_pos[i][0])
+        
              
          
         
