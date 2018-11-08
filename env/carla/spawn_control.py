@@ -23,7 +23,7 @@ Use ARROWS or WASD keys for control.
 
     TAB          : change camera position
     `            : next camera sensor
-    [1-9]        : change to camera sensor [1-9]
+    [1-9]        : swtich camera view among vehicles
     C            : change weather (Shift+C reverse)
     Backspace    : change vehicle
 
@@ -62,6 +62,7 @@ except IndexError:
 import carla
 
 from carla import ColorConverter as cc
+from carla import World as CarlaWorld
 
 import argparse
 import logging
@@ -135,7 +136,7 @@ class CarlaMap(object):
 
 
 START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0))
-
+GLOBAL_CAM_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z= 45.0))
 
 def find_weather_presets():
     rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
@@ -144,7 +145,7 @@ def find_weather_presets():
     return [(getattr(carla.WeatherParameters, x), name(x)) for x in presets]
 
 
-class World(object):
+class World(object):     
     def __init__(self, carla_world, hud):
         self.world = carla_world
         self.hud = hud
@@ -155,15 +156,22 @@ class World(object):
         self.vehicle_list.append(self._vehicle)
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
         self.camera_manager_list = []  
+        self.global_camera = CameraManager(self.world, self.hud, GLOBAL_CAM_POSITION)
+        self.global_camera.set_sensor(0, notify=False)
+        self.camera_manager_list.append(self.global_camera) 
         self._camera_manager = CameraManager(self._vehicle, self.hud)
         self._camera_manager.set_sensor(0, notify=False)
         self.camera_manager_list.append(self._camera_manager) 
-        self.camera_index = 0
-        
+        self.camera_index = 0  #set global camera
         self.controller = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
 
+    def init_global_camera(self):
+        self.global_camera = CameraManager(self.world, self.hud)
+        self.global_camera.set_sensor(0, notify=False)
+        self.camera_manager_list.append(self.global_camera)       
+        
     def restart(self):
         cam_index = self._camera_manager._index
         cam_pos_index = self._camera_manager._transform_index
@@ -172,9 +180,12 @@ class World(object):
         start_pose.rotation.roll = 0.0
         start_pose.rotation.pitch = 0.0
         blueprint = self._get_random_blueprint()
+        self.camera_manager_list=[]
         self.vehicle_list = [] 
         self.destroy()
         self.num_vehicles = 1
+        self.camera_index = 0 
+        init_global_camera()
         self._vehicle = self.world.spawn_actor(blueprint, start_pose)
         self.vehicle_list.append(self._vehicle)
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
@@ -206,7 +217,7 @@ class World(object):
 
     def render(self, display, camera_index=0):  
         if camera_index == 0 : 
-            self._camera_manager.render(display)     
+            self.global_camera.render(display)  
         else :
             self.camera_manager_list[camera_index].render(display)
           
@@ -460,7 +471,7 @@ class CollisionSensor(object):
 
 
 class CameraManager(object):
-    def __init__(self, parent_actor, hud):
+    def __init__(self, parent_actor, hud, transform=None):
         self.sensor = None
         self._surface = None
         self._parent = parent_actor
@@ -468,17 +479,24 @@ class CameraManager(object):
         self._recording = True
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.6, z=1.7)),
-            carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15))]
-        self._transform_index = 1
+            carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
+            transform ]
+        if transform is not None:
+            self._transform_index = 2
+        else:
+            self._transform_index = 1
         self._sensors = [
             ['sensor.camera.rgb', cc.Raw, 'Camera RGB'],
             ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)'],
             ['sensor.camera.depth', cc.Depth, 'Camera Depth (Gray Scale)'],
             ['sensor.camera.depth', cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)'],
             ['sensor.camera.semantic_segmentation', cc.Raw, 'Camera Semantic Segmentation (Raw)'],
-            ['sensor.camera.semantic_segmentation', cc.CityScapesPalette, 'Camera Semantic Segmentation (CityScapes Palette)']]
-        world = self._parent.get_world()
-        bp_library = world.get_blueprint_library()
+            ['sensor.camera.semantic_segmentation', cc.CityScapesPalette, 'Camera Semantic Segmentation (CityScapes Palette)']]  
+        if transform is not None:
+            self._world = self._parent
+        else:
+            self._world = self._parent.get_world()      
+        bp_library = self._world.get_blueprint_library()
         for item in self._sensors:
             bp = bp_library.find(item[0])
             bp.set_attribute('image_size_x', str(hud.dim[0]))
@@ -499,7 +517,12 @@ class CameraManager(object):
             if self.sensor is not None:
                 self.sensor.destroy()
                 self._surface = None
-            self.sensor = self._parent.get_world().spawn_actor(
+            if self._world == self._parent:
+                self.sensor = self._world.spawn_actor(
+                self._sensors[index][-1],
+                self._camera_transforms[self._transform_index])   
+            else:
+                self.sensor = self._world.spawn_actor(
                 self._sensors[index][-1],
                 self._camera_transforms[self._transform_index],
                 attach_to=self._parent)
