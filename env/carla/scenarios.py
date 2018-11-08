@@ -25,14 +25,21 @@ def build_scenario(
     }
 
 
-# Simple scenario for Town02 that involves driving down a road
-DEFAULT_SCENARIO_TOWN2 = build_scenario(
-    city="Town02", start=36, end=40, vehicles=20, pedestrians=40,
+MULTI_START_POS = [125,126]
+MULTI_END_POS = [127,128]
+# Multi start and end
+DEFAULT_SCENARIO_MULTI_TOWN1 = build_scenario(
+    city="Town01", start=MULTI_START_POS, end=MULTI_END_POS, vehicles=20, pedestrians=40,
     max_steps=200, weathers=[0])
 
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_scenario(
-    city="Town01", start=36, end=40, vehicles=20, pedestrians=40,
+    city="Town01", start=126, end=128, vehicles=20, pedestrians=40,
+    max_steps=200, weathers=[0])
+
+#  Town1 curve test. 
+DEFAULT_SCENARIO_TOWN1 = build_scenario(
+    city="Town01", start=126, end=128, vehicles=20, pedestrians=40,
     max_steps=200, weathers=[0])
 
 # Simple scenario for Town02 that involves driving down a road

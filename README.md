@@ -39,4 +39,8 @@ This branch will soon replace the master branch and will become the mainstream.
     `cd CARLA-Gym`
     
     `python -m env.carla.multi_env`
+
+
+I changed the conda_env.yaml file to avoid some errors.
+
   
