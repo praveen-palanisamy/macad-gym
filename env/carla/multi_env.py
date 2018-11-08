@@ -12,7 +12,7 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join('../..', 'env')))
 sys.path.append(
-    'env/carla/PythonAPI/lib/carla-0.9.0-py3.5-linux-x86_64.egg')
+    'env/carla/PythonAPI/lib/carla-0.9.0-py3.6-linux-x86_64.egg')
 
 from env.multi_actor_env import *
 from env.carla.PythonAPI.manual_control import HUD, CameraManager
@@ -179,8 +179,6 @@ def termination_cleanup(*args):
 signal.signal(signal.SIGTERM, termination_cleanup)
 signal.signal(signal.SIGINT, termination_cleanup)
 atexit.register(cleanup)
- 
-
 
 class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
     def __init__(self, args):#config=ENV_CONFIG
@@ -380,7 +378,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         print("This is settings: ", settings)
         #  Create new camera in Carla_0.9.0.
         world = self.client.get_world()
-        cam_blueprint = world.get_blueprint_library().find('sensor.camera.depth')
+        self.get_camera(self.config["camera_type"])
+        cam_blueprint = world.get_blueprint_library().find(self.camera_type)
         camera = world.spawn_actor(cam_blueprint, GLOBAL_CAM_POS) 
         self.camera = camera
         camera.listen(lambda image: self.get_image(image))
@@ -503,32 +502,36 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             self.obs_dict[vehcile_name] = obs
          
         return self.obs_dict
-
-    def get_image(self, image):
-        
+    def get_camera(self, camera_type):
         if self.config["camera_type"] == "rgb":
-            cc = carla.ColorConverter.Raw
+            self.camera_type = 'sensor.camera.rgb'
+            self.cc = carla.ColorConverter.Raw
             self.config["use_depth_camera"] = False
         elif self.config["camera_type"] == "depth_raw":
-            cc = carla.ColorConverter.Raw
+            self.camera_type = 'sensor.camera.depth'
+            self.cc = carla.ColorConverter.Raw
             self.config["use_depth_camera"] = False
         elif self.config["camera_type"] == "depth_gray_scale":
-            cc = carla.ColorConverter.Depth
+            self.camera_type = 'sensor.camera.depth'
+            self.cc = carla.ColorConverter.Depth
             self.config["use_depth_camera"] = True
         elif self.config["camera_type"] == "depth_log_gray_scale":
-            cc = carla.ColorConverter.LogarithmicDepth
+            self.camera_type = 'sensor.camera.depth'
+            self.cc = carla.ColorConverter.LogarithmicDepth
             self.config["use_depth_camera"] = True
         elif self.config["camera_type"] == "seg_raw":
-            cc = carla.ColorConverter.Raw
+            self.camera_type = 'sensor.camera.semantic_segmentation'
+            self.cc = carla.ColorConverter.Raw
             self.config["use_depth_camera"] = False
         elif self.config["camera_type"] == "seg_city_space":
+            self.camera_type = 'sensor.camera.semantic_segmentation'
             cc = carla.ColorConverter.CityScapesPalette
             self.config["use_depth_camera"] = False
+    def get_image(self, image):
         
         image_dir = os.path.join(CARLA_OUT_PATH, 'images/img_%04d.png' % image.frame_number)
-        #image.save_to_disk('_out/%06d.png' % image.frame_number, cc)
-        self.first_frame_num = image.frame_number
-        image.save_to_disk(image_dir, cc)
+        self.first_frame_num = image.frame_number       
+        image.save_to_disk(image_dir, self.cc)
         self.original_image = image
         self._parse_image(image) # py_game render use
         self.image = self.preprocess_image(image)
@@ -734,7 +737,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             os.makedirs(videos_dir)
         
         ffmpeg_cmd = (
-            "ffmpeg -r 20 -f image2 -s {x_res}x{y_res} "
+            "ffmpeg -loglevel -8 -r 20 -f image2 -s {x_res}x{y_res} "
             "-pattern_type glob "
             "-i '{img}/*.png' -vcodec libx264 {vid}.mp4"#-vframes 50 
         ).format(
