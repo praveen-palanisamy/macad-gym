@@ -71,6 +71,8 @@ import time
 import re
 import weakref
 
+from Transform import transform_points
+
 try:
     import pygame
     from pygame.locals import KMOD_CTRL
@@ -130,12 +132,108 @@ class CarlaMap(object):
         """
         return self._converter.convert_to_world(input_data)  
 
+#===============================================================================
+#-- Detecter -------------------------------------------------------------------
+#===============================================================================
+
+class Detecter(object):
+    MAX_ITERATION = 100 
+    def __init__(self, location, actor_list):
+        self._location = location
+        self._actors = actor_list
+
+#first transform the 8bbox vertices respect to the bbox transform    
+#then transform the vertices respect to vehicle(relative to the world coord)
+#TODO: carla.Transform.transform_points() deprecated from v0.9.x 
+    def _bbox_vertices(self, vehicle):
+        ext = vehicle.bounding_box.extent    
+#8bbox vertices relative to (0,0,0) locally         
+        bbox = np.array([
+               [  ext.x,   ext.y,   ext.z],
+               [- ext.x,   ext.y,   ext.z],
+               [  ext.x, - ext.y,   ext.z],
+               [- ext.x, - ext.y,   ext.z],
+               [  ext.x,   ext.y, - ext.z],
+              [- ext.x,   ext.y, - ext.z],
+              [  ext.x, - ext.y, - ext.z],
+              [- ext.x, - ext.y, - ext.z]    
+            ]) 
+
+        vehicle_transform = carla.Transform(vehicle.get_location())
+        bbox_transform = carla.Transform(vehicle.bounding_box.location) 
+        bbox = transform_points(bbox_transform, bbox)
+        bbox = transform_points(vehicle_transform, bbox)   
+        
+        return bbox 
+    
+    def _min_max(self, a, b):
+        min_ = min(a, b)
+        max_ = max(a, b)
+        return [min_, max_]
+    
+
+#TODO: need reimplement, not familar with Python numpy
+
+    def _cubic(self, bbox):
+        n1 = np.squeeze(np.asarray(bbox[0] - bbox[1]) )#x direction
+        n2 = np.squeeze(np.asarray(bbox[0] - bbox[2]) )#y direction
+        n3 = np.squeeze(np.asarray(bbox[0] - bbox[4]) )#z direction 
+                   
+        bbox0 = np.squeeze(np.asarray(bbox[0]))
+        bbox1 = np.squeeze(np.asarray(bbox[1]))
+        bbox2 = np.squeeze(np.asarray(bbox[2]))
+        bbox4 = np.squeeze(np.asarray(bbox[4]))           
+        min1 = np.dot(bbox0, n1)  
+        max1 = np.dot(bbox1, n1) 
+        min1, max1 = self._min_max(min1, max1)
+        min2 = np.dot(bbox0, n2)
+        max2 = np.dot(bbox2, n2)
+        min2, max2 = self._min_max(min2, max2)           
+        min3 = np.dot(bbox0, n3)
+        max3 = np.dot(bbox4, n3)
+        min3, max3 = self._min_max(min3, max3)        
+        return min1, max1, min2, max2, min3, max3, n1, n2, n3
+        
+    def collision(self):
+        for vehicle in self._actors:
+            bbox = self._bbox_vertices(vehicle)        
+            min1, max1, min2, max2, min3, max3, n1, n2, n3 = self._cubic(bbox)                       
+            #iteration to get a spawn position without collision with existing vehicles in the world 
+            collision_flag = True
+            iteration = 0   
+            try_location = np.zeros(3)
+            while collision_flag and iteration < self.MAX_ITERATION:
+                try_location[0] = self._location.x
+                try_location[1] = self._location.y
+                try_location[2] = self._location.z
+                p1 = np.dot(n1, try_location)
+                p2 = np.dot(n2, try_location)
+                p3 = np.dot(n3, try_location) 
+                iteration += 1 
+                if  p1 >= min1 and  p1 <= max1:
+                    print("collision happens at world x direction, will adding spwan x-location by 0.1m")
+                    self._location.x += 0.1
+                    continue                    
+                elif p2 >= min2 and p2 <= max2 : 
+                    print("collision happens at world y direction, will adding spwan y-location by 0.1m")
+                    self._location.y += 0.1 
+                    continue                                        
+                elif p3 >= min3 and p3 <= max3 :
+                    print("collision happens at world z direction, will adding spwan z-location by 0.1m")
+                    self._location.z += 0.1 
+                    continue      
+                else:
+                    collision_flag = False
+                    print(self._location) 
+                    print("no collision, checking next vehicle")
+                    break
+     
+                
 # ==============================================================================
 # -- World ---------------------------------------------------------------------
-# ==============================================================================
+# ==============================================================================   
 
-
-START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0))
+START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0)) 
 GLOBAL_CAM_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z= 45.0))
 
 def find_weather_presets():
@@ -143,7 +241,6 @@ def find_weather_presets():
     name = lambda x: ' '.join(m.group(0) for m in rgx.finditer(x))
     presets = [x for x in dir(carla.WeatherParameters) if re.match('[A-Z].+', x)]
     return [(getattr(carla.WeatherParameters, x), name(x)) for x in presets]
-
 
 class World(object):     
     def __init__(self, carla_world, hud):
@@ -223,7 +320,6 @@ class World(object):
           
         self.hud.render(display)
            
-
     def destroy(self):               
         while len(self.camera_manager_list) != 0:
             _cmanager = self.camera_manager_list.pop()
@@ -243,15 +339,17 @@ class World(object):
         return bp
     
     def spawn_new_vehicle(self, transform):
-        blueprint = self._get_random_blueprint()			 
+        blueprint = self._get_random_blueprint()	
+        detector = Detecter(transform.location,  self.vehicle_list)  
+        detector.collision()
         vehicle = self.world.try_spawn_actor(blueprint, transform)  
         if vehicle is None:
             print('spawned failed')
             return None
         print('a new vehicle spanwed at current location') 
         return vehicle
-
-
+              
+                    
 # ==============================================================================
 # -- KeyboardControl -----------------------------------------------------------
 # ==============================================================================
@@ -305,7 +403,8 @@ class KeyboardControl(object):
                 else:
                     benchmark_world_location = world.vehicle_list[-1].get_location()
                     benchmark_world_velocity = world.vehicle_list[-1].get_velocity() 
-                transform = carla.Transform(carla.Location(x=benchmark_world_location.x + benchmark_world_velocity.x * 15, y=benchmark_world_location.y + benchmark_world_velocity.y * 10 , z=benchmark_world_location.z ), carla.Rotation(yaw=0.0))
+                print(benchmark_world_location)
+                transform = carla.Transform(carla.Location(x=benchmark_world_location.x + benchmark_world_velocity.x * 10, y=benchmark_world_location.y + benchmark_world_velocity.y * 10 , z=benchmark_world_location.z ), carla.Rotation(yaw=0.0))
                 vehicle = world.spawn_new_vehicle(transform)
                 time.sleep(3)  
                 if vehicle is not None:
