@@ -167,6 +167,7 @@ GLOBAL_CAM_POS = carla.Transform(carla.Location(x=178, y = 198, z = 40))
 
 live_carla_processes = set()  
 
+
 def cleanup():
     print("Killing live carla processes", live_carla_processes)
     for pgid in live_carla_processes:
@@ -187,12 +188,19 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
        
         #config=ENV_CONFIG
         config = json.load(open(config_name))
-        print(config)
-        
+
         self.config = config
-        self.config["scenarios"] = self.get_scenarios(args.scenario)
         self.config["server_map"] = "/Game/Carla/Maps/" + args.map
+        self.config["scenarios"] = self.get_scenarios(args.scenario)
+        
         self.city = self.config["server_map"].split("/")[-1]
+        print(self.city)
+        if self.city == "Town01":
+            self.pos_coor_map = json.load(open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))
+        else:
+            self.pos_coor_map = json.load(open("env/carla/POS_COOR/pos_cordi_map_town2.txt"))
+        print(self)
+
         if self.config["enable_planner"]:
             self.planner = Planner(self.city)
 
@@ -241,18 +249,20 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self._surface = None
         self.obs_dict = {}
         self.video = False
+        
     def get_scenarios(self, choice):
-        if choice == "1":
+        
+        if choice == "DEFAULT_SCENARIO_TOWN1":
             self.config["server_map"] = "/Game/Carla/Maps/Town01"
             return DEFAULT_SCENARIO_TOWN1
-        elif choice == "2":
+        elif choice == "DEFAULT_SCENARIO_TOWN2":
             self.config["server_map"] = "/Game/Carla/Maps/Town02"
             return DEFAULT_SCENARIO_TOWN2
-        elif choice == "3":
+        elif choice == "TOWN1_STRAIGHT":
             self.config["server_map"] = "/Game/Carla/Maps/Town01"
-            return DEFAULT_SCENARIO_MULTI_TOWN1
+            return TOWN1_STRAIGHT
     def init_server(self):
-        '''
+        
         print("Initializing new Carla server...")
         # Create a new server process and start the client.
         self.server_port = 2000 #random.randint(10000, 60000)
@@ -277,8 +287,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         live_carla_processes.add(os.getpgid(self.server_process.pid))
 
         # wait for carlar server to start
-        time.sleep(15)
-        '''
+        time.sleep(10)
+        
         self.actor_list = []
         self.client = carla.Client("localhost", 2000)#self.server_port)
         
@@ -359,14 +369,15 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
 
         # If config["scenarios"] is a single scenario, then use it if it's an array of scenarios, randomly choose one and init
         #  no update_scenarios_parameter, it is from the old planner API.
-        self.config = update_scenarios_parameter(self.config)
+        #self.config = update_scenarios_parameter(self.config)
 
         #  the following block also does not work in 0.9.0.
         if isinstance(self.config["scenarios"],dict):
             self.scenario = self.config["scenarios"]
         else: #ininstance array of dict
             self.scenario = random.choice(self.config["scenarios"])
-        assert self.scenario["city"] == self.city, (self.scenario, self.city)
+        #print("333333333", self.city)
+        #assert self.scenario["city"] == self.city, (self.scenario, self.city)
         self.weather = random.choice(self.scenario["weather_distribution"])
         settings.set(
             SynchronousMode=True,
@@ -380,9 +391,10 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         world = self.client.get_world()
         self.get_camera(self.config["camera_type"])
         cam_blueprint = world.get_blueprint_library().find(self.camera_type)
-        camera = world.spawn_actor(cam_blueprint, GLOBAL_CAM_POS) 
-        self.camera = camera
-        camera.listen(lambda image: self.get_image(image))
+        #camera = world.spawn_actor(cam_blueprint, GLOBAL_CAM_POS) 
+        #camera = world.spawn_actor(cam_blueprint, carla.Transform(), attach_to=self.actor_list[0]) 
+        #self.camera = camera
+        #camera.listen(lambda image: self.get_image(image))
         #wait the camera's launching time to get first image
         print("camera finished")
         time.sleep(3)
@@ -427,18 +439,17 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #start_id = str(start_id).decode("utf-8") # unicode is needed. this trans is for py2
         #end_id = str(end_id).decode("utf-8")
 
-        NUM_VEHICLE = len(start_id)
+        NUM_VEHICLE = len(start_id)     
         self.num_vehicle = NUM_VEHICLE
         
         POS_S = [[0] * 3] * self.num_vehicle
         POS_E = [[0] * 3] * self.num_vehicle
 
-
         for i in range(self.num_vehicle):
             s_id = str(start_id[i])
             e_id = str(end_id[i])    
-            POS_S[i] = POS_COOR_MAP[s_id]
-            POS_E[i] = POS_COOR_MAP[e_id]
+            POS_S[i] = self.pos_coor_map[s_id]
+            POS_E[i] = self.pos_coor_map[e_id]
         
         world = self.client.get_world()
         self.weather = [
@@ -462,7 +473,16 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             self.actor_list.append(vehicle)
 
         print('All vehicles are created.')
-     
+        
+        
+        camera = world.spawn_actor(cam_blueprint, carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)), attach_to=self.actor_list[0]) 
+        self.camera = camera# Let camera get image through out the whole process
+        camera.listen(lambda image: self.get_image(image))
+        #wait the camera's launching time to get first image
+        print("camera finished")
+        time.sleep(1)
+
+
         #  Need to print for multiple client
         self.start_pos = POS_S
         self.end_pos = POS_E
@@ -525,12 +545,13 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             self.config["use_depth_camera"] = False
         elif self.config["camera_type"] == "seg_city_space":
             self.camera_type = 'sensor.camera.semantic_segmentation'
-            cc = carla.ColorConverter.CityScapesPalette
+            self.cc = carla.ColorConverter.CityScapesPalette
             self.config["use_depth_camera"] = False
+
     def get_image(self, image):
-        
-        image_dir = os.path.join(CARLA_OUT_PATH, 'images/img_%04d.png' % image.frame_number)
-        self.first_frame_num = image.frame_number       
+
+        image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}_%04d.png'.format(self.episode_id) % image.frame_number)
+        #self.first_frame_num = image.frame_number       
         image.save_to_disk(image_dir, self.cc)
         self.original_image = image
         self._parse_image(image) # py_game render use
@@ -686,9 +707,9 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
                 if done:
                     self.measurements_file.close()
                     self.measurements_file = None
-                    if self.config["convert_images_to_video"] and (not self.video):
-                        self.images_to_video()
-                        self.video = True
+                    #if self.config["convert_images_to_video"] and (not self.video):
+                    #    self.images_to_video()
+                    #    self.video = Trueseg_city_space
         image = self.preprocess_image(self.original_image)
         return (
             self.encode_obs(image, py_measurements, i), reward, done,
@@ -739,11 +760,11 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         ffmpeg_cmd = (
             "ffmpeg -loglevel -8 -r 20 -f image2 -s {x_res}x{y_res} "
             "-pattern_type glob "
-            "-i '{img}/*.png' -vcodec libx264 {vid}.mp4"#-vframes 50 
+            "-i '{img}/*.png' -vcodec libx264 {vid}.mp4 && rm -f {img}/*.png"#&& rm -f {img}/*.png
         ).format(
             x_res=self.config["render_x_res"],
             y_res=self.config["render_y_res"],
-            first_frame_num = self.first_frame_num,
+            #first_frame_num = self.first_frame_num,
             vid=os.path.join(videos_dir, self.episode_id),
             img=os.path.join(CARLA_OUT_PATH,"images"))
         print("Executing ffmpeg command", ffmpeg_cmd)
@@ -830,8 +851,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         diff_y =  abs(current_y - self.end_pos[i][1])
 
         next_command = "LANE_FOLLOW"
-        #if diff_x < 15 and diff_y < 15:
-        if current_x - self.end_pos[i][0] > 0:
+        if diff_x < 5 and diff_y < 5:
+        #if current_x - self.end_pos[i][0] > 0:
             next_command = "REACH_GOAL"
         
              
@@ -1066,7 +1087,7 @@ if __name__ == "__main__":
 
     args = argparser.parse_args()
 
-    POS_COOR_MAP = json.load(open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))
+    
     
     for _ in range(1):
         #  Initialize server and clients.
@@ -1117,5 +1138,13 @@ if __name__ == "__main__":
             for d in done:
                 done_temp  = done_temp and done[d]
             all_done = done_temp
-            time.sleep(1)
+            time.sleep(0.5)
+        print(obs)
+        print(reward)
+        print(done)
         print("{} fps".format(100 / (time.time() - start)))
+        for actor in env.actor_list:
+            actor.destroy()
+        
+        #env.images_to_video()
+        
