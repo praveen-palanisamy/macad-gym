@@ -110,7 +110,7 @@ except ImportError:
 #===============================================================================
 #-- CarlaMap -------------------------------------------------------------------
 #===============================================================================
-from .PythonAPI.converter import Converter
+from .carla.converter import Converter
 
 class CarlaMap(object):
     def __init__(self, city, pixel_density=0.1643, node_density=50):
