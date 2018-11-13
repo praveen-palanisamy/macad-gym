@@ -46,11 +46,12 @@ import os
 import sys
 
 try:
-    sys.path.append(glob.glob('**/carla-*%d.%d-%s.egg' % (
+    sys.path.append(glob.glob('env/carla/**/**/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
         sys.version_info.minor,
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
+    print("IndexErr loading egg")
     pass
 
 
@@ -71,7 +72,7 @@ import time
 import re
 import weakref
 
-from Transform import transform_points
+from .Transform import transform_points
 
 try:
     import pygame
@@ -109,7 +110,7 @@ except ImportError:
 #===============================================================================
 #-- CarlaMap -------------------------------------------------------------------
 #===============================================================================
-from PythonAPI.converter import Converter 
+from .PythonAPI.converter import Converter
 
 class CarlaMap(object):
     def __init__(self, city, pixel_density=0.1643, node_density=50):
@@ -282,7 +283,7 @@ class World(object):
         self.destroy()
         self.num_vehicles = 1
         self.camera_index = 0 
-        init_global_camera()
+        self.init_global_camera()
         self._vehicle = self.world.spawn_actor(blueprint, start_pose)
         self.vehicle_list.append(self._vehicle)
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
@@ -298,7 +299,7 @@ class World(object):
         self._weather_index %= len(self._weather_presets)
         preset = self._weather_presets[self._weather_index]
         self.hud.notification('Weather: %s' % preset[1])
-        self.vehicle.get_world().set_weather(preset[0])
+        self._vehicle.get_world().set_weather(preset[0])
         
     def get_num_of_vehicles(self):
         return self.num_vehicles 
@@ -323,7 +324,7 @@ class World(object):
     def destroy(self):               
         while len(self.camera_manager_list) != 0:
             _cmanager = self.camera_manager_list.pop()
-            _vehicle = self.vehicle_list.pop()
+            _vehicle = self.vehicle_list.pop() if self.vehicle_list else None
             for actor in [_cmanager.sensor,   _vehicle]:
                 if actor is not None:
                     actor.destroy() 
@@ -384,10 +385,11 @@ class KeyboardControl(object):
                     world._camera_manager.next_sensor()
                 elif event.key >= K_0 and event.key <= K_9:   #K_0 ==  48 ? 
                     print(len(world.camera_manager_list))
-                    if world.camera_manager_list[event.key-48] is not None:
+                    if len(world.camera_manager_list) > event.key-48:
                         world.camera_index = event.key-48
                     else :
-                         world._camera_manager.set_sensor(event.key - 1) 
+                        # TODO: Display warning on HUD that actor doesn't exist
+                        pass
                 elif event.key == K_r:
                     world._camera_manager.toggle_recording()
                 elif event.key == K_q:
@@ -575,7 +577,7 @@ class CameraManager(object):
         self._surface = None
         self._parent = parent_actor
         self._hud = hud
-        self._recording = True
+        self._recording = False
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.6, z=1.7)),
             carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
@@ -590,11 +592,11 @@ class CameraManager(object):
             ['sensor.camera.depth', cc.Depth, 'Camera Depth (Gray Scale)'],
             ['sensor.camera.depth', cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)'],
             ['sensor.camera.semantic_segmentation', cc.Raw, 'Camera Semantic Segmentation (Raw)'],
-            ['sensor.camera.semantic_segmentation', cc.CityScapesPalette, 'Camera Semantic Segmentation (CityScapes Palette)']]  
+            ['sensor.camera.semantic_segmentation', cc.CityScapesPalette, 'Camera Semantic Segmentation (CityScapes Palette)']]
         if transform is not None:
             self._world = self._parent
         else:
-            self._world = self._parent.get_world()      
+            self._world = self._parent.get_world()
         bp_library = self._world.get_blueprint_library()
         for item in self._sensors:
             bp = bp_library.find(item[0])
@@ -727,7 +729,7 @@ def main():
     argparser.add_argument(
         '-a', '--autopilot',
         action='store_true',
-        help='enable autopilot')
+        help='enable autopilot at spawn')
     argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
