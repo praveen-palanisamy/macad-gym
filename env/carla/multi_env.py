@@ -227,7 +227,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self._spec = lambda: None
         self._spec.id = "Carla-v0"
 
-        #self.num_vehicle = NUM_VEHICLE
+        #self.num_vehicle = Nave got wUM_VEHICLE
 
         self.server_port = None
         self.server_process = None
@@ -249,6 +249,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self._surface = None
         self.obs_dict = {}
         self.video = False
+        self.image_pool = []
         
     def get_scenarios(self, choice):
         
@@ -261,6 +262,12 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         elif choice == "TOWN1_STRAIGHT":
             self.config["server_map"] = "/Game/Carla/Maps/Town01"
             return TOWN1_STRAIGHT
+        elif choice == "CURVE_TOWN1":
+            self.config["server_map"] = "/Game/Carla/Maps/Town01"
+            return CURVE_TOWN1
+        elif choice == "CURVE_TOWN2":
+            self.config["server_map"] = "/Game/Carla/Maps/Town02"
+            return CURVE_TOWN2
     def init_server(self):
         
         print("Initializing new Carla server...")
@@ -290,6 +297,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         time.sleep(10)
         
         self.actor_list = []
+        self.cam_list = []
         self.client = carla.Client("localhost", 2000)#self.server_port)
         
         
@@ -441,7 +449,9 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
 
         NUM_VEHICLE = len(start_id)     
         self.num_vehicle = NUM_VEHICLE
-        
+        for n in range(self.num_vehicle):
+            self.image_pool.append([])
+
         POS_S = [[0] * 3] * self.num_vehicle
         POS_E = [[0] * 3] * self.num_vehicle
 
@@ -458,7 +468,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             world.get_weather().precipitation_deposits,
             world.get_weather().wind_intensity]
 
-
+        
         for i in range(self.num_vehicle):
             blueprints = world.get_blueprint_library().filter('vehicle')
             blueprint = random.choice(blueprints)
@@ -471,13 +481,19 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             vehicle = world.try_spawn_actor(blueprint, transform)
             print('vehicle at ', vehicle.get_location().x, vehicle.get_location().y, vehicle.get_location().z)       
             self.actor_list.append(vehicle)
+            if i == 0: #TEST!!
+                camera = world.spawn_actor(cam_blueprint,   carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)), attach_to=self.actor_list[i])            
+                self.cam_list.append(camera)
+
+
+        for c in range(len(self.cam_list)):
+            self.cam_list[c].listen(lambda image: self.get_image(image, c))
+
 
         print('All vehicles are created.')
         
         
-        camera = world.spawn_actor(cam_blueprint, carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)), attach_to=self.actor_list[0]) 
-        self.camera = camera# Let camera get image through out the whole process
-        camera.listen(lambda image: self.get_image(image))
+        
         #wait the camera's launching time to get first image
         print("camera finished")
         time.sleep(1)
@@ -548,11 +564,11 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             self.cc = carla.ColorConverter.CityScapesPalette
             self.config["use_depth_camera"] = False
 
-    def get_image(self, image):
+    def get_image(self, image, i):
 
-        image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}_%04d.png'.format(self.episode_id) % image.frame_number)
-        #self.first_frame_num = image.frame_number       
+        image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/{}_%04d.png'.format(i,self.episode_id) % image.frame_number)    
         image.save_to_disk(image_dir, self.cc)
+        #self.image_pool[i].append(image)
         self.original_image = image
         self._parse_image(image) # py_game render use
         self.image = self.preprocess_image(image)
@@ -617,7 +633,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             brake = float(np.abs(np.clip(forward, -1, 0)))
             steer = 2 * float(sigmoid(action[1]) - 0.5)
         else:
-            throttle = float(np.clip(action[0], 0, 1))
+            throttle = 10#float(np.clip(action[0], 5, 10))
             brake = float(np.abs(np.clip(action[0], -1, 0)))
             steer = float(np.clip(action[1], -1, 1))
         reverse = False
@@ -850,9 +866,13 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         diff_x =  abs(current_x - self.end_pos[i][0])
         diff_y =  abs(current_y - self.end_pos[i][1])
 
+
+        diff_s_x = abs(current_x - self.start_pos[i][0])
+        diff_s_y = abs(current_y - self.start_pos[i][1])
         next_command = "LANE_FOLLOW"
-        if diff_x < 5 and diff_y < 5:
-        #if current_x - self.end_pos[i][0] > 0:
+        #if diff_x < 5 and diff_y < 5:
+        if current_x - self.end_pos[i][0] > 0:
+        #if (diff_s_x + diff_s_y > 30) or (diff_x < 5 and diff_y < 5):  # ONLY FOR TEST
             next_command = "REACH_GOAL"
         
              
@@ -1142,9 +1162,22 @@ if __name__ == "__main__":
         print(obs)
         print(reward)
         print(done)
-        print("{} fps".format(100 / (time.time() - start)))
+        print("{} fps".format(i / (time.time() - start)))
+        for cam in env.cam_list:
+            cam.destroy()
         for actor in env.actor_list:
             actor.destroy()
+        # Start save the images from image pool to disk:
+        print("Saving the images from image pool to disk:")
+        #print(len(env.image_pool[0]))
+        #print(len(env.image_pool[1]))
+        
+        #for n in range(total_vehcile):
+        #    for image in env.image_pool[n]:
+        #        image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/%04d.png'.format(n) % image.frame_number)    
+        #        image.save_to_disk(image_dir, env.cc)
+        
+        
         
         #env.images_to_video()
         

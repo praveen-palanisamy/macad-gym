@@ -37,7 +37,7 @@ DEFAULT_SCENARIO_MULTI_TOWN1 = build_scenario(
 
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_scenario(
-    city="Town01", start=[126], end=[128], vehicles=20, pedestrians=40,
+    city="Town01", start=[124,126], end=[128,133], vehicles=20, pedestrians=40,
     max_steps=200, weathers=[0])
 
 DEFAULT_SCENARIO_TOWN2 = build_scenario(
@@ -59,9 +59,17 @@ LANE_KEEP_TOWN1 = build_scenario(
     city="Town01", start=36, end=40, vehicles=0, pedestrians=0,
     max_steps=2000, weathers=[0])
 
+
+CURVE_TOWN1 = build_scenario(
+    city="Town01", start=[131,133], end=[65,64], vehicles=0, pedestrians=0,
+    max_steps=2000, weathers=[0])
+CURVE_TOWN2 = build_scenario(
+    city="Town01", start=[16,27], end=[74,75], vehicles=0, pedestrians=0,
+    max_steps=2000, weathers=[0])
+
 # Scenarios from the CoRL2017 paper
 POSES_TOWN1_STRAIGHT = [
-    [[9], [1]], [[139], [146]], [[114], [110]], [[7], [3]], [[4], [149]]]
+    [[9,8], [1,0]], [[142,148], [141,147]], [[114,115], [110,111]], [[7,6], [3,2]], [[4,5], [149,150]]]
 #POSES_TOWN1_STRAIGHT = [
 #    [36, 40], [39, 35], [110, 114], [7, 3], [0, 4],
 #    [68, 50], [61, 59], [47, 64], [147, 90], [33, 87],
