@@ -363,7 +363,13 @@ class KeyboardControl(object):
         self._steer_cache = 0.0
         world._vehicle.set_autopilot(self._autopilot_enabled)
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
-
+        
+    def _current_vehicle(self, world):
+        if world.camera_index != 0 :
+            return world.vehicle_list[world.camera_index-1] 
+        else :
+            return None
+        
     def parse_events(self, world, clock):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -384,11 +390,10 @@ class KeyboardControl(object):
                 elif event.key == K_BACKQUOTE:
                     world._camera_manager.next_sensor()
                 elif event.key >= K_0 and event.key <= K_9:   #K_0 ==  48 ? 
-                    print(len(world.camera_manager_list))
                     if len(world.camera_manager_list) > event.key-48:
                         world.camera_index = event.key-48
                     else :
-                        # TODO: Display warning on HUD that actor doesn't exist
+                        world.camera_index = 0  #render the global camera view
                         pass
                 elif event.key == K_r:
                     world._camera_manager.toggle_recording()
@@ -396,7 +401,8 @@ class KeyboardControl(object):
                     self._control.reverse = not self._control.reverse
                 elif event.key == K_p:
                     self._autopilot_enabled = not self._autopilot_enabled
-                    world._vehicle.set_autopilot(self._autopilot_enabled)
+                    cur_vehicle = self._current_vehicle(world)
+                    cur_vehicle.set_autopilot(self._autopilot_enabled)
                     world.hud.notification('Autopilot %s' % ('On' if self._autopilot_enabled else 'Off'))
             elif event.type == pygame.MOUSEBUTTONUP:
                 if world.num_vehicles == 1:
@@ -415,18 +421,18 @@ class KeyboardControl(object):
                     cmanager = CameraManager(vehicle, world.hud)   
                     cmanager.set_sensor(0 , notify=False)
                     world.camera_manager_list.append(cmanager)  
-                
-        #set autopilot for all spawned vehicles         
-        if len(world.vehicle_list) > 1 :
-            for vehicle in world.vehicle_list[1:]:
-                vehicle.set_autopilot(True)
-                
+        
+        
+              
         if not self._autopilot_enabled:
+            cur_vehicle = self._current_vehicle(world) 
             self._parse_keys(pygame.key.get_pressed(), clock.get_time())
-            world._vehicle.apply_control(self._control)
-            if len(world.vehicle_list) > 1:
-                for vehicle in world.vehicle_list[1:]:
-                    vehicle.apply_control(self._control) 
+            if cur_vehicle is not None:
+                cur_vehicle.apply_control(self._control)        
+        else:
+            cur_vehicle = self._current_vehicle(world)
+            if cur_vehicle is not None:
+                cur_vehicle.set_autopilot(True)                
 
     def _parse_keys(self, keys, milliseconds):
         self._control.throttle = 1.0 if keys[K_UP] or keys[K_w] else 0.0
