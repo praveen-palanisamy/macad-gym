@@ -469,12 +469,8 @@ class KeyboardControl(object):
                     cur_vehicle_m.set_autopilot(not cur_vehicle_m.get_autopilot())
                     world.hud.notification('Autopilot %s' % ('On' if cur_vehicle_m.get_autopilot() else 'Off'))
             elif event.type == pygame.MOUSEBUTTONUP:
-                if world.num_vehicles == 1:
-                    benchmark_world_location = world._vehicle.get_location() 
-                else:
-                    benchmark_world_location = world.vehicle_list[-1].get_location()
-                print(benchmark_world_location)
-                vehicle = world.spawn_new_vehicle(benchmark_world_location)
+                benchmark_transform = world.vehicle_list[-1].get_transform()
+                vehicle = world.spawn_new_vehicle(benchmark_transform.location)
                 time.sleep(3)  
                 if vehicle is not None:
                     cmanager = CameraManager(vehicle, world.hud)   
