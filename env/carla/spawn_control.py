@@ -106,6 +106,31 @@ try:
     import numpy as np
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
+    
+    
+#===============================================================================
+#-- VehicleManager -------------------------------------------------------------
+#===============================================================================
+class VehicleManager(object):
+    def __init__(self, vehicle, autopilot_enabled =False):
+        self._vehicle = vehicle
+        self._autopilot_enabled = autopilot_enabled
+       
+    def set_autopilot(self, autopilot_enabled):
+        self._autopilot_enabled = autopilot_enabled
+        self._vehicle.set_autopilot(self._autopilot_enabled)
+        
+    def get_autopilot(self):
+        return self._autopilot_enabled 
+        
+    def apply_control(self, control):
+        self._vehicle.apply_control(control)
+        
+    #TODO    
+    def destroy(self):
+        pass
+        
+        
 
 #===============================================================================
 #-- CarlaMap -------------------------------------------------------------------
@@ -228,8 +253,8 @@ class Detecter(object):
                     print(self._location) 
                     print("no collision, checking next vehicle")
                     break
-     
-                
+
+                    
 # ==============================================================================
 # -- World ---------------------------------------------------------------------
 # ==============================================================================   
@@ -243,6 +268,8 @@ def find_weather_presets():
     presets = [x for x in dir(carla.WeatherParameters) if re.match('[A-Z].+', x)]
     return [(getattr(carla.WeatherParameters, x), name(x)) for x in presets]
 
+#TODO: replace vehicle_list with vehicle_manager_list
+#TODO: remove _vehicle property
 class World(object):     
     def __init__(self, carla_world, hud):
         self.world = carla_world
@@ -250,8 +277,10 @@ class World(object):
         self.num_vehicles = 1 
         blueprint = self._get_random_blueprint()
         self.vehicle_list = [] 
+        self.vehicle_manager_list = [] 
         self._vehicle = self.world.spawn_actor(blueprint, START_POSITION)
         self.vehicle_list.append(self._vehicle)
+        self.vehicle_manager_list.append(VehicleManager(self._vehicle))
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
         self.camera_manager_list = []  
         self.global_camera = CameraManager(self.world, self.hud, GLOBAL_CAM_POSITION)
@@ -280,12 +309,14 @@ class World(object):
         blueprint = self._get_random_blueprint()
         self.camera_manager_list=[]
         self.vehicle_list = [] 
+        self.vehicle_manager_list = [] 
         self.destroy()
         self.num_vehicles = 1
         self.camera_index = 0 
         self.init_global_camera()
         self._vehicle = self.world.spawn_actor(blueprint, start_pose)
         self.vehicle_list.append(self._vehicle)
+        self.vehicle_manager_list.append(VehicleManager(self._vehicle))
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
         self._camera_manager = CameraManager(self.vehicle, self.hud)
         self._camera_manager._transform_index = cam_pos_index
@@ -304,9 +335,9 @@ class World(object):
     def get_num_of_vehicles(self):
         return self.num_vehicles 
     
-    def get_vehicles(self):
-        return self.vehicle_list 
-    
+    def get_vehicle_managers(self):
+        return self.vehicle_manager_list
+           
     def get_cameras(self):
         return self.camera_manager_list
 
@@ -331,6 +362,10 @@ class World(object):
         for actor in [self.collision_sensor.sensor]:
             if actor is not None:
                 actor.destroy() 
+                
+        for vm in self.vehicle_manager_list:
+            vm.destroy()
+            
 
     def _get_random_blueprint(self):
         bp = random.choice(self.world.get_blueprint_library().filter('vehicle'))
@@ -339,23 +374,28 @@ class World(object):
             bp.set_attribute('color', color)
         return bp
     
+    #TODO: if vehicle velocity is less than 1, won't spawn new vehicle
     def spawn_new_vehicle(self, transform):
         blueprint = self._get_random_blueprint()	
-        detector = Detecter(transform.location,  self.vehicle_list)  
+        detector = Detecter(transform.location,  self.vehicle_list[-1:])  
         detector.collision()
         vehicle = self.world.try_spawn_actor(blueprint, transform)  
-        if vehicle is None:
+        if vehicle is not None:
+            self.vehicle_list.append(vehicle) 
+            self.num_vehicles += 1 
+            self.vehicle_manager_list.append(VehicleManager(vehicle))
+            print('a new vehicle spanwed at current location') 
+            return vehicle
+        else:
             print('spawned failed')
             return None
-        print('a new vehicle spanwed at current location') 
-        return vehicle
-              
+           
                     
 # ==============================================================================
 # -- KeyboardControl -----------------------------------------------------------
 # ==============================================================================
 
-
+#TODO: rm  _autopilot_enabled & world._vehicle
 class KeyboardControl(object):
     def __init__(self, world, start_in_autopilot):
         self._autopilot_enabled = start_in_autopilot
@@ -364,9 +404,10 @@ class KeyboardControl(object):
         world._vehicle.set_autopilot(self._autopilot_enabled)
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
         
-    def _current_vehicle(self, world):
+    def _cur_vehicle_manager(self, world):
+        vm_list = world.get_vehicle_managers() 
         if world.camera_index != 0 :
-            return world.vehicle_list[world.camera_index-1] 
+            return vm_list[world.camera_index-1] 
         else :
             return None
         
@@ -393,17 +434,16 @@ class KeyboardControl(object):
                     if len(world.camera_manager_list) > event.key-48:
                         world.camera_index = event.key-48
                     else :
-                        world.camera_index = 0  #render the global camera view
+                        world.camera_index = 0 
                         pass
                 elif event.key == K_r:
                     world._camera_manager.toggle_recording()
                 elif event.key == K_q:
                     self._control.reverse = not self._control.reverse
                 elif event.key == K_p:
-                    self._autopilot_enabled = not self._autopilot_enabled
-                    cur_vehicle = self._current_vehicle(world)
-                    cur_vehicle.set_autopilot(self._autopilot_enabled)
-                    world.hud.notification('Autopilot %s' % ('On' if self._autopilot_enabled else 'Off'))
+                    cur_vehicle_m = self._cur_vehicle_manager(world)
+                    cur_vehicle_m.set_autopilot(not cur_vehicle_m.get_autopilot())
+                    world.hud.notification('Autopilot %s' % ('On' if cur_vehicle_m.get_autopilot() else 'Off'))
             elif event.type == pygame.MOUSEBUTTONUP:
                 if world.num_vehicles == 1:
                     benchmark_world_location = world._vehicle.get_location() 
@@ -416,23 +456,17 @@ class KeyboardControl(object):
                 vehicle = world.spawn_new_vehicle(transform)
                 time.sleep(3)  
                 if vehicle is not None:
-                    world.vehicle_list.append(vehicle) 
-                    world.num_vehicles += 1 
                     cmanager = CameraManager(vehicle, world.hud)   
                     cmanager.set_sensor(0 , notify=False)
                     world.camera_manager_list.append(cmanager)  
         
-        
-              
-        if not self._autopilot_enabled:
-            cur_vehicle = self._current_vehicle(world) 
-            self._parse_keys(pygame.key.get_pressed(), clock.get_time())
-            if cur_vehicle is not None:
-                cur_vehicle.apply_control(self._control)        
-        else:
-            cur_vehicle = self._current_vehicle(world)
-            if cur_vehicle is not None:
-                cur_vehicle.set_autopilot(True)                
+            vm = self._cur_vehicle_manager(world)
+            if vm is not None:
+                if not vm.get_autopilot(): 
+                    self._parse_keys(pygame.key.get_pressed(), clock.get_time())
+                    vm.apply_control(self._control)   
+                else :
+                    vm.set_autopilot(vm.get_autopilot())
 
     def _parse_keys(self, keys, milliseconds):
         self._control.throttle = 1.0 if keys[K_UP] or keys[K_w] else 0.0
