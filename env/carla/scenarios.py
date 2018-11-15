@@ -37,7 +37,7 @@ DEFAULT_SCENARIO_MULTI_TOWN1 = build_scenario(
 
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_scenario(
-    city="Town01", start=[124,126], end=[128,133], vehicles=20, pedestrians=40,
+    city="Town01", start=[124], end=[128], vehicles=20, pedestrians=40,
     max_steps=200, weathers=[0])
 
 DEFAULT_SCENARIO_TOWN2 = build_scenario(

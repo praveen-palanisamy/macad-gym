@@ -49,7 +49,6 @@ import time
 import traceback
 import GPUtil
 import carla
-
 import numpy as np
 try:
     import scipy.misc
@@ -288,6 +287,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             self.server_process = subprocess.Popen(
                 [SERVER_BINARY, self.config["server_map"],
                  "-windowed", "-ResX=800", "-ResY=600",
+                 #"-carla-settings=/home/fastisu/Documents/CARLA-Gym/bo_CS.ini",
+                 "-benchmark -fps=10"
                  "-carla-server",
                  "-carla-world-port={}".format(self.server_port)],
                 preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
@@ -485,7 +486,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
                 camera = world.spawn_actor(cam_blueprint,   carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)), attach_to=self.actor_list[i])            
                 self.cam_list.append(camera)
 
-
+        self.cam_start = time.time()
         for c in range(len(self.cam_list)):
             self.cam_list[c].listen(lambda image: self.get_image(image, c))
 
@@ -566,9 +567,9 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
 
     def get_image(self, image, i):
 
-        image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/{}_%04d.png'.format(i,self.episode_id) % image.frame_number)    
-        image.save_to_disk(image_dir, self.cc)
-        #self.image_pool[i].append(image)
+        #image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/{}_%04d.png'.format(i,self.episode_id) % image.frame_number)    
+        #image.save_to_disk(image_dir, self.cc)
+        self.image_pool[i].append(image)
         self.original_image = image
         self._parse_image(image) # py_game render use
         self.image = self.preprocess_image(image)
@@ -1118,7 +1119,7 @@ if __name__ == "__main__":
         print(obs)
         #time.sleep(1000) #  test use
 
-        start = time.time()
+        
         done = False
         i = 0
         total_vehcile = len(obs)
@@ -1139,7 +1140,10 @@ if __name__ == "__main__":
             #'Vehcile0' : 3,
             #'Vehcile1' : 3,
         #}
-        
+        #server_clock = pygame.time.Clock()
+        #print(server_clock.get_fps())
+        #time.sleep(1000)
+        start = time.time()
         all_done = False
         while not all_done:
             i += 1
@@ -1158,10 +1162,11 @@ if __name__ == "__main__":
             for d in done:
                 done_temp  = done_temp and done[d]
             all_done = done_temp
-            time.sleep(0.5)
+            #time.sleep(0.5)
         print(obs)
         print(reward)
         print(done)
+        total_time = time.time() - env.cam_start
         print("{} fps".format(i / (time.time() - start)))
         for cam in env.cam_list:
             cam.destroy()
@@ -1169,7 +1174,12 @@ if __name__ == "__main__":
             actor.destroy()
         # Start save the images from image pool to disk:
         print("Saving the images from image pool to disk:")
-        #print(len(env.image_pool[0]))
+        print("image frames:", len(env.image_pool[0]))
+        print("cam time:", total_time)
+        pool = env.image_pool[0]
+        last_image = pool[-1]
+        print("server fps:", (last_image.frame_number)/total_time)
+        print("server fps:", len(env.image_pool[0])/total_time)
         #print(len(env.image_pool[1]))
         
         #for n in range(total_vehcile):
