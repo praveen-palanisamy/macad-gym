@@ -106,7 +106,13 @@ try:
     import numpy as np
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
-    
+
+#===============================================================================
+#-- Metrics --------------------------------------------------------------------
+#===============================================================================
+class Metrics(object):
+    pass
+    #TODO: 
     
 #===============================================================================
 #-- VehicleManager -------------------------------------------------------------
@@ -115,6 +121,8 @@ class VehicleManager(object):
     def __init__(self, vehicle, autopilot_enabled =False):
         self._vehicle = vehicle
         self._autopilot_enabled = autopilot_enabled
+        self._hud = None  #TODO 
+        self._collision_sensor = CollisionSensor(self._vehicle, self._hud)        
        
     def set_autopilot(self, autopilot_enabled):
         self._autopilot_enabled = autopilot_enabled
@@ -125,6 +133,10 @@ class VehicleManager(object):
         
     def apply_control(self, control):
         self._vehicle.apply_control(control)
+        
+    def collided_count(self):
+        return self._collision_sensor.collided_count()
+        
         
     #TODO    
     def destroy(self):
@@ -484,13 +496,16 @@ class KeyboardControl(object):
                     vm.apply_control(self._control)   
                 else :
                     vm.set_autopilot(vm.get_autopilot())
+             
+            #print('collision with vehicle %2d, people %2d, others %2d' % world.collision_sensor.collided_count())
+            
 
     def _parse_keys(self, keys, milliseconds):
         self._control.throttle = 1.0 if keys[K_UP] or keys[K_w] else 0.0
-        steer_increment = 5e-4 * milliseconds
+        steer_increment = 5e-3 * milliseconds
         if keys[K_LEFT] or keys[K_a]:
             self._steer_cache -= steer_increment
-        elif keys[K_RIGHT] or keys[K_d]:
+        elif keys[K_RIGHT] or keys[K_d]:          
             self._steer_cache += steer_increment
         else:
             self._steer_cache = 0.0
@@ -606,6 +621,11 @@ class CollisionSensor(object):
         self.sensor = None
         self._parent = parent_actor
         self._hud = hud
+        self.collision_vehicles = 0 
+        self.collision_pedestrains = 0 
+        self.collision_other = 0
+        self.collision_id_set = set()
+        self.collision_type_id_set = set()
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.collision')
         self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
@@ -613,15 +633,49 @@ class CollisionSensor(object):
         # reference.
         weak_self = weakref.ref(self)
         self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
+        
 
     @staticmethod
-    def _on_collision(weak_self, event):
+    def _on_collision(weak_self, event): 
         self = weak_self()
         if not self:
             return
-        actor_type = ' '.join(event.other_actor.type_id.replace('_', '.').title().split('.')[1:])
-        self._hud.notification('Collision with %r' % actor_type)
-
+#        actor_type = ' '.join(event.other_actor.type_id.replace('_', '.').title().split('.')[1:])
+#        self._hud.notification('Collision with %r' % actor_type)    
+        print('vehicle %s ' % (self._parent).id + ' collision with %2d vehicles, %2d people, %2d others' %  self.collided_count())
+        _cur = event.other_actor
+        if _cur.id == 0 : #the static world objects 
+            if _cur.type_id in self.collision_type_id_set :
+                return
+            else :
+                self.collision_type_id_set.add(_cur.type_id)
+        else :
+            if _cur.id in self.collision_id_set :
+                return 
+            else :
+                self.collision_id_set.add(_cur.id)
+                
+        collided_type = type(_cur).__name__
+        if collided_type == 'Vehicle' :
+            self.collision_vehicles += 1 
+        elif collided_type == 'Pedestrain' :   
+            self.collision_pedestrains += 1 
+        elif collided_type == 'Actor' :
+            self.collision_other += 1 
+        else :
+            pass
+    
+    def _reset(self):
+        self.collision_vehicles = 0 
+        self.collision_pedestrains = 0 
+        self.collision_other = 0
+        self.collision_id_set = set()
+        self.collision_type_id_set = set()
+     
+    def collided_count(self):
+        return (self.collision_vehicles, self.collision_pedestrains, self.collision_other) 
+            
+                      
 
 # ==============================================================================
 # -- CameraManager -------------------------------------------------------------
