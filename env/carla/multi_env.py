@@ -12,7 +12,7 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join('../..', 'env')))
 sys.path.append(
-    'env/carla/PythonAPI/lib/carla-0.9.0-py3.6-linux-x86_64.egg')
+    'env/carla/PythonAPI/lib/carla-0.9.1-py3.5-linux-x86_64.egg')
 
 from env.multi_actor_env import *
 from env.carla.PythonAPI.manual_control import HUD, CameraManager
@@ -50,6 +50,9 @@ import traceback
 import GPUtil
 import carla
 import numpy as np
+
+import weakref
+
 try:
     import scipy.misc
 except Exception:
@@ -180,6 +183,79 @@ signal.signal(signal.SIGTERM, termination_cleanup)
 signal.signal(signal.SIGINT, termination_cleanup)
 atexit.register(cleanup)
 
+
+class CollisionSensor(object):
+    def __init__(self, parent_actor, hud):
+        self.sensor = None
+        self._history = [] 
+        self._parent = parent_actor
+        self._hud = hud
+        self.collision_vehicles = 0 
+        self.collision_pedestrains = 0 
+        self.collision_other = 0
+        self.collision_id_set = set()
+        self.collision_type_id_set = set()
+        world = self._parent.get_world()
+        bp = world.get_blueprint_library().find('sensor.other.collision')
+        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        # We need to pass the lambda a weak reference to self to avoid circular
+        # reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
+        
+    def get_collision_history(self):
+        history = collections.defaultdict(int)
+        for frame, intensity in self._history :
+            history[frame] += intensity 
+        return history
+        
+    @staticmethod
+    def _on_collision(weak_self, event): 
+        self = weak_self()
+        if not self:
+            return
+#        actor_type = get_actor_display_name(event.other_actor)
+#        self._hud.notification('Collision with %r' % actor_type)    
+        impulse = event.normal_impulse
+        intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
+        self._history.append((event.frame_number, intensity))
+        if len(self._history) > 4000:
+            self._history.pop(0)
+        print('vehicle %s ' % (self._parent).id + ' collision with %2d vehicles, %2d people, %2d others' %  self.dynamic_collided())            
+        _cur = event.other_actor
+        if _cur.id == 0 : #the static world objects 
+            if _cur.type_id in self.collision_type_id_set :
+                return
+            else :
+                self.collision_type_id_set.add(_cur.type_id)
+        else :
+            if _cur.id in self.collision_id_set :
+                return 
+            else :
+                self.collision_id_set.add(_cur.id)
+                
+        collided_type = type(_cur).__name__
+        if collided_type == 'Vehicle' :
+            self.collision_vehicles += 1 
+        elif collided_type == 'Pedestrain' :   
+            self.collision_pedestrains += 1 
+        elif collided_type == 'Actor' :
+            self.collision_other += 1 
+        else :
+            pass
+    
+    def _reset(self):
+        self.collision_vehicles = 0 
+        self.collision_pedestrains = 0 
+        self.collision_other = 0
+        self.collision_id_set = set()
+        self.collision_type_id_set = set()
+     
+    def dynamic_collided(self):
+        return (self.collision_vehicles, self.collision_pedestrains, self.collision_other) 
+
+
+
 class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
     def __init__(self, args):#config=ENV_CONFIG
 
@@ -299,8 +375,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         
         self.actor_list = []
         self.cam_list = []
+        self.colli_list = []
         self.client = carla.Client("localhost", 2000)#self.server_port)
-        
         
         
         
@@ -398,6 +474,12 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         print("This is settings: ", settings)
         #  Create new camera in Carla_0.9.0.
         world = self.client.get_world()
+        self.cur_map = world.get_map()
+        #self.cur_map.save_to_disk(CARLA_OUT_PATH)
+        
+        #print(self.cur_map.get_spawn_points())
+        
+
         self.get_camera(self.config["camera_type"])
         cam_blueprint = world.get_blueprint_library().find(self.camera_type)
         #camera = world.spawn_actor(cam_blueprint, GLOBAL_CAM_POS) 
@@ -482,9 +564,25 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             vehicle = world.try_spawn_actor(blueprint, transform)
             print('vehicle at ', vehicle.get_location().x, vehicle.get_location().y, vehicle.get_location().z)       
             self.actor_list.append(vehicle)
+            collision_sensor = CollisionSensor(vehicle, 0)
+            self.colli_list.append(collision_sensor)
             if i == 0: #TEST!!
                 camera = world.spawn_actor(cam_blueprint,   carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)), attach_to=self.actor_list[i])            
                 self.cam_list.append(camera)
+        
+        #UNDER TEST START
+        debugger = world.debug
+        location = carla.Location(x=178.7699737548828, y=198.75999450683594, z=39.430625915527344)
+        debugger.draw_point(location, size=0.1, color=carla.Color(), life_time=-1.0, persistent_lines=True)
+        print(location.distance)
+        print(self.cur_map.get_waypoint(location, project_to_road=True))
+        print(self.cur_map.get_waypoint(location, project_to_road=True).lane_width)
+        print(type(self.cur_map.get_waypoint(location, project_to_road=True)))
+        for wp in self.cur_map.generate_waypoints(1.0):
+            debugger.draw_point(wp.transform.location, size=0.1, color=carla.Color(), life_time=-1.0, persistent_lines=True)
+        print(type(self.cur_map.generate_waypoints(1.0)))
+        #time.sleep(1000)
+        #UNDER TEST END
 
         self.cam_start = time.time()
         for c in range(len(self.cam_list)):
@@ -852,7 +950,14 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #else:
         #    next_command = "LANE_FOLLOW"
 
-        
+        collision_vehicles = self.colli_list[i].collision_vehicles
+        collision_pedestrians = self.colli_list[i].collision_pedestrains
+        collision_other = self.colli_list[i].collision_other
+        #cur.intersection_offroad = 0
+        #cur.intersection_otherlane = 0        
+
+
+
         #  A simple planner
         current_x = self.actor_list[i].get_location().x
         current_y = self.actor_list[i].get_location().y
@@ -904,14 +1009,15 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             "step": self.num_steps,
             "x": current_x,
             "y": current_y,
-            #"x_orient": cur.transform.orientation.x,
-            #"y_orient": cur.transform.orientation.y,
+            "pitch": self.actor_list[i].get_transform().rotation.pitch,
+            "yaw": self.actor_list[i].get_transform().rotation.yaw,
+            "roll": self.actor_list[i].get_transform().rotation.roll,
             "forward_speed": self.actor_list[i].get_velocity().x,
             "distance_to_goal": distance_to_goal,#use planner
             "distance_to_goal_euclidean": distance_to_goal_euclidean,
-            #"collision_vehicles": cur.collision_vehicles,
-            #"collision_pedestrians": cur.collision_pedestrians,
-            #"collision_other": cur.collision_other,
+            "collision_vehicles": collision_vehicles,
+            "collision_pedestrians": collision_pedestrians,
+            "collision_other": collision_other,
             #"intersection_offroad": cur.intersection_offroad,
             #"intersection_otherlane": cur.intersection_otherlane,
             "weather": self.weather,
@@ -921,8 +1027,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             "current_scenario": self.scenario,
             "x_res": self.config["x_res"],
             "y_res": self.config["y_res"],
-            #"num_vehicles": self.scenario["num_vehicles"],
-            #"num_pedestrians": self.scenario["num_pedestrians"],
+            "num_vehicles": self.scenario["num_vehicles"],
+            "num_pedestrians": self.scenario["num_pedestrians"],
             "max_steps": 1000, # set 1000 now. self.scenario["max_steps"],
             "next_command": next_command,
         }
