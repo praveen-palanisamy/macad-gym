@@ -51,7 +51,8 @@ import GPUtil
 import carla
 import numpy as np
 
-import weakref
+import weakref # for collision
+import math # for collision
 
 try:
     import scipy.misc
@@ -771,7 +772,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         
         # Process observations
         py_measurements = self._read_observation(i)
-        
+        print('<<<<<<', py_measurements["collision_other"])
         if self.config["verbose"]:
             print("Next command", py_measurements["next_command"])
         if type(action) is np.ndarray:
@@ -807,7 +808,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         
         self.prev_measurement[vehcile_name] = py_measurements
         self.num_steps[i] += 1
-
+        print('>>>', py_measurements["collision_other"])
         # Write out measurements to file
         if i == self.num_vehicle - 1:#print all cars measurement
             if CARLA_OUT_PATH:
@@ -817,7 +818,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
                             CARLA_OUT_PATH,
                             "measurements_{}.json".format(self.episode_id)),
                         "w")
-                self.measurements_file.write(json.dumps(self.py_measurement))
+                self.measurements_file.write(json.dumps(py_measurements))
                 self.measurements_file.write("\n")
                 if done:
                     self.measurements_file.close()
@@ -842,8 +843,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             control.brake = 1.0
         if keys[K_SPACE]:
             control.hand_brake = True
-        #if keys[K_q]:
-        #    self._is_on_reverse = not self._is_on_reverse
+        if keys[K_q]:
+            control.reverse = not control.reverse
         #if keys[K_p]:
         #    self._autopilot_enabled = not self._autopilot_enabled
         #control.reverse = self._is_on_reverse
@@ -860,8 +861,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             control.brake = 1.0
         if keys[K_SPACE]:
             control.hand_brake = True
-        #if keys[K_q]:
-        #    self._is_on_reverse = not self._is_on_reverse
+        if keys[K_q]:
+            control.reverse = not control.reverse
         #if keys[K_p]:
         #    self._autopilot_enabled = not self._autopilot_enabled
         #control.reverse = self._is_on_reverse
@@ -953,6 +954,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         collision_vehicles = self.colli_list[i].collision_vehicles
         collision_pedestrians = self.colli_list[i].collision_pedestrains
         collision_other = self.colli_list[i].collision_other
+        print("---->", collision_other)
         #cur.intersection_offroad = 0
         #cur.intersection_otherlane = 0        
 
@@ -1018,7 +1020,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             "collision_vehicles": collision_vehicles,
             "collision_pedestrians": collision_pedestrians,
             "collision_other": collision_other,
-            #"intersection_offroad": cur.intersection_offroad,
+            #"inUtersection_offroad": cur.intersection_offroad,
             #"intersection_otherlane": cur.intersection_otherlane,
             "weather": self.weather,
             "map": self.config["server_map"],
@@ -1069,10 +1071,10 @@ def compute_reward_corl2017(env, prev, current):
 
     #  no collision and sidewarlk now.
     # New collision damage
-    #reward -= .00002 * (
-    #    current["collision_vehicles"] + current["collision_pedestrians"] +
-    #    current["collision_other"] - prev["collision_vehicles"] -
-    #    prev["collision_pedestrians"] - prev["collision_other"])
+    reward -= .00002 * (
+        current["collision_vehicles"] + current["collision_pedestrians"] +
+        current["collision_other"] - prev["collision_vehicles"] -
+        prev["collision_pedestrians"] - prev["collision_other"])
 
     # New sidewalk intersection
     #reward -= 2 * (
@@ -1268,7 +1270,7 @@ if __name__ == "__main__":
             for d in done:
                 done_temp  = done_temp and done[d]
             all_done = done_temp
-            #time.sleep(0.5)
+            time.sleep(0.5)
         print(obs)
         print(reward)
         print(done)
