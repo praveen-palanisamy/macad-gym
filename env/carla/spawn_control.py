@@ -73,8 +73,8 @@ import re
 import weakref
 import json
 import math
+import collections
 
-from .Transform import transform_points
 
 try:
     import pygame
@@ -108,15 +108,7 @@ try:
     import numpy as np
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
-    
-
-
-
-#===============================================================================
-#-- Measurments ----------------------------------------------------------------
-#===============================================================================
-
-    
+       
 #===============================================================================
 #-- VehicleManager -------------------------------------------------------------
 #===============================================================================
@@ -127,6 +119,11 @@ class VehicleManager(object):
         self._hud = None  #TODO 
         self._collision_sensor = CollisionSensor(self._vehicle, self._hud)       
         self._lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self._hud)
+        self._start_pos = None
+        self._end_pos = None
+        self._start_coord = None
+        self._end_coord = None
+        self.prev_measurement = None
        
     def set_autopilot(self, autopilot_enabled):
         self._autopilot_enabled = autopilot_enabled
@@ -143,9 +140,66 @@ class VehicleManager(object):
     
     def lane_invasion(self):
         return len(self._lane_invasion_sensor.get_invasion_history())
-
-             
+   
+    #TODO: for demo, all vehicles has same start_pos & end_pos 
+    #but in reality, need find the nearest pos at each spawn location 
+    def _nearest_pos(self, vid):
+        pass 
         
+    def _pos_coord(self, scenario):
+        POS_COOR_MAP = json.load(open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))       
+        start_id = scenario["start_pos_id"]
+        end_id = scenario["end_pos_id"]        
+        self._start_pos =  POS_COOR_MAP[str(start_id)]
+        self._end_pos = POS_COOR_MAP[str(end_id)]
+        self._start_coord =  [ self._start_pos[0]// 100 ,   self._start_pos[1] // 100 ] 
+        self._end_coord =  [ self._end_pos[0] // 100 ,   self._end_pos[1] // 100 ]            
+        return (self._start_pos, self._end_pos, self._start_coord, self._end_coord)
+       
+    def read_observation(self, scenario):      
+        c_vehicles, c_pedestrains, c_other = self.dynamic_collided()       
+        c_offline = self.lane_invasion()
+        start_pos, end_pos, start_coord, end_coord = self._pos_coord(scenario)
+        cur_ = self._vehicle.get_transform()
+        cur_x =  cur_.location.x
+        cur_y = cur_.location.y
+        x_orient = cur_.rotation 
+        y_orient = cur_.rotation              
+        distance_to_goal_euclidean = float(np.linalg.norm( [cur_x -  end_pos[0], cur_y - end_pos[1]]) / 100)        
+        distance_to_goal = distance_to_goal_euclidean         
+        
+        vehicle_data = {
+#            "episode_id": 0 ,
+#            "step": self.num_steps,
+            "x": cur_x,
+            "y": cur_y,
+            "x_orient": x_orient ,
+            "y_orient": y_orient ,
+            "forward_speed": self._vehicle.get_velocity().x,
+            "distance_to_goal": distance_to_goal,
+            "distance_to_goal_euclidean": distance_to_goal_euclidean,
+            "collision_vehicles": c_vehicles ,
+            "collision_pedestrians": c_pedestrains ,
+            "collision_other": c_other ,
+            "intersection_offroad": 0, 
+            "intersection_otherlane": c_offline ,
+#            "weather": None ,
+#            "map": self.config["server_map"],
+            "start_coord": start_coord,
+            "end_coord": end_coord
+#            "current_scenario": self.scenario , 
+#            "x_res": self.config["x_res"],
+#            "y_res": self.config["y_res"],
+#            "num_vehicles": self.num_vehicles , 
+#            "num_pedestrians": self.config["num_pedestrians"],
+#            "max_steps": 1000
+#            "next_command": next_command,
+#            "previous_actions": previous_action,  # Dict of action 1 per actor
+#             "previous_rewards": previous_rewards  # Dict of rewards 1 per actor            
+        }   
+        
+        return vehicle_data 
+
     #TODO    
     def destroy(self):
         pass
@@ -179,7 +233,7 @@ class CarlaMap(object):
 #===============================================================================
 #-- Detecter -------------------------------------------------------------------
 #===============================================================================
-
+from .Transform import transform_points
 class Detecter(object):
     MAX_ITERATION = 20 
     SPAWN_COLLISION = True
@@ -305,6 +359,8 @@ class Detecter(object):
 START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0)) 
 GLOBAL_CAM_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z= 45.0))
 
+from .scenarios import DEFAULT_SCENARIO_TOWN1
+
 def find_weather_presets():
     rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
     name = lambda x: ' '.join(m.group(0) for m in rgx.finditer(x))
@@ -315,6 +371,20 @@ def get_actor_display_name(actor, truncate=250):
     name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
     return (name[:truncate-1] + u'\u2026') if len(name) > truncate else name
 
+# Default environment configuration
+ENV_CONFIG = {
+    "log_images": True,
+    "enable_planner": False,
+    "render": True,  
+    "framestack": 2, 
+    "x_res": 80,
+    "y_res": 80,
+    "server_map": "/Game/Carla/Maps/Town01", 
+    "scenarios": DEFAULT_SCENARIO_TOWN1 ,
+    "num_pedestrians" : 10 , 
+    "discrete_actions": True,
+    "manual_control": False,
+}
 
 #TODO: replace vehicle_list with vehicle_manager_list
 #TODO: remove _vehicle property
@@ -328,7 +398,8 @@ class World(object):
         self.vehicle_manager_list = [] 
         self._vehicle = self.world.spawn_actor(blueprint, START_POSITION)
         self.vehicle_list.append(self._vehicle)
-        self.vehicle_manager_list.append(VehicleManager(self._vehicle))
+        vmanager = VehicleManager(self._vehicle) 
+        self.vehicle_manager_list.append(vmanager)
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self.hud)
         self.camera_manager_list = []  
@@ -344,10 +415,12 @@ class World(object):
         self._weather_index = 0
         
         #integration with MultiCarlaEnv
-        self.start_pos = None 
-        self.end_pos = None
-        
-
+        self.config = ENV_CONFIG 
+        self.num_steps = 0 
+        self.scenario = ENV_CONFIG["scenarios"] 
+        self.prev_measurements = {}        
+        self.prev_measurements[0] = vmanager.read_observation(self.scenario)
+                
     def init_global_camera(self):
         self.global_camera = CameraManager(self.world, self.hud)
         self.global_camera.set_sensor(0, notify=False)
@@ -364,6 +437,7 @@ class World(object):
         self.camera_manager_list=[]
         self.vehicle_list = [] 
         self.vehicle_manager_list = [] 
+        self.prev_measurements = {}        
         self.destroy()
         self.num_vehicles = 1
         self.camera_index = 0 
@@ -371,8 +445,10 @@ class World(object):
         self._vehicle = self.world.spawn_actor(blueprint, start_pose)
         self.vehicle_list.append(self._vehicle)
         self.vehicle_manager_list.append(VehicleManager(self._vehicle))
+        self.prev_measurements[0] = vmanager.read_observation(self.scenario)
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
-        self.lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self.hud)        
+        self.lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self.hud) 
+        
         self._camera_manager = CameraManager(self.vehicle, self.hud)
         self._camera_manager._transform_index = cam_pos_index
         self._camera_manager.set_sensor(cam_index, notify=False)
@@ -438,23 +514,52 @@ class World(object):
         transform = carla.Transform(carla.Location(x=s_location.x, y=s_location.y, z=s_location.z), carla.Rotation(yaw=0.0))                      
         vehicle = self.world.try_spawn_actor(blueprint, transform)  
         if vehicle is not None:
-            self.vehicle_list.append(vehicle) 
+            self.vehicle_list.append(vehicle)             
+            vmanager = VehicleManager(vehicle)                   
+            self.prev_measurements[self.num_vehicles] = vmanager.read_observation(self.scenario)      
             self.num_vehicles += 1 
-            self.vehicle_manager_list.append(VehicleManager(vehicle))
+            self.vehicle_manager_list.append(vmanager)
             return vehicle
-     
-    def read_observation(self, vid):
-        current_x = self.vehicle_list[vid].get_location().x 
-        current_y = self.vehicle_list[vid].get_location().y
         
-        distance_to_goal_euclidean = float(np.linalg.norm(
-            [current_x - self.end_pos[i][0],
-             current_y - self.end_pos[i][1]]) / 100)
+               
+    def reward_computing(self): 
+        for vid in np.arange(self.get_num_of_vehicles()) :
+            vmanager = self.vehicle_manager_list[vid]
+            current = vmanager.read_observation(self.scenario)
+            prev = self.prev_measurements[vid] 
         
-        distance_to_goal = distance_to_goal_euclidean        
-                
-    def reward_computing(self, vid): 
-        pass
+            reward = 0.0         
+
+            cur_dist = current["distance_to_goal"]
+            prev_dist = prev["distance_to_goal"]
+
+            # Distance travelled toward the goal in m
+            reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
+
+            # Speed reward, up 30.0 (km/h)
+            reward += np.clip(current["forward_speed"], 0.0, 30.0) / 10
+
+            # New collision damage
+            new_damage = (
+                current["collision_vehicles"] + current["collision_pedestrians"] +
+                current["collision_other"] - prev["collision_vehicles"] -
+                prev["collision_pedestrians"] - prev["collision_other"])
+            if new_damage:
+                reward -= 100.0
+
+            # Sidewalk intersection
+            reward -= current["intersection_offroad"]
+
+            # Opposite lane intersection
+            reward -= current["intersection_otherlane"] * 0.00025  
+
+            # Reached goal
+#            if current["next_command"] == "REACH_GOAL":
+#                reward += 100.0  
+#            print('VEHICLE %d' % vid + 'rewarding is %2d' % reward)
+            self.prev_measurements[vid] = current      
+            
+            #return reward
     
                     
 # ==============================================================================
@@ -663,7 +768,7 @@ class LaneInvasionSensor(object):
     def get_invasion_history(self):
         history = collections.defaultdict(int)
         for frame, text in self._history:
-            history[frame] += text
+            history[frame] = text
         return history  
         
     @staticmethod
@@ -878,7 +983,8 @@ def game_loop(args):
 
         clock = pygame.time.Clock()
         while True:
-            clock.tick_busy_loop(60)
+            clock.tick_busy_loop(60)                  
+            world.reward_computing()          
             if controller.parse_events(world, clock):
                 return
             world.tick(clock)
