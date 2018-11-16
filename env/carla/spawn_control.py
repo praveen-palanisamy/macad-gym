@@ -71,6 +71,8 @@ import random
 import time
 import re
 import weakref
+import json
+import math
 
 from .Transform import transform_points
 
@@ -106,13 +108,14 @@ try:
     import numpy as np
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
+    
+
+
 
 #===============================================================================
-#-- Metrics --------------------------------------------------------------------
+#-- Measurments ----------------------------------------------------------------
 #===============================================================================
-class Metrics(object):
-    pass
-    #TODO: 
+
     
 #===============================================================================
 #-- VehicleManager -------------------------------------------------------------
@@ -122,7 +125,8 @@ class VehicleManager(object):
         self._vehicle = vehicle
         self._autopilot_enabled = autopilot_enabled
         self._hud = None  #TODO 
-        self._collision_sensor = CollisionSensor(self._vehicle, self._hud)        
+        self._collision_sensor = CollisionSensor(self._vehicle, self._hud)       
+        self._lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self._hud)
        
     def set_autopilot(self, autopilot_enabled):
         self._autopilot_enabled = autopilot_enabled
@@ -134,15 +138,17 @@ class VehicleManager(object):
     def apply_control(self, control):
         self._vehicle.apply_control(control)
         
-    def collided_count(self):
-        return self._collision_sensor.collided_count()
-        
+    def dynamic_collided(self):
+        return self._collision_sensor.dynamic_collided()
+    
+    def lane_invasion(self):
+        return len(self._lane_invasion_sensor.get_invasion_history())
+
+             
         
     #TODO    
     def destroy(self):
         pass
-        
-        
 
 #===============================================================================
 #-- CarlaMap -------------------------------------------------------------------
@@ -305,6 +311,11 @@ def find_weather_presets():
     presets = [x for x in dir(carla.WeatherParameters) if re.match('[A-Z].+', x)]
     return [(getattr(carla.WeatherParameters, x), name(x)) for x in presets]
 
+def get_actor_display_name(actor, truncate=250):
+    name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
+    return (name[:truncate-1] + u'\u2026') if len(name) > truncate else name
+
+
 #TODO: replace vehicle_list with vehicle_manager_list
 #TODO: remove _vehicle property
 class World(object):     
@@ -319,6 +330,7 @@ class World(object):
         self.vehicle_list.append(self._vehicle)
         self.vehicle_manager_list.append(VehicleManager(self._vehicle))
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
+        self.lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self.hud)
         self.camera_manager_list = []  
         self.global_camera = CameraManager(self.world, self.hud, GLOBAL_CAM_POSITION)
         self.global_camera.set_sensor(0, notify=False)
@@ -330,6 +342,11 @@ class World(object):
         self.controller = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
+        
+        #integration with MultiCarlaEnv
+        self.start_pos = None 
+        self.end_pos = None
+        
 
     def init_global_camera(self):
         self.global_camera = CameraManager(self.world, self.hud)
@@ -355,6 +372,7 @@ class World(object):
         self.vehicle_list.append(self._vehicle)
         self.vehicle_manager_list.append(VehicleManager(self._vehicle))
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
+        self.lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self.hud)        
         self._camera_manager = CameraManager(self.vehicle, self.hud)
         self._camera_manager._transform_index = cam_pos_index
         self._camera_manager.set_sensor(cam_index, notify=False)
@@ -396,13 +414,12 @@ class World(object):
             for actor in [_cmanager.sensor,   _vehicle]:
                 if actor is not None:
                     actor.destroy() 
-        for actor in [self.collision_sensor.sensor]:
+        for actor in [self.collision_sensor.sensor, self.lane_invasion_sensor.sensor ]:
             if actor is not None:
                 actor.destroy() 
                 
         for vm in self.vehicle_manager_list:
-            vm.destroy()
-            
+            vm.destroy()           
 
     def _get_random_blueprint(self):
         bp = random.choice(self.world.get_blueprint_library().filter('vehicle'))
@@ -425,7 +442,20 @@ class World(object):
             self.num_vehicles += 1 
             self.vehicle_manager_list.append(VehicleManager(vehicle))
             return vehicle
-                      
+     
+    def read_observation(self, vid):
+        current_x = self.vehicle_list[vid].get_location().x 
+        current_y = self.vehicle_list[vid].get_location().y
+        
+        distance_to_goal_euclidean = float(np.linalg.norm(
+            [current_x - self.end_pos[i][0],
+             current_y - self.end_pos[i][1]]) / 100)
+        
+        distance_to_goal = distance_to_goal_euclidean        
+                
+    def reward_computing(self, vid): 
+        pass
+    
                     
 # ==============================================================================
 # -- KeyboardControl -----------------------------------------------------------
@@ -497,7 +527,7 @@ class KeyboardControl(object):
                 else :
                     vm.set_autopilot(vm.get_autopilot())
              
-            #print('collision with vehicle %2d, people %2d, others %2d' % world.collision_sensor.collided_count())
+            #print('collision with vehicle %2d, people %2d, others %2d' % world.collision_sensor.dynamic_collided())
             
 
     def _parse_keys(self, keys, milliseconds):
@@ -610,15 +640,53 @@ class HelpText(object):
         if self._render:
             display.blit(self.surface, self.pos)
 
+            
+            
+# ==============================================================================
+# -- LaneInvasionSensor --------------------------------------------------------
+# ==============================================================================
+class LaneInvasionSensor(object):
+    def __init__(self, parent_actor, hud):
+        self.sensor = None
+        self._history = [] 
+        self._parent = parent_actor
+        self._hud = hud
+        world = self._parent.get_world()
+        bp = world.get_blueprint_library().find('sensor.other.lane_detector')
+        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        # We need to pass the lambda a weak reference to self to avoid circular
+        # reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda event: LaneInvasionSensor._on_invasion(weak_self, event))
+        
+
+    def get_invasion_history(self):
+        history = collections.defaultdict(int)
+        for frame, text in self._history:
+            history[frame] += text
+        return history  
+        
+    @staticmethod
+    def _on_invasion(weak_self, event):
+        self = weak_self()
+        if not self:
+            return
+#        text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
+#        self._hud.notification('Crossed line %s' % ' and '.join(text))
+        text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
+        print('VEHICLE %s' % (self._parent).id + ' crossed line %s' % ' and '.join(text)) 
+        self._history.append((event.frame_number,  text))
+        if len(self._history) > 4000:
+            self._history.pop(0)
+        
 
 # ==============================================================================
 # -- CollisionSensor -----------------------------------------------------------
 # ==============================================================================
-
-
 class CollisionSensor(object):
     def __init__(self, parent_actor, hud):
         self.sensor = None
+        self._history = [] 
         self._parent = parent_actor
         self._hud = hud
         self.collision_vehicles = 0 
@@ -634,15 +702,27 @@ class CollisionSensor(object):
         weak_self = weakref.ref(self)
         self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
         
+    def get_collision_history(self):
+        history = collections.defaultdict(int)
+        for frame, intensity in self._history :
+            history[frame] += intensity 
+        return history
+        
 
     @staticmethod
     def _on_collision(weak_self, event): 
         self = weak_self()
         if not self:
             return
-#        actor_type = ' '.join(event.other_actor.type_id.replace('_', '.').title().split('.')[1:])
+#        actor_type = get_actor_display_name(event.other_actor)
 #        self._hud.notification('Collision with %r' % actor_type)    
-        print('vehicle %s ' % (self._parent).id + ' collision with %2d vehicles, %2d people, %2d others' %  self.collided_count())
+        impulse = event.normal_impulse
+        intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
+        self._history.append((event.frame_number, intensity))
+        if len(self._history) > 4000:
+            self._history.pop(0)
+
+        print('vehicle %s ' % (self._parent).id + ' collision with %2d vehicles, %2d people, %2d others' %  self.dynamic_collided())            
         _cur = event.other_actor
         if _cur.id == 0 : #the static world objects 
             if _cur.type_id in self.collision_type_id_set :
@@ -672,7 +752,7 @@ class CollisionSensor(object):
         self.collision_id_set = set()
         self.collision_type_id_set = set()
      
-    def collided_count(self):
+    def dynamic_collided(self):
         return (self.collision_vehicles, self.collision_pedestrains, self.collision_other) 
             
                       
