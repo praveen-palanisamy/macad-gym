@@ -138,8 +138,13 @@ class VehicleManager(object):
     def dynamic_collided(self):
         return self._collision_sensor.dynamic_collided()
     
-    def lane_invasion(self):
-        return len(self._lane_invasion_sensor.get_invasion_history())
+    def offlane_invasion(self):
+        return self._lane_invasion_sensor.get_offlane_percentage()
+
+    # TODO: this routine need interect with road map data   
+    # issue#17, CPP code can be viewed at ACarlaVehicleController:IntersectPlayerWithRoadMap 
+    def offroad_invasion(self):
+        return 0          
    
     #TODO: for demo, all vehicles has same start_pos & end_pos 
     #but in reality, need find the nearest pos at each spawn location 
@@ -158,7 +163,8 @@ class VehicleManager(object):
        
     def read_observation(self, scenario):      
         c_vehicles, c_pedestrains, c_other = self.dynamic_collided()       
-        c_offline = self.lane_invasion()
+        c_offline = self.offlane_invasion()
+        c_offroad = self.offroad_invasion()
         start_pos, end_pos, start_coord, end_coord = self._pos_coord(scenario)
         cur_ = self._vehicle.get_transform()
         cur_x =  cur_.location.x
@@ -181,7 +187,7 @@ class VehicleManager(object):
             "collision_vehicles": c_vehicles ,
             "collision_pedestrians": c_pedestrains ,
             "collision_other": c_other ,
-            "intersection_offroad": 0, 
+            "intersection_offroad": c_offroad , 
             "intersection_otherlane": c_offline ,
 #            "weather": None ,
 #            "map": self.config["server_map"],
@@ -350,8 +356,7 @@ class Detecter(object):
             print('  will spawn a vehicle at location: (%4.2f, %4.2f, %4.2f)' % (self._location.x,  self._location.y, self._location.z))             
             return self._location
 
-
-                    
+                   
 # ==============================================================================
 # -- World ---------------------------------------------------------------------
 # ==============================================================================   
@@ -548,11 +553,11 @@ class World(object):
                 reward -= 100.0
 
             # Sidewalk intersection
-            reward -= current["intersection_offroad"]
+            reward -= current["intersection_offroad"]         
 
             # Opposite lane intersection
-            reward -= current["intersection_otherlane"] * 0.00025  
-
+            reward -= current["intersection_otherlane"] 
+            
             # Reached goal
 #            if current["next_command"] == "REACH_GOAL":
 #                reward += 100.0  
@@ -762,14 +767,13 @@ class LaneInvasionSensor(object):
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
+        self._offlane = 0
+        self._off_lane_percentage = 0 
         self.sensor.listen(lambda event: LaneInvasionSensor._on_invasion(weak_self, event))
         
 
-    def get_invasion_history(self):
-        history = collections.defaultdict(int)
-        for frame, text in self._history:
-            history[frame] = text
-        return history  
+    def get_offlane_percentage(self):
+        return self._off_lane_percentage  
         
     @staticmethod
     def _on_invasion(weak_self, event):
@@ -780,9 +784,9 @@ class LaneInvasionSensor(object):
 #        self._hud.notification('Crossed line %s' % ' and '.join(text))
         text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         print('VEHICLE %s' % (self._parent).id + ' crossed line %s' % ' and '.join(text)) 
-        self._history.append((event.frame_number,  text))
-        if len(self._history) > 4000:
-            self._history.pop(0)
+        self._offlane += 1 
+        self._off_lane_percentage = self._offlane / event.frame_number * 100 
+        print('off lane percentage %6.4f' % self._off_lane_percentage) 
         
 
 # ==============================================================================
