@@ -185,6 +185,52 @@ signal.signal(signal.SIGINT, termination_cleanup)
 atexit.register(cleanup)
 
 
+
+class LaneInvasionSensor(object):
+    def __init__(self, parent_actor, hud):
+        self.sensor = None
+        self._history = [] 
+        self._parent = parent_actor
+        self._hud = hud
+        self.offlane = 0
+        self.offroad = 0
+        world = self._parent.get_world()
+        bp = world.get_blueprint_library().find('sensor.other.lane_detector')
+        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        # We need to pass the lambda a weak reference to self to avoid circular
+        # reference.
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda event: LaneInvasionSensor._on_invasion(weak_self, event))
+        
+    def get_invasion_history(self):
+        history = collections.defaultdict(int)
+        for frame, text in self._history:
+            history[frame] = text
+        return history  
+        
+    @staticmethod
+    def _on_invasion(weak_self, event):
+        self = weak_self()
+        if not self:
+            return
+#        text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
+#        self._hud.notification('Crossed line %s' % ' and '.join(text))
+        text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
+        self.offlane += 1
+        print('VEHICLE %s' % (self._parent).id + ' crossed line %s' % ' and '.join(text)) 
+        
+        #  if one means not cross two lanes, means cross to offroad
+        if len(set(event.crossed_lane_markings)) == 1:
+            self.offroad += 1
+            print('VEHICLE %s' % (self._parent).id + ' crossed road %s' % ' and '.join(text)) 
+        
+        self._history.append((event.frame_number,  text))
+        if len(self._history) > 4000:
+            self._history.pop(0)
+
+
+
+
 class CollisionSensor(object):
     def __init__(self, parent_actor, hud):
         self.sensor = None
@@ -326,7 +372,11 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self.obs_dict = {}
         self.video = False
         self.image_pool = []
-        
+        self.previous_actions = [] 
+        self.previous_rewards = []
+        #self.step_number = 1
+        self.last_reward = []
+
     def get_scenarios(self, choice):
         
         if choice == "DEFAULT_SCENARIO_TOWN1":
@@ -377,6 +427,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self.actor_list = []
         self.cam_list = []
         self.colli_list = []
+        self.lane_list = []
         self.client = carla.Client("localhost", 2000)#self.server_port)
         
         
@@ -535,10 +586,13 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self.num_vehicle = NUM_VEHICLE
         for n in range(self.num_vehicle):
             self.image_pool.append([])
+            self.previous_actions.append([])
+            self.previous_rewards.append([])
 
         POS_S = [[0] * 3] * self.num_vehicle
         POS_E = [[0] * 3] * self.num_vehicle
 
+        self.last_reward = [0] * self.num_vehicle
         for i in range(self.num_vehicle):
             s_id = str(start_id[i])
             e_id = str(end_id[i])    
@@ -566,7 +620,9 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             print('vehicle at ', vehicle.get_location().x, vehicle.get_location().y, vehicle.get_location().z)       
             self.actor_list.append(vehicle)
             collision_sensor = CollisionSensor(vehicle, 0)
+            lane_sensor = LaneInvasionSensor(vehicle, 0)
             self.colli_list.append(collision_sensor)
+            self.lane_list.append(lane_sensor)
             if i == 0: #TEST!!
                 camera = world.spawn_actor(cam_blueprint,   carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)), attach_to=self.actor_list[i])            
                 self.cam_list.append(camera)
@@ -714,7 +770,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
                 reward_dict[vehcile_name] = reward
                 done_dict[vehcile_name] = done
                 info_dict[vehcile_name] = info
-                    
+            #self.step_number += 1        
             return obs_dict, reward_dict, done_dict, info_dict
         except Exception:
             print(
@@ -790,7 +846,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         vehcile_name += str(i)
         reward = compute_reward(
             self, self.prev_measurement[vehcile_name], py_measurements)
-        
+        self.last_reward[i] = reward # to make the previous_rewards in py_measurements
         #  update num_steps and total_reward lists if next car comes
         if i == len(self.num_steps):
             self.num_steps.append(0)
@@ -954,9 +1010,10 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         collision_vehicles = self.colli_list[i].collision_vehicles
         collision_pedestrians = self.colli_list[i].collision_pedestrains
         collision_other = self.colli_list[i].collision_other
+        intersection_otherlane = self.lane_list[i].offlane
+        intersection_offroad = self.lane_list[i].offroad
         print("---->", collision_other)
-        #cur.intersection_offroad = 0
-        #cur.intersection_otherlane = 0        
+            
 
 
 
@@ -977,14 +1034,18 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
 
         diff_s_x = abs(current_x - self.start_pos[i][0])
         diff_s_y = abs(current_y - self.start_pos[i][1])
+
+        
+        
         next_command = "LANE_FOLLOW"
+        self.previous_actions[i].append(next_command)
+        
         #if diff_x < 5 and diff_y < 5:
         if current_x - self.end_pos[i][0] > 0:
         #if (diff_s_x + diff_s_y > 30) or (diff_x < 5 and diff_y < 5):  # ONLY FOR TEST
             next_command = "REACH_GOAL"
         
-             
-         
+        self.previous_rewards[i].append(self.last_reward[i])    
         
         #print('calculate distance finished')
         #print('cal dist time: ', time.time() - s_dis)
@@ -1008,7 +1069,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #s_dis = time.time()
         py_measurements = {
             "episode_id": self.episode_id,
-            "step": self.num_steps,
+            "step": self.num_steps[i],
             "x": current_x,
             "y": current_y,
             "pitch": self.actor_list[i].get_transform().rotation.pitch,
@@ -1020,12 +1081,12 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             "collision_vehicles": collision_vehicles,
             "collision_pedestrians": collision_pedestrians,
             "collision_other": collision_other,
-            #"inUtersection_offroad": cur.intersection_offroad,
-            #"intersection_otherlane": cur.intersection_otherlane,
+            "intersection_offroad": intersection_offroad,
+            "intersection_otherlane": intersection_otherlane,
             "weather": self.weather,
             "map": self.config["server_map"],
-            "start_coord": self.start_coord,
-            "end_coord": self.end_coord,
+            "start_coord": self.start_coord[i],
+            "end_coord": self.end_coord[i],
             "current_scenario": self.scenario,
             "x_res": self.config["x_res"],
             "y_res": self.config["y_res"],
@@ -1033,6 +1094,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             "num_pedestrians": self.scenario["num_pedestrians"],
             "max_steps": 1000, # set 1000 now. self.scenario["max_steps"],
             "next_command": next_command,
+            "previous_actions": {i:self.previous_actions[i]},
+            "previous_rewards": {i:self.previous_rewards[i]}
         }
         
         #  self.original_image.save_to_disk can also implemented here.
@@ -1077,12 +1140,12 @@ def compute_reward_corl2017(env, prev, current):
         prev["collision_pedestrians"] - prev["collision_other"])
 
     # New sidewalk intersection
-    #reward -= 2 * (
-    #    current["intersection_offroad"] - prev["intersection_offroad"])
+    reward -= 2 * (
+        current["intersection_offroad"] - prev["intersection_offroad"])
 
     # New opposite lane intersection
-    #reward -= 2 * (
-    #    current["intersection_otherlane"] - prev["intersection_otherlane"])
+    reward -= 2 * (
+        current["intersection_otherlane"] - prev["intersection_otherlane"])
 
     return reward
 
