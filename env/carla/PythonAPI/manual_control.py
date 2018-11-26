@@ -44,7 +44,7 @@ from __future__ import print_function
 import glob
 import os
 import sys
-
+"""
 try:
     sys.path.append(glob.glob('**/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -52,7 +52,9 @@ try:
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass
-
+"""
+sys.path.append(
+    'PythonAPI/lib/carla-0.9.0-py3.5-linux-x86_64.egg')
 
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
