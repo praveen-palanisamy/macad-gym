@@ -24,6 +24,9 @@ def build_scenario(
         "max_steps": max_steps,
     }
 
+# To implement possible locations for multiple cars, we may create a nested arrays based on e.g., POSES_TOWN_1_STRAIGHT
+#POSES_TOWN1_STRAIGHT = [
+#    [MULTI_START_POS, MULTI_END_POS], [[39,40], [35,36]]...]
 
 MULTI_START_POS = [125,126]
 MULTI_END_POS = [127,128]
@@ -34,13 +37,17 @@ DEFAULT_SCENARIO_MULTI_TOWN1 = build_scenario(
 
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_scenario(
-    city="Town01", start=126, end=128, vehicles=20, pedestrians=40,
+    city="Town01", start=[124], end=[128], vehicles=20, pedestrians=40,
+    max_steps=200, weathers=[0])
+
+DEFAULT_SCENARIO_TOWN2 = build_scenario(
+    city="Town01", start=[47], end=[52], vehicles=20, pedestrians=40,
     max_steps=200, weathers=[0])
 
 #  Town1 curve test. 
-DEFAULT_SCENARIO_TOWN1 = build_scenario(
-    city="Town01", start=126, end=128, vehicles=20, pedestrians=40,
-    max_steps=200, weathers=[0])
+#DEFAULT_SCENARIO_TOWN1 = build_scenario(
+#    city="Town01", start=126, end=128, vehicles=20, pedestrians=40,
+#    max_steps=200, weathers=[0])
 
 # Simple scenario for Town02 that involves driving down a road
 LANE_KEEP_TOWN2 = build_scenario(
@@ -52,13 +59,23 @@ LANE_KEEP_TOWN1 = build_scenario(
     city="Town01", start=36, end=40, vehicles=0, pedestrians=0,
     max_steps=2000, weathers=[0])
 
+
+CURVE_TOWN1 = build_scenario(
+    city="Town01", start=[131,133], end=[65,64], vehicles=0, pedestrians=0,
+    max_steps=2000, weathers=[0])
+CURVE_TOWN2 = build_scenario(
+    city="Town01", start=[16,27], end=[74,75], vehicles=0, pedestrians=0,
+    max_steps=2000, weathers=[0])
+
 # Scenarios from the CoRL2017 paper
 POSES_TOWN1_STRAIGHT = [
-    [36, 40], [39, 35], [110, 114], [7, 3], [0, 4],
-    [68, 50], [61, 59], [47, 64], [147, 90], [33, 87],
-    [26, 19], [80, 76], [45, 49], [55, 44], [29, 107],
-    [95, 104], [84, 34], [53, 67], [22, 17], [91, 148],
-    [20, 107], [78, 70], [95, 102], [68, 44], [45, 69]]
+    [[9,8], [1,0]], [[142,148], [141,147]], [[114,115], [110,111]], [[7,6], [3,2]], [[4,5], [149,150]]]
+#POSES_TOWN1_STRAIGHT = [
+#    [36, 40], [39, 35], [110, 114], [7, 3], [0, 4],
+#    [68, 50], [61, 59], [47, 64], [147, 90], [33, 87],
+#    [26, 19], [80, 76], [45, 49], [55, 44], [29, 107],
+#    [95, 104], [84, 34], [53, 67], [22, 17], [91, 148],
+#    [20, 107], [78, 70], [95, 102], [68, 44], [45, 69]]
 
 
 POSES_TOWN1_ONE_CURVE = [
