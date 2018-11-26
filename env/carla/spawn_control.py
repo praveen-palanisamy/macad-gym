@@ -64,6 +64,7 @@ import carla
 
 from carla import ColorConverter as cc
 from carla import World as CarlaWorld
+from carla import DebugHelper
 
 import argparse
 import logging
@@ -125,6 +126,27 @@ class VehicleManager(object):
         self._end_coord = None
         self.prev_measurement = None
        
+    def get_location(self):
+        return self._vehicle.get_location() 
+    
+    def get_velocity(self):
+        return self._vehicle.get_velocity() 
+    
+    #TODO: refresh in each render frame 
+    #TODO: waypoints doesn't refresh when restart a new pygame
+    #self.map.get_waypoint(loc1)      
+    def draw_waypoints(self, helper):           
+            loc = self.get_location()
+            vel = self.get_velocity()
+            abs_vel = (vel.x)**2 + (vel.y)**2 + (vel.z)**2
+            if abs_vel < 0.5 :
+                print('draw a point')
+                helper.draw_point(loc)
+            else:
+                print('draw a line')
+                loc2 = loc + carla.Location(x=vel.x , y=vel.y,  z=0)                 
+                helper.draw_line(loc, loc2)    
+
     def set_autopilot(self, autopilot_enabled):
         self._autopilot_enabled = autopilot_enabled
         self._vehicle.set_autopilot(self._autopilot_enabled)
@@ -362,6 +384,7 @@ class Detecter(object):
 # ==============================================================================   
 
 START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0)) 
+END_POSITION = carla.Transform(carla.Location(x=217.0, y=195.0, z=40.0))
 GLOBAL_CAM_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z= 45.0))
 
 from .scenarios import DEFAULT_SCENARIO_TOWN1
@@ -396,6 +419,7 @@ ENV_CONFIG = {
 class World(object):     
     def __init__(self, carla_world, hud):
         self.world = carla_world
+        self.map = self.world.get_map() 
         self.hud = hud
         self.num_vehicles = 1 
         blueprint = self._get_random_blueprint()
@@ -418,6 +442,7 @@ class World(object):
         self.controller = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
+        self.draw_waypoints()
         
         #integration with MultiCarlaEnv
         self.config = ENV_CONFIG 
@@ -425,6 +450,8 @@ class World(object):
         self.scenario = ENV_CONFIG["scenarios"] 
         self.prev_measurements = {}        
         self.prev_measurements[0] = vmanager.read_observation(self.scenario)
+      
+
                 
     def init_global_camera(self):
         self.global_camera = CameraManager(self.world, self.hud)
@@ -525,8 +552,7 @@ class World(object):
             self.num_vehicles += 1 
             self.vehicle_manager_list.append(vmanager)
             return vehicle
-        
-               
+                       
     def reward_computing(self): 
         for vid in np.arange(self.get_num_of_vehicles()) :
             vmanager = self.vehicle_manager_list[vid]
@@ -564,8 +590,12 @@ class World(object):
 #            print('VEHICLE %d' % vid + 'rewarding is %2d' % reward)
             self.prev_measurements[vid] = current      
             
-            #return reward
-    
+    def draw_waypoints(self):      
+        helper = self.world.debug         
+        for vid in np.arange(self.get_num_of_vehicles()) :
+            vmanager = self.vehicle_manager_list[vid]
+            vmanager.draw_waypoints(helper)
+ 
                     
 # ==============================================================================
 # -- KeyboardControl -----------------------------------------------------------
@@ -983,6 +1013,7 @@ def game_loop(args):
 
         hud = HUD(args.width, args.height)
         world = World(client.get_world(), hud)
+#        world.draw_waypoints()
         controller = KeyboardControl(world, args.autopilot)
 
         clock = pygame.time.Clock()
