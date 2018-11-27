@@ -186,7 +186,10 @@ class FastScenario(object):
     def __del__(self):        
         self.manager.stop_scenario()
         
+
         
+
+
 #===============================================================================
 #-- VehicleManager -------------------------------------------------------------
 #===============================================================================
@@ -251,11 +254,12 @@ class VehicleManager(object):
         pass 
         
     def _pos_coord(self, scenario):
-        POS_COOR_MAP = json.load(open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))       
+        POS_COOR_MAP = json.load(open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))    
+        #TODO: failure due to start_id type maybe list or int 
         start_id = scenario["start_pos_id"]
-        end_id = scenario["end_pos_id"]        
-        self._start_pos =  POS_COOR_MAP[str(start_id)]
-        self._end_pos = POS_COOR_MAP[str(end_id)]
+        end_id = scenario["end_pos_id"]     
+        self._start_pos =  POS_COOR_MAP[str(start_id[0])]
+        self._end_pos = POS_COOR_MAP[str(end_id[0])]
         self._start_coord =  [ self._start_pos[0]// 100 ,   self._start_pos[1] // 100 ] 
         self._end_coord =  [ self._end_pos[0] // 100 ,   self._end_pos[1] // 100 ]            
         return (self._start_pos, self._end_pos, self._start_coord, self._end_coord)
@@ -311,30 +315,89 @@ class VehicleManager(object):
 
 #===============================================================================
 #-- CarlaMap -------------------------------------------------------------------
-#from .carla.converter import Converter
-#class CarlaMap(object):
-#    def __init__(self, city, pixel_density=0.1643, node_density=50):
-#        dir_path = os.path.dirname(__file__)
-#        city_file = os.path.join(dir_path, city + '.txt')    
-#        self._converter = Converter(city_file, pixel_density, node_density)  
-#    def convert_to_pixel(self, input_data):
+#===============================================================================
+     
+from .carla.converter import Converter
+class CarlaMap(object):
+    IsRoadRow = 15
+    HasDirectionRow = 14
+    AngleMask = (0xFFFF >> 2)
+    MaximumEncodeAngle = (1<<14) - 1  
+    PixelPerCentimeter =  6   # 1/0.1643
+    CheckPerCentimeter = 0.1 
+    MAP_WIDTH = 800 #TODO
+    MAP_HEIGHT = 600 #TODO
+    
+    
+    def __init__(self, city, world, pixel_density=0.1643, node_density=50):
+        dir_path = os.path.dirname(__file__)
+        city_file = os.path.join(dir_path, city + '.txt')    
+        self._converter = Converter(city_file, pixel_density, node_density)  
+        self._map = world.get_map()
+        
+    def convert_to_pixel(self, input_data):
         """
         Receives a data type (Can Be Node or World )
         :param input_data: position in some coordinate
         :return: A node object
         """
-#        return self._converter.convert_to_pixel(input_data)
-#    def convert_to_world(self, input_data):
+        return self._converter.convert_to_pixel(input_data)
+    
+    def convert_to_world(self, input_data):
         """
         Receives a data type (Can Be Pixel or Node )
         :param input_data: position in some coordinate
         :return: A node object
         """
-#        return self._converter.convert_to_world(input_data)  
+        return self._converter.convert_to_world(input_data)  
+    
+    def get_map_topology(self):
+        self._map.get_topology()
+        
+    def get_waypoint(self, location):
+        return self._map.get_waypoint(location)
+    
+    def isRoad(self, pixelValue):
+        return ( pixelValue & (1 << self.IsRoadRow)) != 0   
+    
+    def clampFloatToInt(self, input_data, bmin, bmax):
+        if input_data >= bmin or input_data <= bmax:
+            return int(input_data)
+        elif input_data < bmin:
+            return bmin
+        else :
+            return bmax
+    
+    def get_data_at(self, WorldLocation):    
+        pixle = self.convert_to_pixel(WorldLocation)  #additionally MapOffset
+        indexx = clampFloatToInt(self.PixelPerCentimeter * pixle.x, 0, MAP_WIDTH-1);
+        indexy = clampFloatToInt(self.PixelPerCentimeter * pixle.y, 0, MAP_HEIGHT-1);
+        #TODO : access raw data from OpenDrive
+        # return rawData[(indexx, indexy)]
+        pass
+    
+    def get_offroad_percent(vehicle):        
+        bbox = vehicle.bounding_box 
+        bbox_rot = bbox.rotation
+        bbox_ext = bbox.extent 
+        bbox_trans = carla.Transform(bbox.location) 
+        #TODO: bbox_rot *  bbox_trans to get the forward direction 
+        step = 1.0 / self.CheckPerCentimeter 
+        checkCount = 0 
+        offRoad = 0.0 
+        for i in range(-bbox_ext.x , bbox_ext.x, step):
+            for j in range(-bbox_ext.y,  bbox_ext.y, step):
+                checkCount += 1 
+                pixel_data = self.get_data_at(carla.Location(x=i, y=j, z=0))
+                if not self.isRoad(pixel_data):
+                    offRoad += 1.0
+        if checkCount > 0:
+            offRoad /= checkCount
+        
+        return offRoad
+            
 #===============================================================================
-
-#===============================================================================
-#-- Detecter -------------------------------------------------------------------
+#-- Spawn Initial Location Detecter -------------------------------------------------------------------
 #===============================================================================
 from .Transform import transform_points
 class Detecter(object):
@@ -661,6 +724,7 @@ class World(object):
 #            print('VEHICLE %d' % vid + 'rewarding is %2d' % reward)
             self.prev_measurements[vid] = current      
             
+   
     def draw_waypoints(self):      
         helper = self.world.debug         
         for vid in np.arange(self.get_num_of_vehicles()) :
@@ -1087,8 +1151,8 @@ def game_loop(args):
         controller = KeyboardControl(world, args.autopilot)
 
         print("fast scenario testing ... ")
-        fast_scenario =  FastScenario(world)
-        fast_scenario.execute()
+#        fast_scenario =  FastScenario(world)
+#        fast_scenario.execute()
         print("fast scenario done ")
         
         clock = pygame.time.Clock()
