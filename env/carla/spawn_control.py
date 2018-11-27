@@ -109,7 +109,84 @@ try:
     import numpy as np
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
-       
+
+    
+
+START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0)) 
+END_POSITION = carla.Transform(carla.Location(x=217.0, y=195.0, z=40.0))
+GLOBAL_CAM_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z= 45.0))
+
+#===============================================================================
+#-- ScenarioManager ------------------------------------------------------------
+#===============================================================================
+import py_trees
+
+from .carla.ScenarioManager import atomic_scenario_behavior
+from .carla.ScenarioManager import scenario_manager
+from .carla.ScenarioManager import atomic_scenario_criteria
+
+class FastScenario(object):
+    timeout = 10  
+    target_velocity = 15
+    max_throttle = 1.0 
+    max_velocity = 20
+    max_brake = 1.0
+    def __init__(self, world):  
+        vehicle = world._vehicle 
+        behavior = self.create_behavior(vehicle)
+        criteria = self.create_test_criteria(vehicle)
+        scenario = scenario_manager.Scenario(behavior, criteria, self.timeout)
+        self.manager = scenario_manager.ScenarioManager(scenario)
+        
+    def execute(self):
+        self.manager.run_scenario() 
+        if not self.manager.analyze_scenario():
+            print("Success")
+        else :
+            print("Failure")
+        
+        print("\n")
+        print("\n")
+   
+    def create_behavior(self, vehicle):
+        """
+        a user defined scenario behavior        
+        """
+        #build behavior tree
+        sequence = py_trees.composites.Sequence("Sequence Behavior") 
+        accelerate = atomic_scenario_behavior.AccelerateToVelocity(vehicle, self.max_throttle,  self.target_velocity)
+        stop = atomic_scenario_behavior.StopVehicle(vehicle, self.max_brake)
+        keep_velocity = atomic_scenario_behavior.KeepVelocity(vehicle, self.target_velocity, duration=2)     
+        endcondition = atomic_scenario_behavior.InTriggerRegion(vehicle, 212, 222, 190, 200, name="to end position")   #end_pos is square with min/max x/y
+
+        sequence.add_child(accelerate)
+        sequence.add_child(keep_velocity)
+        sequence.add_child(stop)
+        sequence.add_child(endcondition) 
+        
+        return sequence 
+    
+    def create_test_criteria(self, vehicle):
+        """
+        a user defined test catalogue
+        a list of all test criteria will be created that is later used in parallel behavior tree 
+        """
+        
+        criteria = []
+        max_velocity_criterion = atomic_scenario_criteria.MaxVelocityTest(vehicle, self.max_velocity)
+        collision_criterion = atomic_scenario_criteria.CollisionTest(vehicle)
+        keep_lane_criterion = atomic_scenario_criteria.KeepLaneTest(vehicle)
+        
+        criteria.append(max_velocity_criterion)
+        criteria.append(collision_criterion)
+        criteria.append(keep_lane_criterion)
+
+        return criteria        
+        
+    def __del__(self):        
+        self.manager.stop_scenario()
+        
+        
 #===============================================================================
 #-- VehicleManager -------------------------------------------------------------
 #===============================================================================
@@ -234,29 +311,27 @@ class VehicleManager(object):
 
 #===============================================================================
 #-- CarlaMap -------------------------------------------------------------------
-#===============================================================================
-from .carla.converter import Converter
-
-class CarlaMap(object):
-    def __init__(self, city, pixel_density=0.1643, node_density=50):
-        dir_path = os.path.dirname(__file__)
-        city_file = os.path.join(dir_path, city + '.txt')    
-        self._converter = Converter(city_file, pixel_density, node_density)  
-    def convert_to_pixel(self, input_data):
+#from .carla.converter import Converter
+#class CarlaMap(object):
+#    def __init__(self, city, pixel_density=0.1643, node_density=50):
+#        dir_path = os.path.dirname(__file__)
+#        city_file = os.path.join(dir_path, city + '.txt')    
+#        self._converter = Converter(city_file, pixel_density, node_density)  
+#    def convert_to_pixel(self, input_data):
         """
         Receives a data type (Can Be Node or World )
         :param input_data: position in some coordinate
         :return: A node object
         """
-        return self._converter.convert_to_pixel(input_data)
-
-    def convert_to_world(self, input_data):
+#        return self._converter.convert_to_pixel(input_data)
+#    def convert_to_world(self, input_data):
         """
         Receives a data type (Can Be Pixel or Node )
         :param input_data: position in some coordinate
         :return: A node object
         """
-        return self._converter.convert_to_world(input_data)  
+#        return self._converter.convert_to_world(input_data)  
+#===============================================================================
 
 #===============================================================================
 #-- Detecter -------------------------------------------------------------------
@@ -382,10 +457,6 @@ class Detecter(object):
 # ==============================================================================
 # -- World ---------------------------------------------------------------------
 # ==============================================================================   
-
-START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0)) 
-END_POSITION = carla.Transform(carla.Location(x=217.0, y=195.0, z=40.0))
-GLOBAL_CAM_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z= 45.0))
 
 from .scenarios import DEFAULT_SCENARIO_TOWN1
 
@@ -1013,9 +1084,13 @@ def game_loop(args):
 
         hud = HUD(args.width, args.height)
         world = World(client.get_world(), hud)
-#        world.draw_waypoints()
         controller = KeyboardControl(world, args.autopilot)
 
+        print("fast scenario testing ... ")
+        fast_scenario =  FastScenario(world)
+        fast_scenario.execute()
+        print("fast scenario done ")
+        
         clock = pygame.time.Clock()
         while True:
             clock.tick_busy_loop(60)                  
