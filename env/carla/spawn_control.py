@@ -64,6 +64,7 @@ import carla
 
 from carla import ColorConverter as cc
 from carla import World as CarlaWorld
+from carla import DebugHelper
 
 import argparse
 import logging
@@ -108,7 +109,87 @@ try:
     import numpy as np
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
-       
+
+    
+
+START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0)) 
+END_POSITION = carla.Transform(carla.Location(x=217.0, y=195.0, z=40.0))
+GLOBAL_CAM_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z= 45.0))
+
+#===============================================================================
+#-- ScenarioManager ------------------------------------------------------------
+#===============================================================================
+import py_trees
+
+from .carla.ScenarioManager import atomic_scenario_behavior
+from .carla.ScenarioManager import scenario_manager
+from .carla.ScenarioManager import atomic_scenario_criteria
+
+class FastScenario(object):
+    timeout = 10  
+    target_velocity = 15
+    max_throttle = 1.0 
+    max_velocity = 20
+    max_brake = 1.0
+    def __init__(self, world):  
+        vehicle = world._vehicle 
+        behavior = self.create_behavior(vehicle)
+        criteria = self.create_test_criteria(vehicle)
+        scenario = scenario_manager.Scenario(behavior, criteria, self.timeout)
+        self.manager = scenario_manager.ScenarioManager(scenario)
+        
+    def execute(self):
+        self.manager.run_scenario() 
+        if not self.manager.analyze_scenario():
+            print("Success")
+        else :
+            print("Failure")
+        
+        print("\n")
+        print("\n")
+   
+    def create_behavior(self, vehicle):
+        """
+        a user defined scenario behavior        
+        """
+        #build behavior tree
+        sequence = py_trees.composites.Sequence("Sequence Behavior") 
+        accelerate = atomic_scenario_behavior.AccelerateToVelocity(vehicle, self.max_throttle,  self.target_velocity)
+        stop = atomic_scenario_behavior.StopVehicle(vehicle, self.max_brake)
+        keep_velocity = atomic_scenario_behavior.KeepVelocity(vehicle, self.target_velocity, duration=2)     
+        endcondition = atomic_scenario_behavior.InTriggerRegion(vehicle, 212, 222, 190, 200, name="to end position")   #end_pos is square with min/max x/y
+
+        sequence.add_child(accelerate)
+        sequence.add_child(keep_velocity)
+        sequence.add_child(stop)
+        sequence.add_child(endcondition) 
+        
+        return sequence 
+    
+    def create_test_criteria(self, vehicle):
+        """
+        a user defined test catalogue
+        a list of all test criteria will be created that is later used in parallel behavior tree 
+        """
+        
+        criteria = []
+        max_velocity_criterion = atomic_scenario_criteria.MaxVelocityTest(vehicle, self.max_velocity)
+        collision_criterion = atomic_scenario_criteria.CollisionTest(vehicle)
+        keep_lane_criterion = atomic_scenario_criteria.KeepLaneTest(vehicle)
+        
+        criteria.append(max_velocity_criterion)
+        criteria.append(collision_criterion)
+        criteria.append(keep_lane_criterion)
+
+        return criteria        
+        
+    def __del__(self):        
+        self.manager.stop_scenario()
+        
+
+        
+
+
 #===============================================================================
 #-- VehicleManager -------------------------------------------------------------
 #===============================================================================
@@ -125,6 +206,27 @@ class VehicleManager(object):
         self._end_coord = None
         self.prev_measurement = None
        
+    def get_location(self):
+        return self._vehicle.get_location() 
+    
+    def get_velocity(self):
+        return self._vehicle.get_velocity() 
+    
+    #TODO: refresh in each render frame 
+    #TODO: waypoints doesn't refresh when restart a new pygame
+    #self.map.get_waypoint(loc1)      
+    def draw_waypoints(self, helper):           
+            loc = self.get_location()
+            vel = self.get_velocity()
+            abs_vel = (vel.x)**2 + (vel.y)**2 + (vel.z)**2
+            if abs_vel < 0.5 :
+                print('draw a point')
+                helper.draw_point(loc)
+            else:
+                print('draw a line')
+                loc2 = loc + carla.Location(x=vel.x , y=vel.y,  z=0)                 
+                helper.draw_line(loc, loc2)    
+
     def set_autopilot(self, autopilot_enabled):
         self._autopilot_enabled = autopilot_enabled
         self._vehicle.set_autopilot(self._autopilot_enabled)
@@ -138,8 +240,13 @@ class VehicleManager(object):
     def dynamic_collided(self):
         return self._collision_sensor.dynamic_collided()
     
-    def lane_invasion(self):
-        return len(self._lane_invasion_sensor.get_invasion_history())
+    def offlane_invasion(self):
+        return self._lane_invasion_sensor.get_offlane_percentage()
+
+    # TODO: this routine need interect with road map data   
+    # issue#17, CPP code can be viewed at ACarlaVehicleController:IntersectPlayerWithRoadMap 
+    def offroad_invasion(self):
+        return 0          
    
     #TODO: for demo, all vehicles has same start_pos & end_pos 
     #but in reality, need find the nearest pos at each spawn location 
@@ -147,18 +254,20 @@ class VehicleManager(object):
         pass 
         
     def _pos_coord(self, scenario):
-        POS_COOR_MAP = json.load(open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))       
+        POS_COOR_MAP = json.load(open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))    
+        #TODO: failure due to start_id type maybe list or int 
         start_id = scenario["start_pos_id"]
-        end_id = scenario["end_pos_id"]        
-        self._start_pos =  POS_COOR_MAP[str(start_id)]
-        self._end_pos = POS_COOR_MAP[str(end_id)]
+        end_id = scenario["end_pos_id"]     
+        self._start_pos =  POS_COOR_MAP[str(start_id[0])]
+        self._end_pos = POS_COOR_MAP[str(end_id[0])]
         self._start_coord =  [ self._start_pos[0]// 100 ,   self._start_pos[1] // 100 ] 
         self._end_coord =  [ self._end_pos[0] // 100 ,   self._end_pos[1] // 100 ]            
         return (self._start_pos, self._end_pos, self._start_coord, self._end_coord)
        
-    def read_observation(self, scenario):      
+    def read_observation(self, scenario, config):      
         c_vehicles, c_pedestrains, c_other = self.dynamic_collided()       
-        c_offline = self.lane_invasion()
+        c_offline = self.offlane_invasion()
+        c_offroad = self.offroad_invasion()
         start_pos, end_pos, start_coord, end_coord = self._pos_coord(scenario)
         cur_ = self._vehicle.get_transform()
         cur_x =  cur_.location.x
@@ -169,8 +278,8 @@ class VehicleManager(object):
         distance_to_goal = distance_to_goal_euclidean         
         
         vehicle_data = {
-#            "episode_id": 0 ,
-#            "step": self.num_steps,
+            "episode_id": 0 ,
+            "step": 0, 
             "x": cur_x,
             "y": cur_y,
             "x_orient": x_orient ,
@@ -181,21 +290,21 @@ class VehicleManager(object):
             "collision_vehicles": c_vehicles ,
             "collision_pedestrians": c_pedestrains ,
             "collision_other": c_other ,
-            "intersection_offroad": 0, 
+            "intersection_offroad": c_offroad , 
             "intersection_otherlane": c_offline ,
-#            "weather": None ,
-#            "map": self.config["server_map"],
+            "weather": None ,
+            "map": config["server_map"],
             "start_coord": start_coord,
-            "end_coord": end_coord
-#            "current_scenario": self.scenario , 
-#            "x_res": self.config["x_res"],
-#            "y_res": self.config["y_res"],
-#            "num_vehicles": self.num_vehicles , 
-#            "num_pedestrians": self.config["num_pedestrians"],
-#            "max_steps": 1000
-#            "next_command": next_command,
-#            "previous_actions": previous_action,  # Dict of action 1 per actor
-#             "previous_rewards": previous_rewards  # Dict of rewards 1 per actor            
+            "end_coord": end_coord, 
+            "current_scenario": scenario , 
+            "x_res": config["x_res"],
+            "y_res": config["y_res"],
+            "num_vehicles": config["num_vehicles"] , 
+            "num_pedestrians": config["num_pedestrians"],
+            "max_steps": 1000 ,
+            "next_command": None,
+            "previous_action": None,
+            "previous_reward": 0            
         }   
         
         return vehicle_data 
@@ -207,13 +316,25 @@ class VehicleManager(object):
 #===============================================================================
 #-- CarlaMap -------------------------------------------------------------------
 #===============================================================================
+     
 from .carla.converter import Converter
-
 class CarlaMap(object):
-    def __init__(self, city, pixel_density=0.1643, node_density=50):
+    IsRoadRow = 15
+    HasDirectionRow = 14
+    AngleMask = (0xFFFF >> 2)
+    MaximumEncodeAngle = (1<<14) - 1  
+    PixelPerCentimeter =  6   # 1/0.1643
+    CheckPerCentimeter = 0.1 
+    MAP_WIDTH = 800 #TODO
+    MAP_HEIGHT = 600 #TODO
+    
+    
+    def __init__(self, city, world, pixel_density=0.1643, node_density=50):
         dir_path = os.path.dirname(__file__)
         city_file = os.path.join(dir_path, city + '.txt')    
         self._converter = Converter(city_file, pixel_density, node_density)  
+        self._map = world.get_map()
+        
     def convert_to_pixel(self, input_data):
         """
         Receives a data type (Can Be Node or World )
@@ -221,7 +342,7 @@ class CarlaMap(object):
         :return: A node object
         """
         return self._converter.convert_to_pixel(input_data)
-
+    
     def convert_to_world(self, input_data):
         """
         Receives a data type (Can Be Pixel or Node )
@@ -229,9 +350,54 @@ class CarlaMap(object):
         :return: A node object
         """
         return self._converter.convert_to_world(input_data)  
-
+    
+    def get_map_topology(self):
+        self._map.get_topology()
+        
+    def get_waypoint(self, location):
+        return self._map.get_waypoint(location)
+    
+    def isRoad(self, pixelValue):
+        return ( pixelValue & (1 << self.IsRoadRow)) != 0   
+    
+    def clampFloatToInt(self, input_data, bmin, bmax):
+        if input_data >= bmin or input_data <= bmax:
+            return int(input_data)
+        elif input_data < bmin:
+            return bmin
+        else :
+            return bmax
+    
+    def get_data_at(self, WorldLocation):    
+        pixle = self.convert_to_pixel(WorldLocation)  #additionally MapOffset
+        indexx = clampFloatToInt(self.PixelPerCentimeter * pixle.x, 0, MAP_WIDTH-1);
+        indexy = clampFloatToInt(self.PixelPerCentimeter * pixle.y, 0, MAP_HEIGHT-1);
+        #TODO : access raw data from OpenDrive
+        # return rawData[(indexx, indexy)]
+        pass
+    
+    def get_offroad_percent(vehicle):        
+        bbox = vehicle.bounding_box 
+        bbox_rot = bbox.rotation
+        bbox_ext = bbox.extent 
+        bbox_trans = carla.Transform(bbox.location) 
+        #TODO: bbox_rot *  bbox_trans to get the forward direction 
+        step = 1.0 / self.CheckPerCentimeter 
+        checkCount = 0 
+        offRoad = 0.0 
+        for i in range(-bbox_ext.x , bbox_ext.x, step):
+            for j in range(-bbox_ext.y,  bbox_ext.y, step):
+                checkCount += 1 
+                pixel_data = self.get_data_at(carla.Location(x=i, y=j, z=0))
+                if not self.isRoad(pixel_data):
+                    offRoad += 1.0
+        if checkCount > 0:
+            offRoad /= checkCount
+        
+        return offRoad
+            
 #===============================================================================
-#-- Detecter -------------------------------------------------------------------
+#-- Spawn Initial Location Detecter -------------------------------------------------------------------
 #===============================================================================
 from .Transform import transform_points
 class Detecter(object):
@@ -350,14 +516,10 @@ class Detecter(object):
             print('  will spawn a vehicle at location: (%4.2f, %4.2f, %4.2f)' % (self._location.x,  self._location.y, self._location.z))             
             return self._location
 
-
-                    
+                   
 # ==============================================================================
 # -- World ---------------------------------------------------------------------
 # ==============================================================================   
-
-START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0)) 
-GLOBAL_CAM_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z= 45.0))
 
 from .scenarios import DEFAULT_SCENARIO_TOWN1
 
@@ -381,6 +543,7 @@ ENV_CONFIG = {
     "y_res": 80,
     "server_map": "/Game/Carla/Maps/Town01", 
     "scenarios": DEFAULT_SCENARIO_TOWN1 ,
+    "num_vehicles" : 10, 
     "num_pedestrians" : 10 , 
     "discrete_actions": True,
     "manual_control": False,
@@ -388,9 +551,11 @@ ENV_CONFIG = {
 
 #TODO: replace vehicle_list with vehicle_manager_list
 #TODO: remove _vehicle property
-class World(object):     
+class World(object):  
+    MAX_STEP = 10000
     def __init__(self, carla_world, hud):
         self.world = carla_world
+        self.map = self.world.get_map() 
         self.hud = hud
         self.num_vehicles = 1 
         blueprint = self._get_random_blueprint()
@@ -413,13 +578,15 @@ class World(object):
         self.controller = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
+#        self.draw_waypoints()
         
         #integration with MultiCarlaEnv
         self.config = ENV_CONFIG 
-        self.num_steps = 0 
         self.scenario = ENV_CONFIG["scenarios"] 
         self.prev_measurements = {}        
-        self.prev_measurements[0] = vmanager.read_observation(self.scenario)
+        self.prev_measurements[0] = vmanager.read_observation(self.scenario, self.config)
+      
+
                 
     def init_global_camera(self):
         self.global_camera = CameraManager(self.world, self.hud)
@@ -445,7 +612,7 @@ class World(object):
         self._vehicle = self.world.spawn_actor(blueprint, start_pose)
         self.vehicle_list.append(self._vehicle)
         self.vehicle_manager_list.append(VehicleManager(self._vehicle))
-        self.prev_measurements[0] = vmanager.read_observation(self.scenario)
+        self.prev_measurements[0] = vmanager.read_observation(self.scenario, self.config)
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self.hud) 
         
@@ -516,30 +683,27 @@ class World(object):
         if vehicle is not None:
             self.vehicle_list.append(vehicle)             
             vmanager = VehicleManager(vehicle)                   
-            self.prev_measurements[self.num_vehicles] = vmanager.read_observation(self.scenario)      
+            self.prev_measurements[self.num_vehicles] = vmanager.read_observation(self.scenario, self.config)      
             self.num_vehicles += 1 
             self.vehicle_manager_list.append(vmanager)
             return vehicle
+            
+    #to measure how well each vehicle performance in the world, related to one special scenario     
+    def reward_computing(self, step): 
+        done = [False for vid in range(self.get_num_of_vehicles())] 
+        if step > self.MAX_STEP:
+            return self.prev_measurements , True 
         
-               
-    def reward_computing(self): 
-        for vid in np.arange(self.get_num_of_vehicles()) :
+        for vid in range(self.get_num_of_vehicles()):           
             vmanager = self.vehicle_manager_list[vid]
-            current = vmanager.read_observation(self.scenario)
+            current = vmanager.read_observation(self.scenario, self.config)
             prev = self.prev_measurements[vid] 
-        
+            current["step"] = step 
             reward = 0.0         
-
             cur_dist = current["distance_to_goal"]
             prev_dist = prev["distance_to_goal"]
-
-            # Distance travelled toward the goal in m
             reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
-
-            # Speed reward, up 30.0 (km/h)
             reward += np.clip(current["forward_speed"], 0.0, 30.0) / 10
-
-            # New collision damage
             new_damage = (
                 current["collision_vehicles"] + current["collision_pedestrians"] +
                 current["collision_other"] - prev["collision_vehicles"] -
@@ -547,20 +711,37 @@ class World(object):
             if new_damage:
                 reward -= 100.0
 
-            # Sidewalk intersection
-            reward -= current["intersection_offroad"]
-
-            # Opposite lane intersection
-            reward -= current["intersection_otherlane"] * 0.00025  
-
-            # Reached goal
-#            if current["next_command"] == "REACH_GOAL":
-#                reward += 100.0  
-#            print('VEHICLE %d' % vid + 'rewarding is %2d' % reward)
-            self.prev_measurements[vid] = current      
+            reward -= current["intersection_offroad"]         
+            reward -= current["intersection_otherlane"]   
+                       
+            endcondition = atomic_scenario_behavior.InTriggerRegion(self.vehicle_list[vid], 212, 222, 190, 200, name="reach end position")   
+            if endcondition.update() !=  py_trees.common.Status.SUCCESS:
+                current["next_command"] =  "LANE_FOLLOW"            
+            else :
+                current["next_command"] =  "REACH_GOAL"   
+                done[vid] = True
+                reward += 100 
+         
+            if self.prev_measurements[vid]["next_command"] == "REACH_GOAL":
+                current["previous_action"] =  "REACH_GOAL"     
+            else:
+                current["previous_action"] =  "LANE_FOLLOW" 
             
-            #return reward
-    
+            current["previous_reward"] = reward  
+            self.prev_measurements[vid] = current    
+            
+       
+            
+        return self.prev_measurements , done
+           
+            
+   
+    def draw_waypoints(self):      
+        helper = self.world.debug         
+        for vid in np.arange(self.get_num_of_vehicles()) :
+            vmanager = self.vehicle_manager_list[vid]
+            vmanager.draw_waypoints(helper)
+ 
                     
 # ==============================================================================
 # -- KeyboardControl -----------------------------------------------------------
@@ -762,14 +943,13 @@ class LaneInvasionSensor(object):
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
+        self._offlane = 0
+        self._off_lane_percentage = 0 
         self.sensor.listen(lambda event: LaneInvasionSensor._on_invasion(weak_self, event))
         
 
-    def get_invasion_history(self):
-        history = collections.defaultdict(int)
-        for frame, text in self._history:
-            history[frame] = text
-        return history  
+    def get_offlane_percentage(self):
+        return self._off_lane_percentage  
         
     @staticmethod
     def _on_invasion(weak_self, event):
@@ -780,9 +960,9 @@ class LaneInvasionSensor(object):
 #        self._hud.notification('Crossed line %s' % ' and '.join(text))
         text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         print('VEHICLE %s' % (self._parent).id + ' crossed line %s' % ' and '.join(text)) 
-        self._history.append((event.frame_number,  text))
-        if len(self._history) > 4000:
-            self._history.pop(0)
+        self._offlane += 1 
+        self._off_lane_percentage = self._offlane / event.frame_number * 100 
+        print('off lane percentage %6.4f' % self._off_lane_percentage) 
         
 
 # ==============================================================================
@@ -968,7 +1148,8 @@ def game_loop(args):
     pygame.init()
     pygame.font.init()
     world = None
-
+    all_done = False 
+    step = 0 
     try:
         client = carla.Client(args.host, args.port)
         client.set_timeout(2.0)
@@ -981,10 +1162,22 @@ def game_loop(args):
         world = World(client.get_world(), hud)
         controller = KeyboardControl(world, args.autopilot)
 
+#        fast_scenario =  FastScenario(world)
+#        fast_scenario.execute()
+        
         clock = pygame.time.Clock()
-        while True:
-            clock.tick_busy_loop(60)                  
-            world.reward_computing()          
+        while not all_done :
+            step += 1 
+            clock.tick_busy_loop(60)  
+            pmeasurements, done = world.reward_computing(step) 
+            if False not in done : 
+                all_done = True
+                print("all scenario done!")                
+            if step % 20 == 0:
+                print("computing reward ...")
+                print(pmeasurements)
+                print(done)
+                
             if controller.parse_events(world, clock):
                 return
             world.tick(clock)
