@@ -264,7 +264,7 @@ class VehicleManager(object):
         self._end_coord =  [ self._end_pos[0] // 100 ,   self._end_pos[1] // 100 ]            
         return (self._start_pos, self._end_pos, self._start_coord, self._end_coord)
        
-    def read_observation(self, scenario):      
+    def read_observation(self, scenario, config):      
         c_vehicles, c_pedestrains, c_other = self.dynamic_collided()       
         c_offline = self.offlane_invasion()
         c_offroad = self.offroad_invasion()
@@ -278,8 +278,8 @@ class VehicleManager(object):
         distance_to_goal = distance_to_goal_euclidean         
         
         vehicle_data = {
-#            "episode_id": 0 ,
-#            "step": self.num_steps,
+            "episode_id": 0 ,
+            "step": 0, 
             "x": cur_x,
             "y": cur_y,
             "x_orient": x_orient ,
@@ -292,19 +292,19 @@ class VehicleManager(object):
             "collision_other": c_other ,
             "intersection_offroad": c_offroad , 
             "intersection_otherlane": c_offline ,
-#            "weather": None ,
-#            "map": self.config["server_map"],
+            "weather": None ,
+            "map": config["server_map"],
             "start_coord": start_coord,
-            "end_coord": end_coord
-#            "current_scenario": self.scenario , 
-#            "x_res": self.config["x_res"],
-#            "y_res": self.config["y_res"],
-#            "num_vehicles": self.num_vehicles , 
-#            "num_pedestrians": self.config["num_pedestrians"],
-#            "max_steps": 1000
-#            "next_command": next_command,
-#            "previous_actions": previous_action,  # Dict of action 1 per actor
-#             "previous_rewards": previous_rewards  # Dict of rewards 1 per actor            
+            "end_coord": end_coord, 
+            "current_scenario": scenario , 
+            "x_res": config["x_res"],
+            "y_res": config["y_res"],
+            "num_vehicles": config["num_vehicles"] , 
+            "num_pedestrians": config["num_pedestrians"],
+            "max_steps": 1000 ,
+            "next_command": None,
+            "previous_action": None,
+            "previous_reward": 0            
         }   
         
         return vehicle_data 
@@ -543,6 +543,7 @@ ENV_CONFIG = {
     "y_res": 80,
     "server_map": "/Game/Carla/Maps/Town01", 
     "scenarios": DEFAULT_SCENARIO_TOWN1 ,
+    "num_vehicles" : 10, 
     "num_pedestrians" : 10 , 
     "discrete_actions": True,
     "manual_control": False,
@@ -550,7 +551,8 @@ ENV_CONFIG = {
 
 #TODO: replace vehicle_list with vehicle_manager_list
 #TODO: remove _vehicle property
-class World(object):     
+class World(object):  
+    MAX_STEP = 10000
     def __init__(self, carla_world, hud):
         self.world = carla_world
         self.map = self.world.get_map() 
@@ -576,14 +578,13 @@ class World(object):
         self.controller = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
-        self.draw_waypoints()
+#        self.draw_waypoints()
         
         #integration with MultiCarlaEnv
         self.config = ENV_CONFIG 
-        self.num_steps = 0 
         self.scenario = ENV_CONFIG["scenarios"] 
         self.prev_measurements = {}        
-        self.prev_measurements[0] = vmanager.read_observation(self.scenario)
+        self.prev_measurements[0] = vmanager.read_observation(self.scenario, self.config)
       
 
                 
@@ -611,7 +612,7 @@ class World(object):
         self._vehicle = self.world.spawn_actor(blueprint, start_pose)
         self.vehicle_list.append(self._vehicle)
         self.vehicle_manager_list.append(VehicleManager(self._vehicle))
-        self.prev_measurements[0] = vmanager.read_observation(self.scenario)
+        self.prev_measurements[0] = vmanager.read_observation(self.scenario, self.config)
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self.hud) 
         
@@ -682,29 +683,27 @@ class World(object):
         if vehicle is not None:
             self.vehicle_list.append(vehicle)             
             vmanager = VehicleManager(vehicle)                   
-            self.prev_measurements[self.num_vehicles] = vmanager.read_observation(self.scenario)      
+            self.prev_measurements[self.num_vehicles] = vmanager.read_observation(self.scenario, self.config)      
             self.num_vehicles += 1 
             self.vehicle_manager_list.append(vmanager)
             return vehicle
-                       
-    def reward_computing(self): 
-        for vid in np.arange(self.get_num_of_vehicles()) :
-            vmanager = self.vehicle_manager_list[vid]
-            current = vmanager.read_observation(self.scenario)
-            prev = self.prev_measurements[vid] 
+            
+    #to measure how well each vehicle performance in the world, related to one special scenario     
+    def reward_computing(self, step): 
+        done = [False for vid in range(self.get_num_of_vehicles())] 
+        if step > self.MAX_STEP:
+            return self.prev_measurements , True 
         
+        for vid in range(self.get_num_of_vehicles()):           
+            vmanager = self.vehicle_manager_list[vid]
+            current = vmanager.read_observation(self.scenario, self.config)
+            prev = self.prev_measurements[vid] 
+            current["step"] = step 
             reward = 0.0         
-
             cur_dist = current["distance_to_goal"]
             prev_dist = prev["distance_to_goal"]
-
-            # Distance travelled toward the goal in m
             reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
-
-            # Speed reward, up 30.0 (km/h)
             reward += np.clip(current["forward_speed"], 0.0, 30.0) / 10
-
-            # New collision damage
             new_damage = (
                 current["collision_vehicles"] + current["collision_pedestrians"] +
                 current["collision_other"] - prev["collision_vehicles"] -
@@ -712,17 +711,29 @@ class World(object):
             if new_damage:
                 reward -= 100.0
 
-            # Sidewalk intersection
             reward -= current["intersection_offroad"]         
-
-            # Opposite lane intersection
-            reward -= current["intersection_otherlane"] 
+            reward -= current["intersection_otherlane"]   
+                       
+            endcondition = atomic_scenario_behavior.InTriggerRegion(self.vehicle_list[vid], 212, 222, 190, 200, name="reach end position")   
+            if endcondition.update() !=  py_trees.common.Status.SUCCESS:
+                current["next_command"] =  "LANE_FOLLOW"            
+            else :
+                current["next_command"] =  "REACH_GOAL"   
+                done[vid] = True
+                reward += 100 
+         
+            if self.prev_measurements[vid]["next_command"] == "REACH_GOAL":
+                current["previous_action"] =  "REACH_GOAL"     
+            else:
+                current["previous_action"] =  "LANE_FOLLOW" 
             
-            # Reached goal
-#            if current["next_command"] == "REACH_GOAL":
-#                reward += 100.0  
-#            print('VEHICLE %d' % vid + 'rewarding is %2d' % reward)
-            self.prev_measurements[vid] = current      
+            current["previous_reward"] = reward  
+            self.prev_measurements[vid] = current    
+            
+       
+            
+        return self.prev_measurements , done
+           
             
    
     def draw_waypoints(self):      
@@ -1137,7 +1148,8 @@ def game_loop(args):
     pygame.init()
     pygame.font.init()
     world = None
-
+    all_done = False 
+    step = 0 
     try:
         client = carla.Client(args.host, args.port)
         client.set_timeout(2.0)
@@ -1150,15 +1162,22 @@ def game_loop(args):
         world = World(client.get_world(), hud)
         controller = KeyboardControl(world, args.autopilot)
 
-        print("fast scenario testing ... ")
 #        fast_scenario =  FastScenario(world)
 #        fast_scenario.execute()
-        print("fast scenario done ")
         
         clock = pygame.time.Clock()
-        while True:
-            clock.tick_busy_loop(60)                  
-            world.reward_computing()          
+        while not all_done :
+            step += 1 
+            clock.tick_busy_loop(60)  
+            pmeasurements, done = world.reward_computing(step) 
+            if False not in done : 
+                all_done = True
+                print("all scenario done!")                
+            if step % 20 == 0:
+                print("computing reward ...")
+                print(pmeasurements)
+                print(done)
+                
             if controller.parse_events(world, clock):
                 return
             world.tick(clock)
