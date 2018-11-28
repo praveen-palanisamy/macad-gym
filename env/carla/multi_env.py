@@ -394,6 +394,9 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         elif choice == "CURVE_TOWN2":
             self.config["server_map"] = "/Game/Carla/Maps/Town02"
             return CURVE_TOWN2
+        elif choice == "DEFAULT_CURVE_TOWN1":
+            self.config["server_map"] = "/Game/Carla/Maps/Town01"
+            return DEFAULT_CURVE_TOWN1
     def init_server(self):
         
         print("Initializing new Carla server...")
@@ -789,7 +792,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             brake = float(np.abs(np.clip(forward, -1, 0)))
             steer = 2 * float(sigmoid(action[1]) - 0.5)
         else:
-            throttle = 10#float(np.clip(action[0], 5, 10))
+            throttle = float(np.clip(action[0], 0, 0.1))#10
             brake = float(np.abs(np.clip(action[0], -1, 0)))
             steer = float(np.clip(action[1], -1, 1))
         reverse = False
@@ -823,6 +826,10 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         elif self.config["auto_control"]:    
             self.actor_list[i].set_autopilot()
         else:
+            
+            next_point_transform = self.get_transform_from_nearest_way_point(i, self.end_pos)
+            next_point_transform.location.z = 40 # the point with z = 0, and the default z of cars are 40 
+            self.actor_list[i].set_transform(next_point_transform)
             self.actor_list[i].apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake, hand_brake=hand_brake, reverse=reverse))
 
         
@@ -886,6 +893,29 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         return (
             self.encode_obs(image, py_measurements, i), reward, done,
             py_measurements)
+
+    def get_transform_from_nearest_way_point(self, vehicle_id, pos):
+        vehcile = self.actor_list[vehicle_id]
+        way_points = self.cur_map.get_waypoint(vehcile.get_location())
+        nexts = list(way_points.next(1.0))
+        print('Next(1.0) --> %d waypoints' % len(nexts))
+        if not nexts:
+            raise RuntimeError("No more waypoints!")
+        smallest_dist = sys.maxsize
+        for p in nexts:
+            trans = p.transform.location
+            diff_x = trans.x - pos[vehicle_id][0]
+            diff_y = trans.y - pos[vehicle_id][1]
+            diff_z = trans.z - pos[vehicle_id][2]
+            cur_dist = np.linalg.norm([diff_x,diff_y,diff_z])
+            if cur_dist < smallest_dist:
+                next_point = p
+        text = "road id = %d, lane id = %d, transform = %s"
+        print(text % (next_point.road_id, next_point.lane_id, next_point.transform))
+           
+        #debugger = self.client.get_world().debug
+        #debugger.draw_point(next_point.transform.location, size=0.1, color=carla.Color(), life_time=-1.0, persistent_lines=True)        
+        return next_point.transform
 
     def _get_keyboard_control1(self, keys):
         control = carla.VehicleControl()
@@ -1040,8 +1070,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         next_command = "LANE_FOLLOW"
         self.previous_actions[i].append(next_command)
         
-        #if diff_x < 5 and diff_y < 5:
-        if current_x - self.end_pos[i][0] > 0:
+        if diff_x < 1 and diff_y < 1:
+        #if current_x - self.end_pos[i][0] > 0:
         #if (diff_s_x + diff_s_y > 30) or (diff_x < 5 and diff_y < 5):  # ONLY FOR TEST
             next_command = "REACH_GOAL"
         
@@ -1333,7 +1363,7 @@ if __name__ == "__main__":
             for d in done:
                 done_temp  = done_temp and done[d]
             all_done = done_temp
-            time.sleep(0.5)
+            time.sleep(1)
         print(obs)
         print(reward)
         print(done)

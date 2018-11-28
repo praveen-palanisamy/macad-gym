@@ -45,9 +45,9 @@ DEFAULT_SCENARIO_TOWN2 = build_scenario(
     max_steps=200, weathers=[0])
 
 #  Town1 curve test. 
-#DEFAULT_SCENARIO_TOWN1 = build_scenario(
-#    city="Town01", start=126, end=128, vehicles=20, pedestrians=40,
-#    max_steps=200, weathers=[0])
+DEFAULT_CURVE_TOWN1 = build_scenario(
+    city="Town01", start=[133], end=[65], vehicles=20, pedestrians=40,
+    max_steps=200, weathers=[0])
 
 # Simple scenario for Town02 that involves driving down a road
 LANE_KEEP_TOWN2 = build_scenario(
