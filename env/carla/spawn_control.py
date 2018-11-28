@@ -112,8 +112,8 @@ except ImportError:
 
     
 
-START_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z=40.0)) 
-END_POSITION = carla.Transform(carla.Location(x=217.0, y=195.0, z=40.0))
+START_POSITION = carla.Transform(carla.Location(x=143.0, y=198.0, z=40.0)) 
+END_POSITION = carla.Transform(carla.Location(x=299.0, y=198.0, z=40.0))
 GLOBAL_CAM_POSITION = carla.Transform(carla.Location(x=180.0, y=199.0, z= 45.0))
 
 #===============================================================================
@@ -187,9 +187,118 @@ class FastScenario(object):
         self.manager.stop_scenario()
         
 
+
+class GoStraightScenario(object):
+    pass
+
+class TurnLeftScenario(object):
+    pass
+
+class TurnRightScenario(object):
+    pass
+
+class LaneFollowScenario(object):
+    pass 
+    
+class StraightScenario(object):
+    pass
+
+class OneCurveScenario(object):
+    pass
+
+class DynamicScenario(object):
+    pass    
         
+#===============================================================================
+#--Reward-----------------------------------------------------------------------
+#===============================================================================
+class Reward(object):
+    
+    def __init__(self, prev_measurement=None, curr_measurement=None, flag="corl2017"):
+        self.reward = 0.0 
+        self.prev = prev_measurement
+        self.curr = curr_measurement 
+        self.flag = flag 
+    
+    def set_measurement(self, prev_measurement, curr_measurement):
+        self.prev = prev_measurement
+        self.curr = curr_measurement         
+    
+    def compute_reward(self):
+        if self.flag == "corl2017":
+            return self.compute_reward_col2017()
+        elif self.flag = "lane_keep":
+            return self.compute_reward_lane_keep()
+        else :
+            return self.compute_reward_custom()
+                 
+    def compute_reward_custom(self): 
+        self.reward = 0.0 
+        cur_dist = self.curr["distance_to_goal"]
+        prev_dist = self.prev["distance_to_goal"]
+        self.reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
+        self.reward += np.clip(self.curr["forward_speed"], 0.0, 30.0) / 10
+        new_damage = (
+                self.curr["collision_vehicles"] + self.curr["collision_pedestrians"] +
+                self.curr["collision_other"] - self.prev["collision_vehicles"] -
+                self.prev["collision_pedestrians"] - self.prev["collision_other"])
+        if new_damage:
+            self.reward -= 100.0
 
+        self.reward -= self.curr["intersection_offroad"]         
+        self.reward -= self.curr["intersection_otherlane"]   
+       
+        if self.curr["next_command"] == "REACH_GOAL":
+            self.reward += 100 
 
+        return self.reward  
+   
+    def compute_reward_corl2017(self):
+        self.reward = 0.0
+        cur_dist = self.curr["distance_to_goal"]
+        prev_dist = self.prev["distance_to_goal"]
+        # Distance travelled toward the goal in m
+        self.reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
+        # Change in speed (km/h)
+        self.reward += 0.05 * (self.curr["forward_speed"] - self.prev["forward_speed"])  
+        # New collision damage
+        self.reward -= .00002 * (
+            self.curr["collision_vehicles"] + self.curr["collision_pedestrians"] +
+            self.curr["collision_other"] - self.prev["collision_vehicles"] -
+            self.prev["collision_pedestrians"] - self.prev["collision_other"])
+
+        # New sidewalk intersection
+        self.reward -= 2 * (
+            self.curr["intersection_offroad"] - self.prev["intersection_offroad"])
+
+        # New opposite lane intersection
+        self.reward -= 2 * (
+            self.curr["intersection_otherlane"] - self.prev["intersection_otherlane"])
+
+        return self.reward
+
+    def compute_reward_lane_keep(self):
+        self.reward = 0.0
+        # Speed reward, up 30.0 (km/h)
+        self.reward += np.clip(self.curr["forward_speed"], 0.0, 30.0) / 10
+        # New collision damage
+        new_damage = (
+            self.curr["collision_vehicles"] + self.curr["collision_pedestrians"] +
+            self.curr["collision_other"] - self.prev["collision_vehicles"] -
+            self.prev["collision_pedestrians"] - self.prev["collision_other"])
+        if new_damage:
+            self.reward -= 100.0
+        # Sidewalk intersection
+        self.reward -= self.curr["intersection_offroad"]
+        # Opposite lane intersection
+        self.reward -= self.curr["intersection_otherlane"]
+
+        return self.reward
+    
+    def destory(self):
+        pass
+    
+    
 #===============================================================================
 #-- VehicleManager -------------------------------------------------------------
 #===============================================================================
@@ -204,7 +313,6 @@ class VehicleManager(object):
         self._end_pos = None
         self._start_coord = None
         self._end_coord = None
-        self.prev_measurement = None
        
     def get_location(self):
         return self._vehicle.get_location() 
@@ -264,7 +372,7 @@ class VehicleManager(object):
         self._end_coord =  [ self._end_pos[0] // 100 ,   self._end_pos[1] // 100 ]            
         return (self._start_pos, self._end_pos, self._start_coord, self._end_coord)
        
-    def read_observation(self, scenario, config):      
+    def read_observation(self, scenario, config, step=0):      
         c_vehicles, c_pedestrains, c_other = self.dynamic_collided()       
         c_offline = self.offlane_invasion()
         c_offroad = self.offroad_invasion()
@@ -275,11 +383,21 @@ class VehicleManager(object):
         x_orient = cur_.rotation 
         y_orient = cur_.rotation              
         distance_to_goal_euclidean = float(np.linalg.norm( [cur_x -  end_pos[0], cur_y - end_pos[1]]) / 100)        
-        distance_to_goal = distance_to_goal_euclidean         
+        distance_to_goal = distance_to_goal_euclidean       
+        endcondition = atomic_scenario_behavior.InTriggerRegion(self._vehicle , 294, 304, 193, 203, name="reach end position")   
+        if endcondition.update() !=  py_trees.common.Status.SUCCESS:
+            next_command =  "LANE_FOLLOW"            
+        else :
+            next_command =  "REACH_GOAL"   
+ 
+        if next_command == "REACH_GOAL":
+            previous_action =  "REACH_GOAL"     
+        else:
+            previous_action =  "LANE_FOLLOW" 
         
         vehicle_data = {
             "episode_id": 0 ,
-            "step": 0, 
+            "step": step, 
             "x": cur_x,
             "y": cur_y,
             "x_orient": x_orient ,
@@ -302,8 +420,8 @@ class VehicleManager(object):
             "num_vehicles": config["num_vehicles"] , 
             "num_pedestrians": config["num_pedestrians"],
             "max_steps": 1000 ,
-            "next_command": None,
-            "previous_action": None,
+            "next_command": next_command,
+            "previous_action": previous_action,
             "previous_reward": 0            
         }   
         
@@ -552,7 +670,6 @@ ENV_CONFIG = {
 #TODO: replace vehicle_list with vehicle_manager_list
 #TODO: remove _vehicle property
 class World(object):  
-    MAX_STEP = 10000
     def __init__(self, carla_world, hud):
         self.world = carla_world
         self.map = self.world.get_map() 
@@ -578,8 +695,8 @@ class World(object):
         self.controller = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
-#        self.draw_waypoints()
-        
+        self.done = [False for vid in range(num_actors) ]
+        self.reward_object = Reward()
         #integration with MultiCarlaEnv
         self.config = ENV_CONFIG 
         self.scenario = ENV_CONFIG["scenarios"] 
@@ -615,6 +732,8 @@ class World(object):
         self.prev_measurements[0] = vmanager.read_observation(self.scenario, self.config)
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self.hud) 
+        self.done = [False for vid in range(num_actors) ]
+        self.reward_object = Reward()
         
         self._camera_manager = CameraManager(self.vehicle, self.hud)
         self._camera_manager._transform_index = cam_pos_index
@@ -687,55 +806,25 @@ class World(object):
             self.num_vehicles += 1 
             self.vehicle_manager_list.append(vmanager)
             return vehicle
-            
-    #to measure how well each vehicle performance in the world, related to one special scenario     
-    def reward_computing(self, step): 
-        done = [False for vid in range(self.get_num_of_vehicles())] 
-        if step > self.MAX_STEP:
-            return self.prev_measurements , True 
-        
-        for vid in range(self.get_num_of_vehicles()):           
-            vmanager = self.vehicle_manager_list[vid]
-            current = vmanager.read_observation(self.scenario, self.config)
-            prev = self.prev_measurements[vid] 
-            current["step"] = step 
-            reward = 0.0         
-            cur_dist = current["distance_to_goal"]
-            prev_dist = prev["distance_to_goal"]
-            reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
-            reward += np.clip(current["forward_speed"], 0.0, 30.0) / 10
-            new_damage = (
-                current["collision_vehicles"] + current["collision_pedestrians"] +
-                current["collision_other"] - prev["collision_vehicles"] -
-                prev["collision_pedestrians"] - prev["collision_other"])
-            if new_damage:
-                reward -= 100.0
-
-            reward -= current["intersection_offroad"]         
-            reward -= current["intersection_otherlane"]   
-                       
-            endcondition = atomic_scenario_behavior.InTriggerRegion(self.vehicle_list[vid], 212, 222, 190, 200, name="reach end position")   
-            if endcondition.update() !=  py_trees.common.Status.SUCCESS:
-                current["next_command"] =  "LANE_FOLLOW"            
-            else :
-                current["next_command"] =  "REACH_GOAL"   
-                done[vid] = True
-                reward += 100 
-         
-            if self.prev_measurements[vid]["next_command"] == "REACH_GOAL":
-                current["previous_action"] =  "REACH_GOAL"     
-            else:
-                current["previous_action"] =  "LANE_FOLLOW" 
-            
-            current["previous_reward"] = reward  
-            self.prev_measurements[vid] = current    
-            
-       
-            
-        return self.prev_measurements , done
+      
+    def reward_computing(self, prev, curr): 
+        self.reward_object.set_measurement(prev, curr)
+        return self.reward_object.compute_reward()
            
+    def update_measurements(self, step):  
+        num_actors = self.get_num_of_vehicles()    
+        for vid in np.arange(num_actors):
+            vmanager = self.vehicle_manager_list[vid]
+            curr = vmanager.read_observation(self.scenario, self.config, step)  
+            prev = self.prev_measurements[vid] 
+            reward = self.reward_computing(prev, curr)   
+            curr["previous_reward"] = reward  
+            self.prev_measurements[vid] = curr  
             
-   
+            if curr["next_command"] == "REACH_GOAL" :
+                self.done[vid] = True
+        return self.done 
+
     def draw_waypoints(self):      
         helper = self.world.debug         
         for vid in np.arange(self.get_num_of_vehicles()) :
@@ -1169,13 +1258,12 @@ def game_loop(args):
         while not all_done :
             step += 1 
             clock.tick_busy_loop(60)  
-            pmeasurements, done = world.reward_computing(step) 
+            done = world.update_measurements(step)
             if False not in done : 
                 all_done = True
                 print("all scenario done!")                
             if step % 20 == 0:
                 print("computing reward ...")
-                print(pmeasurements)
                 print(done)
                 
             if controller.parse_events(world, clock):
