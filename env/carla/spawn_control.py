@@ -320,6 +320,8 @@ class VehicleManager(object):
     def get_velocity(self):
         return self._vehicle.get_velocity() 
         
+   
+        
     def draw_waypoints(self, helper, wp):   
             nexts = list(wp.next(1.0)) 
             if not nexts:
@@ -328,7 +330,6 @@ class VehicleManager(object):
             text = "road id = %d, lane id = %d, transform = %s"
 #            print(text % (wp_next.road_id, wp_next.lane_id, wp_next.transform))           
             self.inner_wp_draw(helper, wp_next)           
-
     
     def inner_wp_draw(self, helper, wp, depth=4):
         if depth < 0:
@@ -790,14 +791,25 @@ class World(object):
             bp.set_attribute('color', color)
         return bp
     
-    def spawn_new_vehicle(self, location):
+    def spawn_new_vehicle(self, vehicle_m):   
+        wps = self.map.get_waypoint(vehicle_m.get_location())
+        #TODO: still a failure chance,  if smallvehicle.size = 1m, while the spawn largeVehicle.size = 20m, it will collipse.       
+        bbox = vehicle_m._vehicle.bounding_box
+        dist = math.sqrt((bbox.extent.x)**2 + (bbox.extent.y)**2)
+        next_wps = list(wps.next(dist))
+        if not next_wps:
+            raise RuntimeError("no more waypoints in spawn new vehicle")
+        location = next_wps[-1].transform.location
+        location += carla.Location(z=40)
+        print(location)
         blueprint = self._get_random_blueprint()	
         detector = Detecter(location,  self.vehicle_list)  
         s_location = detector.collision()
         if type(s_location) == bool :
             return None
         #TODO: yaw to along street line
-        transform = carla.Transform(carla.Location(x=s_location.x, y=s_location.y, z=s_location.z), carla.Rotation(yaw=0.0))                      
+        transform = carla.Transform(carla.Location(x=s_location.x, y=s_location.y, z=s_location.z), carla.Rotation(yaw=0.0))  
+        
         vehicle = self.world.try_spawn_actor(blueprint, transform)  
         if vehicle is not None:
             self.vehicle_list.append(vehicle)             
@@ -893,8 +905,8 @@ class KeyboardControl(object):
                     cur_vehicle_m.set_autopilot(not cur_vehicle_m.get_autopilot())
                     world.hud.notification('Autopilot %s' % ('On' if cur_vehicle_m.get_autopilot() else 'Off'))
             elif event.type == pygame.MOUSEBUTTONUP:
-                benchmark_transform = world.vehicle_list[-1].get_transform()
-                vehicle = world.spawn_new_vehicle(benchmark_transform.location)
+#                vehicle = world.spawn_new_vehicle(self._cur_vehicle_manager(world))
+                vehicle = world.spawn_new_vehicle(world.vehicle_manager_list[-1])
                 time.sleep(3)  
                 if vehicle is not None:
                     cmanager = CameraManager(vehicle, world.hud)   
@@ -913,9 +925,7 @@ class KeyboardControl(object):
                         vm.apply_control(self._control)
                 else :
                     vm.set_autopilot(vm.get_autopilot())
-             
-            #print('collision with vehicle %2d, people %2d, others %2d' % world.collision_sensor.dynamic_collided())
-            
+                         
 
     def _parse_keys(self, keys, milliseconds):
         self._control.throttle = 1.0 if keys[K_UP] or keys[K_w] else 0.0
@@ -1108,7 +1118,7 @@ class CollisionSensor(object):
         if len(self._history) > 4000:
             self._history.pop(0)
 
-        print('vehicle %s ' % (self._parent).id + ' collision with %2d vehicles, %2d people, %2d others' %  self.dynamic_collided())            
+#        print('vehicle %s ' % (self._parent).id + ' collision with %2d vehicles, %2d people, %2d others' %  self.dynamic_collided())            
         _cur = event.other_actor
         if _cur.id == 0 : #the static world objects 
             if _cur.type_id in self.collision_type_id_set :
