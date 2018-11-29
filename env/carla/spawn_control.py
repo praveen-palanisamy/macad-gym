@@ -326,8 +326,10 @@ class VehicleManager(object):
                 raise RuntimeError("No more waypoints")
             wp_next = random.choice(nexts) 
             text = "road id = %d, lane id = %d, transform = %s"
-            print(text % (wp_next.road_id, wp_next.lane_id, wp_next.transform))           
-            self.inner_wp_draw(helper, wp_next)
+#            print(text % (wp_next.road_id, wp_next.lane_id, wp_next.transform))           
+            self.inner_wp_draw(helper, wp_next)           
+#            self._vehicle.set_transform(wp_next.transform)
+
     
     def inner_wp_draw(self, helper, wp, depth=4):
         if depth < 0:
@@ -834,7 +836,7 @@ class World(object):
         helper = self.world.debug   
         vmanager = self.vehicle_manager_list[self.camera_index - 1]
         wp = self.map.get_waypoint(vmanager.get_location())
-        vmanager.draw_waypoints(helper, wp)
+        vmanager.draw_waypoints(helper, wp)        
  
                     
 # ==============================================================================
@@ -875,7 +877,8 @@ class KeyboardControl(object):
                 elif event.key == K_c:
                     world.next_weather()
                 elif event.key == K_BACKQUOTE:
-                    world._camera_manager.next_sensor()
+                     cur_camera = world.camera_manager_list[world.camera_index]
+                     cur_camera.next_sensor()
                 elif event.key >= K_0 and event.key <= K_9:   #K_0 ==  48 ? 
                     if len(world.camera_manager_list) > event.key-48:
                         world.camera_index = event.key-48
@@ -1161,9 +1164,10 @@ class CameraManager(object):
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.6, z=1.7)),
             carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
+            carla.Transform(carla.Location(x=24, z=28.0), carla.Rotation(roll=-90, pitch=-90)),            
             transform ]
         if transform is not None:
-            self._transform_index = 2
+            self._transform_index = 3
         else:
             self._transform_index = 1
         self._sensors = [
@@ -1188,6 +1192,8 @@ class CameraManager(object):
 
     def toggle_camera(self):
         self._transform_index = (self._transform_index + 1) % len(self._camera_transforms)
+        if self._camera_transforms[self._transform_index] is None:
+            self._transform_index = (self._transform_index + 1) % len(self._camera_transforms)            
         self.sensor.set_transform(self._camera_transforms[self._transform_index])
 
     def set_sensor(self, index, notify=True):
@@ -1279,8 +1285,8 @@ def game_loop(args):
                 print("all scenario done!")                
             if step % 20 == 0:
                 world.current_vechicle_waypoints_tracking()
-                print("computing reward ...")
-                print(done)
+#                print("computing reward ...")
+#                print(done)
                 
             if controller.parse_events(world, clock):
                 return
