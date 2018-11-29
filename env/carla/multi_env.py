@@ -3,10 +3,7 @@ multi_env.py: Multi-actor environment interface for CARLA-Gym
 Should support two modes of operation. See CARLA-Gym developer guide for more info
 __author__: PP, BP
 """
-<<<<<<< HEAD
-=======
 
->>>>>>> bo
 
 from __future__ import absolute_import
 from __future__ import division
@@ -18,15 +15,11 @@ from datetime import datetime
 import sys
 import os
 import glob
-<<<<<<< HEAD
+
 
 sys.path.append(glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
                           f'{sys.version_info.minor}-linux-x86_64.egg')[0])
-=======
-sys.path.append(glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
-                          f'{sys.version_info.minor}-linux-x86_64.egg')[0])
 
->>>>>>> bo
 
 from env.multi_actor_env import *
 from env.carla.PythonAPI.manual_control import HUD, CameraManager
@@ -76,13 +69,10 @@ except Exception:
 import gym
 from gym.spaces import Box, Discrete, Tuple
 from .scenarios import *
-<<<<<<< HEAD
-from .carla.settings import CarlaSettings
-=======
+
 #from .carla.settings import CarlaSettings
 from env.carla.carla.planner import *
 
->>>>>>> bo
 
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
@@ -1424,10 +1414,10 @@ if __name__ == "__main__":
         print("server fps:", len(env.image_pool[0])/total_time)
         #print(len(env.image_pool[1]))
         
-        for n in range(total_vehcile):
-            for image in env.image_pool[n]:
-                image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/%04d.png'.format(n) % image.frame_number)    
-                image.save_to_disk(image_dir, env.cc)
+        #for n in range(total_vehcile):
+        #    for image in env.image_pool[n]:
+        #        image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/%04d.png'.format(n) % image.frame_number)    
+        #        image.save_to_disk(image_dir, env.cc)
     
         #env.images_to_video()
 
