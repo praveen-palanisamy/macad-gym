@@ -1,4 +1,8 @@
-"""OpenAI gym environment for Carla. Run this file for a demo."""
+"""
+multi_env.py: Multi-actor environment interface for CARLA-Gym
+Should support two modes of operation. See CARLA-Gym developer guide for more info
+__author__: PP, BP
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -9,10 +13,10 @@ from enum import Enum
 from datetime import datetime
 import sys
 import os
+import glob
 
-sys.path.append(os.path.abspath(os.path.join('../..', 'env')))
-sys.path.append(
-    'env/carla/PythonAPI/lib/carla-0.9.1-py3.5-linux-x86_64.egg')
+sys.path.append(glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
+                          f'{sys.version_info.minor}-linux-x86_64.egg')[0])
 
 from env.multi_actor_env import *
 from env.carla.PythonAPI.manual_control import HUD, CameraManager
@@ -50,6 +54,7 @@ import traceback
 import GPUtil
 import carla
 import numpy as np
+import collections
 
 import weakref # for collision
 import math # for collision
@@ -62,7 +67,7 @@ except Exception:
 import gym
 from gym.spaces import Box, Discrete, Tuple
 from .scenarios import *
-from .settings import CarlaSettings
+from .carla.settings import CarlaSettings
 
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
@@ -71,7 +76,7 @@ if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
 
 # Set this to the path of your Carla binary
 SERVER_BINARY = os.environ.get(
-    "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.0/CarlaUE4.sh"))
+    "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.1/CarlaUE4.sh"))
 
 assert os.path.exists(SERVER_BINARY)
 
