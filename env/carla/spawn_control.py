@@ -328,7 +328,6 @@ class VehicleManager(object):
             text = "road id = %d, lane id = %d, transform = %s"
 #            print(text % (wp_next.road_id, wp_next.lane_id, wp_next.transform))           
             self.inner_wp_draw(helper, wp_next)           
-#            self._vehicle.set_transform(wp_next.transform)
 
     
     def inner_wp_draw(self, helper, wp, depth=4):
@@ -596,13 +595,7 @@ class Detecter(object):
                       
     def collision(self):
         for vehicle in self._actors:
-            vel = vehicle.get_velocity()
-            abs_vel = (vel.x)**2 + (vel.y)**2 + (vel.z)**2
-#            print('current vehicle %2d' % vehicle.id + '  velocity(%6.4f %6.4f %6.4f)' % (vel.x, vel.y, vel.z) )
-            if abs_vel < 0.1 :   
-                print('current velocity less than 0.1 Km/h, failed spawn new vehicle')
-                return self.SPAWN_COLLISION    
-                
+            vel = vehicle.get_velocity()      
             bbox = self._bbox_vertices(vehicle)        
             min1, max1, min2, max2, min3, max3, n1, n2, n3 = self._cubic(bbox)                       
             collision_flag = True
@@ -871,7 +864,8 @@ class KeyboardControl(object):
                 elif event.key == K_h or (event.key == K_SLASH and pygame.key.get_mods() & KMOD_SHIFT):
                     world.hud.help.toggle()
                 elif event.key == K_TAB:
-                    world._camera_manager.toggle_camera()
+                    cur_camera = world.camera_manager_list[world.camera_index]
+                    cur_camera.toggle_camera()
                 elif event.key == K_c and pygame.key.get_mods() & KMOD_SHIFT:
                     world.next_weather(reverse=True)
                 elif event.key == K_c:
