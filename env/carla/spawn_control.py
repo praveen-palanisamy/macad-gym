@@ -226,8 +226,8 @@ class Reward(object):
     
     def compute_reward(self):
         if self.flag == "corl2017":
-            return self.compute_reward_col2017()
-        elif self.flag = "lane_keep":
+            return self.compute_reward_corl2017()
+        elif self.flag == "lane_keep":
             return self.compute_reward_lane_keep()
         else :
             return self.compute_reward_custom()
@@ -695,7 +695,7 @@ class World(object):
         self.controller = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
-        self.done = [False for vid in range(num_actors) ]
+        self.done = [False ]
         self.reward_object = Reward()
         #integration with MultiCarlaEnv
         self.config = ENV_CONFIG 
@@ -732,7 +732,7 @@ class World(object):
         self.prev_measurements[0] = vmanager.read_observation(self.scenario, self.config)
         self.collision_sensor = CollisionSensor(self._vehicle, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self._vehicle, self.hud) 
-        self.done = [False for vid in range(num_actors) ]
+        self.done = [False]
         self.reward_object = Reward()
         
         self._camera_manager = CameraManager(self.vehicle, self.hud)
@@ -804,6 +804,7 @@ class World(object):
             vmanager = VehicleManager(vehicle)                   
             self.prev_measurements[self.num_vehicles] = vmanager.read_observation(self.scenario, self.config)      
             self.num_vehicles += 1 
+            self.done.append(False)
             self.vehicle_manager_list.append(vmanager)
             return vehicle
       
@@ -811,9 +812,8 @@ class World(object):
         self.reward_object.set_measurement(prev, curr)
         return self.reward_object.compute_reward()
            
-    def update_measurements(self, step):  
-        num_actors = self.get_num_of_vehicles()    
-        for vid in np.arange(num_actors):
+    def update_measurements(self, step): 
+        for vid in np.arange(self.get_num_of_vehicles() ):
             vmanager = self.vehicle_manager_list[vid]
             curr = vmanager.read_observation(self.scenario, self.config, step)  
             prev = self.prev_measurements[vid] 
@@ -880,7 +880,12 @@ class KeyboardControl(object):
                 elif event.key == K_r:
                     world._camera_manager.toggle_recording()
                 elif event.key == K_q:
-                    self._control.reverse = not self._control.reverse
+                    cur_vm = self._cur_vehicle_manager(world)
+                    if hasattr(cur_vm, 'reverse') :
+                        cur_vm.reverse = not cur_vm.reverse
+                    else:
+                        cur_vm.reverse = not self._control.reverse 
+#                    self._control.reverse = not self._control.reverse
                 elif event.key == K_p:
                     cur_vehicle_m = self._cur_vehicle_manager(world)
                     cur_vehicle_m.set_autopilot(not cur_vehicle_m.get_autopilot())
@@ -898,7 +903,12 @@ class KeyboardControl(object):
             if vm is not None:
                 if not vm.get_autopilot(): 
                     self._parse_keys(pygame.key.get_pressed(), clock.get_time())
-                    vm.apply_control(self._control)   
+                    if hasattr(vm, 'reverse'):
+                        tmp_control = self._control 
+                        tmp_control.reverse = vm.reverse 
+                        vm.apply_control(tmp_control)
+                    else:
+                        vm.apply_control(self._control)
                 else :
                     vm.set_autopilot(vm.get_autopilot())
              
@@ -1260,7 +1270,7 @@ def game_loop(args):
             clock.tick_busy_loop(60)  
             done = world.update_measurements(step)
             if False not in done : 
-                all_done = True
+#                all_done = True
                 print("all scenario done!")                
             if step % 20 == 0:
                 print("computing reward ...")
