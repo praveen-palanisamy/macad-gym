@@ -85,6 +85,7 @@ try:
     from pygame.locals import K_9
     from pygame.locals import K_BACKQUOTE
     from pygame.locals import K_BACKSPACE
+    from pygame.locals import K_DELETE
     from pygame.locals import K_DOWN
     from pygame.locals import K_ESCAPE
     from pygame.locals import K_LEFT
@@ -433,10 +434,11 @@ class VehicleManager(object):
         }   
         
         return vehicle_data 
-
-    #TODO    
-    def destroy(self):
-        pass
+   
+    def __del__(self):
+        for actor in [self._collision_sensor.sensor, self._lane_invasion_sensor.sensor ]:
+            if actor is not None:
+                actor.destroy()         
 
 #===============================================================================
 #-- CarlaMap -------------------------------------------------------------------
@@ -773,16 +775,16 @@ class World(object):
     def destroy(self):               
         while len(self.camera_manager_list) != 0:
             _cmanager = self.camera_manager_list.pop()
-            _vehicle = self.vehicle_list.pop() if self.vehicle_list else None
-            for actor in [_cmanager.sensor,   _vehicle]:
+            for actor in [_cmanager.sensor]:
                 if actor is not None:
                     actor.destroy() 
         for actor in [self.collision_sensor.sensor, self.lane_invasion_sensor.sensor ]:
             if actor is not None:
                 actor.destroy() 
                 
-        for vm in self.vehicle_manager_list:
-            vm.destroy()           
+        while len(self.vehicle_manager_list) != 0:
+                tmp = self.vehicle_manager_list.pop()   
+                del tmp 
 
     def _get_random_blueprint(self):
         bp = random.choice(self.world.get_blueprint_library().filter('vehicle'))
@@ -791,17 +793,31 @@ class World(object):
             bp.set_attribute('color', color)
         return bp
     
+    def delete_actor(self, vehicle_idx):
+        if vehicle_idx < 0 :
+            print("warning: no actor in the world now")
+            return 
+        self.camera_index -= 1 
+        self.num_vehicles -= 1
+        self.vehicle_list.pop(vehicle_idx)
+        _cmanager = self.camera_manager_list.pop(vehicle_idx+1) 
+        for actor in [_cmanager.sensor]:
+            if actor is not None:
+                actor.destroy()  
+        #TODO: self.world.try_delete_actor(), expecting this API in future
+        tmp_vm = self.vehicle_manager_list.pop(vehicle_idx)
+        del tmp_vm
+        
     def spawn_new_vehicle(self, vehicle_m):   
         wps = self.map.get_waypoint(vehicle_m.get_location())
         #TODO: still a failure chance,  if smallvehicle.size = 1m, while the spawn largeVehicle.size = 20m, it will collipse.       
-        bbox = vehicle_m._vehicle.bounding_box
-        dist = math.sqrt((bbox.extent.x)**2 + (bbox.extent.y)**2)
+        bbox = vehicle_m._vehicle.bounding_box        
+        dist = math.sqrt((bbox.extent.x *2 )**2 + (bbox.extent.y * 2)**2)
         next_wps = list(wps.next(dist))
         if not next_wps:
             raise RuntimeError("no more waypoints in spawn new vehicle")
         location = next_wps[-1].transform.location
-        location += carla.Location(z=40)
-        print(location)
+        location += carla.Location(z=40)  #TODO
         blueprint = self._get_random_blueprint()	
         detector = Detecter(location,  self.vehicle_list)  
         s_location = detector.collision()
@@ -885,6 +901,11 @@ class KeyboardControl(object):
                 elif event.key == K_BACKQUOTE:
                      cur_camera = world.camera_manager_list[world.camera_index]
                      cur_camera.next_sensor()
+                elif event.key == K_DELETE:
+                     print("current vehicle %d will be delete" % (world.camera_index -1))
+                     if world.camera_index == 1:
+                        print("warning: no more actors in the world!")
+                     world.delete_actor(world.camera_index-1)  
                 elif event.key >= K_0 and event.key <= K_9:   #K_0 ==  48 ? 
                     if len(world.camera_manager_list) > event.key-48:
                         world.camera_index = event.key-48
@@ -1118,7 +1139,7 @@ class CollisionSensor(object):
         if len(self._history) > 4000:
             self._history.pop(0)
 
-#        print('vehicle %s ' % (self._parent).id + ' collision with %2d vehicles, %2d people, %2d others' %  self.dynamic_collided())            
+        print('vehicle %s ' % (self._parent).id + ' collision with %2d vehicles, %2d people, %2d others' %  self.dynamic_collided())            
         _cur = event.other_actor
         if _cur.id == 0 : #the static world objects 
             if _cur.type_id in self.collision_type_id_set :
