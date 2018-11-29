@@ -319,22 +319,27 @@ class VehicleManager(object):
     
     def get_velocity(self):
         return self._vehicle.get_velocity() 
+        
+    def draw_waypoints(self, helper, wp):   
+            nexts = list(wp.next(1.0)) 
+            if not nexts:
+                raise RuntimeError("No more waypoints")
+            wp_next = random.choice(nexts) 
+            text = "road id = %d, lane id = %d, transform = %s"
+            print(text % (wp_next.road_id, wp_next.lane_id, wp_next.transform))           
+            self.inner_wp_draw(helper, wp_next)
     
-    #TODO: refresh in each render frame 
-    #TODO: waypoints doesn't refresh when restart a new pygame
-    #self.map.get_waypoint(loc1)      
-    def draw_waypoints(self, helper):           
-            loc = self.get_location()
-            vel = self.get_velocity()
-            abs_vel = (vel.x)**2 + (vel.y)**2 + (vel.z)**2
-            if abs_vel < 0.5 :
-                print('draw a point')
-                helper.draw_point(loc)
-            else:
-                print('draw a line')
-                loc2 = loc + carla.Location(x=vel.x , y=vel.y,  z=0)                 
-                helper.draw_line(loc, loc2)    
-
+    def inner_wp_draw(self, helper, wp, depth=4):
+        if depth < 0:
+            return
+        for w in wp.next(4.0):
+            t = w.transform
+            begin = t.location + carla.Location(z=40)  #TODO, the wp Z-coord is set as 0, not visiable
+            angle = math.radians(t.rotation.yaw) 
+            end = begin + carla.Location(x=math.cos(angle), y=math.sin(angle))
+            helper.draw_arrow(begin, end, arrow_size=0.1, life_time = 1.0)
+            self.inner_wp_draw(helper, w, depth-1)
+  
     def set_autopilot(self, autopilot_enabled):
         self._autopilot_enabled = autopilot_enabled
         self._vehicle.set_autopilot(self._autopilot_enabled)
@@ -825,11 +830,11 @@ class World(object):
                 self.done[vid] = True
         return self.done 
 
-    def draw_waypoints(self):      
-        helper = self.world.debug         
-        for vid in np.arange(self.get_num_of_vehicles()) :
-            vmanager = self.vehicle_manager_list[vid]
-            vmanager.draw_waypoints(helper)
+    def current_vechicle_waypoints_tracking(self):
+        helper = self.world.debug   
+        vmanager = self.vehicle_manager_list[self.camera_index - 1]
+        wp = self.map.get_waypoint(vmanager.get_location())
+        vmanager.draw_waypoints(helper, wp)
  
                     
 # ==============================================================================
@@ -1273,6 +1278,7 @@ def game_loop(args):
 #                all_done = True
                 print("all scenario done!")                
             if step % 20 == 0:
+                world.current_vechicle_waypoints_tracking()
                 print("computing reward ...")
                 print(done)
                 
