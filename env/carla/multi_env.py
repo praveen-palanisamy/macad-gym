@@ -4,6 +4,7 @@ Should support two modes of operation. See CARLA-Gym developer guide for more in
 __author__: PP, BP
 """
 
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -15,8 +16,10 @@ import sys
 import os
 import glob
 
+
 sys.path.append(glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
                           f'{sys.version_info.minor}-linux-x86_64.egg')[0])
+
 
 from env.multi_actor_env import *
 from env.carla.PythonAPI.manual_control import HUD, CameraManager
@@ -38,7 +41,6 @@ try:
     from pygame.locals import K_w
 except ImportError:
     raise RuntimeError('cannot import pygame, make sure pygame package is installed')
-
 
 
 import atexit
@@ -67,7 +69,10 @@ except Exception:
 import gym
 from gym.spaces import Box, Discrete, Tuple
 from .scenarios import *
-from .carla.settings import CarlaSettings
+
+#from .carla.settings import CarlaSettings
+from env.carla.carla.planner import *
+
 
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
@@ -103,11 +108,11 @@ MAX_STEP = 1000
 
 # Carla planner commands
 COMMANDS_ENUM = {
-    REACH_GOAL : "REACH_GOAL",
-    GO_STRAIGHT : "GO_STRAIGHT",
-    TURN_RIGHT : "TURN_RIGHT",
-    TURN_LEFT : "TURN_LEFT",
-    LANE_FOLLOW : "LANE_FOLLOW",
+    0.0: "REACH_GOAL",
+    5.0: "GO_STRAIGHT",
+    4.0: "TURN_RIGHT",
+    3.0: "TURN_LEFT",
+    2.0: "LANE_FOLLOW",
 }
 
 # Mapping from string repr to one-hot encoding index to feed to the model
@@ -161,9 +166,9 @@ DISCRETE_ACTIONS = {
     # brake
     4: [-0.5, 0.0],
     # forward left
-    5: [1.0, -0.5],
+    5: [0.5, -0.05],
     # forward right
-    6: [1.0, 0.5],
+    6: [0.5, 0.05],
     # brake left
     7: [-0.5, -0.5],
     # brake right
@@ -510,7 +515,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         # the CarlaSettings.ini file. Here we set the configuration we
         # want for the new episode.
         #  The setting do not work in Carla 0.9.0.
-        settings = CarlaSettings()
+        #settings = CarlaSettings()
 
         # If config["scenarios"] is a single scenario, then use it if it's an array of scenarios, randomly choose one and init
         #  no update_scenarios_parameter, it is from the old planner API.
@@ -524,14 +529,14 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #print("333333333", self.city)
         #assert self.scenario["city"] == self.city, (self.scenario, self.city)
         self.weather = random.choice(self.scenario["weather_distribution"])
-        settings.set(
-            SynchronousMode=True,
-            SendNonPlayerAgentsInfo=True,
-            NumberOfVehicles=self.scenario["num_vehicles"],
-            NumberOfPedestrians=self.scenario["num_pedestrians"],
-            WeatherId=self.weather)
-        settings.randomize_seeds()
-        print("This is settings: ", settings)
+        #settings.set(
+        #    SynchronousMode=True,
+        #    SendNonPlayerAgentsInfo=True,
+        #    NumberOfVehicles=self.scenario["num_vehicles"],
+        #    NumberOfPedestrians=self.scenario["num_pedestrians"],
+        #    WeatherId=self.weather)
+        #settings.randomize_seeds()
+        #print("This is settings: ", settings)
         #  Create new camera in Carla_0.9.0.
         world = self.client.get_world()
         self.cur_map = world.get_map()
@@ -622,10 +627,11 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             #blueprint.set_attribute('color', color)
             transform = carla.Transform(
 	        carla.Location(x=POS_S[i][0], y=POS_S[i][1], z=POS_S[i][2]),
-	        carla.Rotation(yaw=0.0))
+	        carla.Rotation(pitch = 0, yaw=0, roll = 0))
             print('spawning vehicle %r with %d wheels' % (blueprint.id, blueprint.get_attribute('number_of_wheels')))
             vehicle = world.try_spawn_actor(blueprint, transform)
-            print('vehicle at ', vehicle.get_location().x, vehicle.get_location().y, vehicle.get_location().z)       
+            print('vehicle at ', vehicle.get_location().x, vehicle.get_location().y, vehicle.get_location().z)
+            #time.sleep(1000)       
             self.actor_list.append(vehicle)
             collision_sensor = CollisionSensor(vehicle, 0)
             lane_sensor = LaneInvasionSensor(vehicle, 0)
@@ -797,7 +803,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             brake = float(np.abs(np.clip(forward, -1, 0)))
             steer = 2 * float(sigmoid(action[1]) - 0.5)
         else:
-            throttle = float(np.clip(action[0], 0, 0.1))#10
+            throttle = float(np.clip(action[0], 0, 0.6))#10
             brake = float(np.abs(np.clip(action[0], -1, 0)))
             steer = float(np.clip(action[1], -1, 1))
         reverse = False
@@ -832,9 +838,9 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             self.actor_list[i].set_autopilot()
         else:
             
-            next_point_transform = self.get_transform_from_nearest_way_point(i, self.end_pos)
-            next_point_transform.location.z = 40 # the point with z = 0, and the default z of cars are 40 
-            self.actor_list[i].set_transform(next_point_transform)
+            #next_point_transform = self.get_transform_from_nearest_way_point(i, self.end_pos)
+            #next_point_transform.location.z = 40 # the point with z = 0, and the default z of cars are 40 
+            #self.actor_list[i].set_transform(next_point_transform)
             self.actor_list[i].apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake, hand_brake=hand_brake, reverse=reverse))
 
         
@@ -1025,23 +1031,25 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             #if name == camera_name:
                 #observation = image
 
-        
+        print(type(self.actor_list[i].get_transform().rotation.pitch))
+        print(type(0.0))
+        #time.sleep(1000)
         #cur = measurements.player_measurements
-        #if self.config["enable_planner"]:
-        #    next_command = COMMANDS_ENUM[
-        #        self.planner.get_next_command(
-        #            [cur.transform.location.x, cur.transform.location.y,
-        #             GROUND_Z],
-        #            [cur.transform.orientation.x, cur.transform.orientation.y,
-        #             GROUND_Z],
-        #            [self.end_pos.location.x, self.end_pos.location.y,
-        #             GROUND_Z],
-        #            [self.end_pos.orientation.x, self.end_pos.orientation.y,
-        #             GROUND_Z])
-        #    ]
-        #else:
-        #    next_command = "LANE_FOLLOW"
-
+        cur = self.actor_list[i]
+        if self.config["enable_planner"]:
+            next_command = COMMANDS_ENUM[
+                self.planner.get_next_command(
+                    [cur.get_location().x, cur.get_location().y,
+                     GROUND_Z],
+                    [cur.get_transform().rotation.pitch, cur.get_transform().rotation.yaw,
+                     GROUND_Z],
+                    [self.end_pos[i][0], self.end_pos[i][1],
+                     GROUND_Z],
+                    [0.0, 90.0, GROUND_Z])
+            ]
+        else:
+            next_command = "LANE_FOLLOW"
+        #time.sleep(1000)
         collision_vehicles = self.colli_list[i].collision_vehicles
         collision_pedestrians = self.colli_list[i].collision_pedestrains
         collision_other = self.colli_list[i].collision_other
@@ -1053,60 +1061,58 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
 
 
         #  A simple planner
-        current_x = self.actor_list[i].get_location().x
-        current_y = self.actor_list[i].get_location().y
+        #current_x = self.actor_list[i].get_location().x
+        #current_y = self.actor_list[i].get_location().y
 
-        distance_to_goal_euclidean = float(np.linalg.norm(
-            [current_x - self.end_pos[i][0],
-             current_y - self.end_pos[i][1]]) / 100)
+        #distance_to_goal_euclidean = float(np.linalg.norm(
+        #    [current_x - self.end_pos[i][0],
+        #     current_y - self.end_pos[i][1]]) / 100)
         
-        distance_to_goal = distance_to_goal_euclidean
+        #distance_to_goal = distance_to_goal_euclidean
         
 
-        diff_x =  abs(current_x - self.end_pos[i][0])
-        diff_y =  abs(current_y - self.end_pos[i][1])
+        #diff_x =  abs(current_x - self.end_pos[i][0])
+        #diff_y =  abs(current_y - self.end_pos[i][1])
 
 
-        diff_s_x = abs(current_x - self.start_pos[i][0])
-        diff_s_y = abs(current_y - self.start_pos[i][1])
+        #diff_s_x = abs(current_x - self.start_pos[i][0])
+        #diff_s_y = abs(current_y - self.start_pos[i][1])
 
         
         
-        next_command = "LANE_FOLLOW"
+        #next_command = "LANE_FOLLOW"
         self.previous_actions[i].append(next_command)
         
-        if diff_x < 1 and diff_y < 1:
+        #if diff_x < 1 and diff_y < 1:
         #if current_x - self.end_pos[i][0] > 0:
         #if (diff_s_x + diff_s_y > 30) or (diff_x < 5 and diff_y < 5):  # ONLY FOR TEST
-            next_command = "REACH_GOAL"
+        #    next_command = "REACH_GOAL"
         
         self.previous_rewards[i].append(self.last_reward[i])    
         
-        #print('calculate distance finished')
-        #print('cal dist time: ', time.time() - s_dis)
 
-        #if next_command == "REACH_GOAL":
-        #    distance_to_goal = 0.0  # avoids crash in planner
-        #else:
-        #    distance_to_goal = distance_to_goal_euclidean
-        #elif self.config["enable_planner"]:
-        #    distance_to_goal = self.planner.get_shortest_path_distance(
-        #        [cur.transform.location.x, cur.transform.location.y, GROUND_Z],
-        #        [cur.transform.orientation.x, cur.transform.orientation.y,
-        #         GROUND_Z],
-        #        [self.end_pos.location.x, self.end_pos.location.y, GROUND_Z],
-        #        [self.end_pos.orientation.x, self.end_pos.orientation.y,
-        #         GROUND_Z]) / 100
-        #else:
-        #    distance_to_goal = -1
+        if next_command == "REACH_GOAL":
+            distance_to_goal = 0.0  # avoids crash in planner
+        elif self.config["enable_planner"]:
+            distance_to_goal = self.planner.get_shortest_path_distance(
+                [cur.get_location().x, cur.get_location().y,
+                     GROUND_Z],
+                [cur.get_transform().rotation.pitch, cur.get_transform().rotation.yaw,
+                     GROUND_Z],
+                [self.end_pos[i][0], self.end_pos[i][1],
+                     GROUND_Z],
+                [0, 90, 0]) / 100
+        else:
+            distance_to_goal = -1
 
-        #print('store py: ')
-        #s_dis = time.time()
+        distance_to_goal_euclidean = float(np.linalg.norm(
+            [self.actor_list[i].get_location().x - self.end_pos[i][0],
+             self.actor_list[i].get_location().y - self.end_pos[i][1]]) / 100)
         py_measurements = {
             "episode_id": self.episode_id,
             "step": self.num_steps[i],
-            "x": current_x,
-            "y": current_y,
+            "x": self.actor_list[i].get_location().x,
+            "y": self.actor_list[i].get_location().y,
             "pitch": self.actor_list[i].get_transform().rotation.pitch,
             "yaw": self.actor_list[i].get_transform().rotation.yaw,
             "roll": self.actor_list[i].get_transform().rotation.roll,
@@ -1290,6 +1296,24 @@ def collided_done(py_measurements):
         m["collision_other"] > 0)
     return bool(collided or m["total_reward"] < -100)
 
+def get_next_actions(measurements, action_dict):
+    v = 0
+    for k in measurements:
+        m = measurements[k]
+        command = m["next_command"]
+        name = 'Vehcile' + str(v)
+        if command == "REACH_GOAL":
+            action_dict[name] = 0
+        elif command == "GO_STRAIGHT":
+            action_dict[name] = 3
+        elif command == "TURN_RIGHT":
+            action_dict[name] = 6
+        elif command == "TURN_LEFT":
+            action_dict[name] = 5
+        elif command == "LANE_FOLLOW":
+            action_dict[name] = 3
+        v = v + 1
+    return action_dict
 
 if __name__ == "__main__":
     #  Episode for loop  
@@ -1351,10 +1375,12 @@ if __name__ == "__main__":
         #time.sleep(1000)
         start = time.time()
         all_done = False
-        while not all_done:
+        #while not all_done:
+        while i < 100: # TEST
             i += 1
             if ENV_CONFIG["discrete_actions"]:
                 obs, reward, done, info = env.step(action_dict)
+                action_dict = get_next_actions(info, action_dict)
             else:
                 obs, reward, done, info = env.step([0, 1, 0])
             
@@ -1368,7 +1394,7 @@ if __name__ == "__main__":
             for d in done:
                 done_temp  = done_temp and done[d]
             all_done = done_temp
-            time.sleep(1)
+            time.sleep(0.1)
         print(obs)
         print(reward)
         print(done)
@@ -1392,8 +1418,8 @@ if __name__ == "__main__":
         #    for image in env.image_pool[n]:
         #        image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/%04d.png'.format(n) % image.frame_number)    
         #        image.save_to_disk(image_dir, env.cc)
-        
-        
-        
+    
         #env.images_to_video()
+
+
         
