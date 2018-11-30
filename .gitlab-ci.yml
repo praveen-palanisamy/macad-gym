@@ -28,8 +28,8 @@ test:
   #- tox -e py36,flake8
   - python flake8 ./ --max-line-length 80
 
-run:
-  script:
+#run:
+  #script:
   
   #- python setup.py bdist_wheel
   # an alternative approach is to install and run:
@@ -39,7 +39,7 @@ run:
   #  paths:
   #  - dist/*.whl
 
-pages:
+#pages:
   #script:
   #- pip install sphinx sphinx-rtd-theme
   #- cd doc ; make html
