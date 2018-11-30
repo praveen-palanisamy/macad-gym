@@ -17,16 +17,16 @@ cache:
 before_script:
   - apt-get update -q -y
   - apt-get install -y build-essential
-  - conda env create -f conda_env.yaml
-  - source activate carla_gym
+  #- conda env create -f conda_env.yaml
+  #- source activate carla_gym
   - python -V               # Print out python version for debugging
 
 test:
   script:
   #- python setup.py test
-  - pip install tox flake8
+  - pip3 install tox flake8
   #- tox -e py36,flake8
-  - python flake8 ./ --max-line-length 80
+  - python3 flake8 ./ --max-line-length 80
 
 #run:
   #script:
