@@ -24,9 +24,9 @@ before_script:
 test:
   script:
   #- python setup.py test
-  - pip3 install tox flake8
+  - pip install tox flake8
   #- tox -e py36,flake8
-  - python3 flake8 ./ --max-line-length 80
+  - flake8 ./ --max-line-length 100 --exclude .git,__pycache__ 
 
 #run:
   #script:
