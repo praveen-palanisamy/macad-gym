@@ -28,16 +28,15 @@ def build_scenario(
 #POSES_TOWN1_STRAIGHT = [
 #    [MULTI_START_POS, MULTI_END_POS], [[39,40], [35,36]]...]
 
-MULTI_START_POS = [125,126]
-MULTI_END_POS = [127,128]
-# Multi start and end
-DEFAULT_SCENARIO_MULTI_TOWN1 = build_scenario(
-    city="Town01", start=MULTI_START_POS, end=MULTI_END_POS, vehicles=20, pedestrians=40,
-    max_steps=200, weathers=[0])
+
 
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_scenario(
-    city="Town01", start=[124], end=[128], vehicles=20, pedestrians=40,
+    city="Town01", start=130, end=150, vehicles=20, pedestrians=40,
+    max_steps=200, weathers=[0])
+
+DEFAULT_SCENARIO_TOWN1_2 = build_scenario(
+    city="Town01", start=133, end=65, vehicles=20, pedestrians=40,
     max_steps=200, weathers=[0])
 
 DEFAULT_SCENARIO_TOWN2 = build_scenario(
