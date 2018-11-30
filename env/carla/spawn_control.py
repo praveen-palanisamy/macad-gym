@@ -215,17 +215,19 @@ class DynamicScenario(object):
 #===============================================================================
 class Reward(object):
     
-    def __init__(self, prev_measurement=None, curr_measurement=None, flag="corl2017"):
+    def __init__(self):
         self.reward = 0.0 
-        self.prev = prev_measurement
-        self.curr = curr_measurement 
-        self.flag = flag 
+        self.prev = None
+        self.curr = None 
+        self.flag = "corl2017"  
     
-    def set_measurement(self, prev_measurement, curr_measurement):
+
+    def compute_reward(self, prev_measurement, curr_measurement, flag=None):
         self.prev = prev_measurement
         self.curr = curr_measurement         
-    
-    def compute_reward(self):
+        if flag is not None:
+            self.flag = flag
+        
         if self.flag == "corl2017":
             return self.compute_reward_corl2017()
         elif self.flag == "lane_keep":
@@ -246,8 +248,8 @@ class Reward(object):
         if new_damage:
             self.reward -= 100.0
 
-        self.reward -= self.curr["intersection_offroad"]         
-        self.reward -= self.curr["intersection_otherlane"]   
+        self.reward -= self.curr["intersection_offroad"] * 0.05 
+        self.reward -= self.curr["intersection_otherlane"] * 0.05
        
         if self.curr["next_command"] == "REACH_GOAL":
             self.reward += 100 
@@ -382,7 +384,7 @@ class VehicleManager(object):
        
     def read_observation(self, scenario, config, step=0):      
         c_vehicles, c_pedestrains, c_other = self.dynamic_collided()       
-        c_offline = self.offlane_invasion()
+        c_offline = self.offlane_invasion() 
         c_offroad = self.offroad_invasion()
         start_pos, end_pos, start_coord, end_coord = self._pos_coord(scenario)
         cur_ = self._vehicle.get_transform()
@@ -397,11 +399,8 @@ class VehicleManager(object):
             next_command =  "LANE_FOLLOW"            
         else :
             next_command =  "REACH_GOAL"   
- 
-        if next_command == "REACH_GOAL":
-            previous_action =  "REACH_GOAL"     
-        else:
-            previous_action =  "LANE_FOLLOW" 
+       
+        previous_action =  "LANE_FOLLOW" 
         
         vehicle_data = {
             "episode_id": 0 ,
@@ -427,7 +426,7 @@ class VehicleManager(object):
             "y_res": config["y_res"],
             "num_vehicles": config["num_vehicles"] , 
             "num_pedestrians": config["num_pedestrians"],
-            "max_steps": 1000 ,
+            "max_steps": 10000 ,
             "next_command": next_command,
             "previous_action": previous_action,
             "previous_reward": 0            
@@ -836,22 +835,17 @@ class World(object):
             self.vehicle_manager_list.append(vmanager)
             return vehicle
       
-    def reward_computing(self, prev, curr): 
-        self.reward_object.set_measurement(prev, curr)
-        return self.reward_object.compute_reward()
-           
     def update_measurements(self, step): 
         for vid in np.arange(self.get_num_of_vehicles() ):
             vmanager = self.vehicle_manager_list[vid]
             curr = vmanager.read_observation(self.scenario, self.config, step)  
             prev = self.prev_measurements[vid] 
-            reward = self.reward_computing(prev, curr)   
+            reward = self.reward_object.compute_reward(prev, curr, "custom")   
             curr["previous_reward"] = reward  
             self.prev_measurements[vid] = curr  
-            
             if curr["next_command"] == "REACH_GOAL" :
                 self.done[vid] = True
-        return self.done 
+        return curr, self.done 
 
     def current_vechicle_waypoints_tracking(self):
         helper = self.world.debug   
@@ -1065,8 +1059,7 @@ class HelpText(object):
 # ==============================================================================
 class LaneInvasionSensor(object):
     def __init__(self, parent_actor, hud):
-        self.sensor = None
-        self._history = [] 
+        self.sensor = None 
         self._parent = parent_actor
         self._hud = hud
         world = self._parent.get_world()
@@ -1079,9 +1072,10 @@ class LaneInvasionSensor(object):
         self._off_lane_percentage = 0 
         self.sensor.listen(lambda event: LaneInvasionSensor._on_invasion(weak_self, event))
         
-
     def get_offlane_percentage(self):
         return self._off_lane_percentage  
+
+        
         
     @staticmethod
     def _on_invasion(weak_self, event):
@@ -1304,11 +1298,12 @@ def game_loop(args):
         while not all_done :
             step += 1 
             clock.tick_busy_loop(60)  
-            done = world.update_measurements(step)
+            curr, done = world.update_measurements(step)
             if False not in done : 
-#                all_done = True
+                all_done = True
                 print("all scenario done!")                
-            if step % 20 == 0:
+            if step % 21 == 0 or all_done == True:
+                print(curr, file=open("spawn_measurement.txt", "a"))
                 world.current_vechicle_waypoints_tracking()
 #                print("computing reward ...")
 #                print(done)
