@@ -88,49 +88,43 @@ GO_STRAIGHT = ""
 TURN_RIGHT = ""
 TURN_LEFT = ""
 LANE_FOLLOW = ""
-POS_COOR_MAP = None 
+POS_COOR_MAP = None
 
-# Number of vehicles/cars   
+# Number of vehicles/cars
 
 #NUM_VEHICLE = 1
 
 # Number of max step
 MAX_STEP = 1000
 
-
-
 ENV_CONFIG_LIST = {
-        "0": {
-            "log_images": True,
-            "enable_planner": True,
-            "render": True,  # Whether to render to screen or send to VFB
-            "framestack": 2,  # note: only [1, 2] currently supported
-            "convert_images_to_video": False,
-            "early_terminate_on_collision": True,
-            "verbose": False,
-            "reward_function": "corl2017",
-            "render_x_res": 800,
-            "render_y_res": 600,
-            "x_res": 80,
-            "y_res": 80,
-            "server_map": "/Game/Carla/Maps/Town01", 
-            "scenarios": "DEFAULT_SCENARIO_TOWN1",# # no scenarios
-            "use_depth_camera": False,
-            "discrete_actions": True,
-            "squash_action_logits": False,
-            "manual_control": False,
-            "auto_control": False,
-            "camera_type": "rgb",
-            "collision_sensor": "on", #off
-            "lane_sensor": "on", #off
-            "server_process": False,
-            "send_measurements": False
-        }
+    "0": {
+        "log_images": True,
+        "enable_planner": True,
+        "render": True,  # Whether to render to screen or send to VFB
+        "framestack": 2,  # note: only [1, 2] currently supported
+        "convert_images_to_video": False,
+        "early_terminate_on_collision": True,
+        "verbose": False,
+        "reward_function": "corl2017",
+        "render_x_res": 800,
+        "render_y_res": 600,
+        "x_res": 80,
+        "y_res": 80,
+        "server_map": "/Game/Carla/Maps/Town01",
+        "scenarios": "DEFAULT_SCENARIO_TOWN1",  # # no scenarios
+        "use_depth_camera": False,
+        "discrete_actions": True,
+        "squash_action_logits": False,
+        "manual_control": False,
+        "auto_control": False,
+        "camera_type": "rgb",
+        "collision_sensor": "on",  #off
+        "lane_sensor": "on",  #off
+        "server_process": False,
+        "send_measurements": False
+    }
 }
-
-
-
-
 
 # Carla planner commands
 COMMANDS_ENUM = {
@@ -328,8 +322,8 @@ class CollisionSensor(object):
                 self.collision_other)
 
 
-class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
-    def __init__(self, config_list = ENV_CONFIG_LIST):
+class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
+    def __init__(self, config_list=ENV_CONFIG_LIST):
 
         #config_name = args.config
         #config=ENV_CONFIG
@@ -354,29 +348,27 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self.render_y_res = general_config["render_y_res"]
         self.x_res = general_config["x_res"]
         self.y_res = general_config["y_res"]
-        self.use_depth_camera = False #!!test
+        self.use_depth_camera = False  #!!test
 
         # Needed by agents
         if self.discrete_actions:
             self.action_space = Discrete(len(DISCRETE_ACTIONS))
         else:
-            self.action_space = Box(-1.0, 1.0, shape=(2,))
-        
-        
+            self.action_space = Box(-1.0, 1.0, shape=(2, ))
+
         if self.use_depth_camera:
             image_space = Box(
-                -1.0, 1.0, shape=(
-                    self.y_res, self.x_res,
-                    1 * self.framestack))
+                -1.0, 1.0, shape=(self.y_res, self.x_res, 1 * self.framestack))
         else:
             image_space = Box(
-                0.0, 255.0, shape=(
-                    self.y_res, self.x_res,
-                    3 * self.framestack))
-        self.observation_space = Tuple(
-            [image_space,
-             Discrete(len(COMMANDS_ENUM)),  # next_command
-             Box(-128.0, 128.0, shape=(2,))])  # forward_speed, dist to goal
+                0.0,
+                255.0,
+                shape=(self.y_res, self.x_res, 3 * self.framestack))
+        self.observation_space = Tuple([
+            image_space,
+            Discrete(len(COMMANDS_ENUM)),  # next_command
+            Box(-128.0, 128.0, shape=(2, ))
+        ])  # forward_speed, dist to goal
 
         self.planner_list = []
 
@@ -769,13 +761,11 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         if not self.config_list[str(vehcile_number)]["send_measurements"]:
             print("+++++++++++++++++++")
             return image
-        obs = (
-            'Vehcile number: ',
-            vehcile_number,
-            image,
-            COMMAND_ORDINAL[py_measurements["next_command"]],
-            [py_measurements["forward_speed"],
-             py_measurements["distance_to_goal"]])
+        obs = ('Vehcile number: ', vehcile_number, image,
+               COMMAND_ORDINAL[py_measurements["next_command"]], [
+                   py_measurements["forward_speed"],
+                   py_measurements["distance_to_goal"]
+               ])
 
         self.last_obs = obs
         return obs
@@ -791,9 +781,9 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             print(action_dict)
             for action in action_dict:
 
-                print("--->",action);
-                obs, reward, done, info = self._step(action_dict[action], actor_num)
-                
+                print("--->", action)
+                obs, reward, done, info = self._step(action_dict[action],
+                                                     actor_num)
 
                 vehcile_name = 'Vehcile'
                 vehcile_name += str(actor_num)
@@ -887,8 +877,10 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
 
         flag = config["reward_function"]
         cmpt_reward = Reward()
-        reward = cmpt_reward.compute_reward(self.prev_measurement[vehcile_name], py_measurements, flag)
-        self.last_reward[i] = reward # to make the previous_rewards in py_measurements
+        reward = cmpt_reward.compute_reward(
+            self.prev_measurement[vehcile_name], py_measurements, flag)
+        self.last_reward[
+            i] = reward  # to make the previous_rewards in py_measurements
         #  update num_steps and total_reward lists if next car comes
         #if i == len(self.num_steps):
         #    self.num_steps.append(0)
@@ -1169,7 +1161,6 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #assert observation is not None, sensor_data
 
         return py_measurements
-
 
 
 def print_measurements(measurements):
