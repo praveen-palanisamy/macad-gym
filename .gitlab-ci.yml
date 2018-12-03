@@ -26,7 +26,7 @@ test:
   #- python setup.py test
   - pip install tox flake8
   #- tox -e py36,flake8
-  - bash .ci/format_code.sh --all
+  # - bash .ci/format_code.sh --all
   - flake8 ./ --max-line-length 100 --exclude env/carla/PythonAPI/*, \
               env/carla/carla/*, .git,__pycache__
 
