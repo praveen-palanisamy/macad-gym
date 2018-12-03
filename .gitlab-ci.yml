@@ -27,7 +27,7 @@ test:
   - pip install flake8
   #- tox -e py36,flake8
   # - bash .ci/format_code.sh --all
-  - flake8 ./ --max-line-length 79 --exclude */env/carla/PythonAPI/*, */env/carla/carla/*, .git,__pycache__
+  - flake8  --max-line-length 80 --exclude=*/env/carla/PythonAPI/*, */env/carla/carla/*, .git,__pycache__
 
 
 #run:

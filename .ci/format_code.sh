@@ -23,7 +23,7 @@ fi
 git fetch upstream ${BASE_BRANCH}
 
 YAPF_FLAGS=(
-    '--style' {'based_on_style':pep8, 'column_limit':79}
+    '--style' '{based_on_style:pep8, column_limit:79}'
     '--recursive'
     '--parallel'
 )
@@ -54,7 +54,7 @@ format_changed() {
              yapf --in-place "${YAPF_EXCLUDES[@]}" "${YAPF_FLAGS[@]}"
         if which flake8 >/dev/null; then
             git diff --name-only --diff-filter=ACM "$MERGEBASE" -- '*.py' | xargs -P 5 \
-                 flake8 --exclude=.git, __pycache__ #\
+                 flake8 --max-line-length 80 --exclude=*/env/carla/PythonAPI/*,*/env/carla/carla/*,.git, __pycache__ #\
                     #--ignore=C408,E121,E123,E126,E226,E24,E704,W503,W504,W605
         fi
     fi
@@ -62,7 +62,7 @@ format_changed() {
 
 # Format all files, and print the diff to stdout for the CI log.
 format_all() {
-    yapf --diff "${YAPF_FLAGS[@]}" "${YAPF_EXCLUDES[@]}" env
+    yapf --diff "${YAPF_FLAGS[@]}" "${YAPF_EXCLUDES[@]}" env agents
 }
 
 # This flag formats individual files. --files *must* be the first command line
