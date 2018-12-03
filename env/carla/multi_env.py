@@ -114,7 +114,7 @@ ENV_CONFIG_LIST = {
         "server_map": "/Game/Carla/Maps/Town01",
         "scenarios": "DEFAULT_SCENARIO_TOWN1",  # # no scenarios
         "use_depth_camera": False,
-        "discrete_actions": True,
+        "discrete_actions": False,
         "squash_action_logits": False,
         "manual_control": False,
         "auto_control": False,
