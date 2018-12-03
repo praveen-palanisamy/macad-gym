@@ -1206,9 +1206,10 @@ def collided_done(py_measurements):
     return bool(collided or m["total_reward"] < -100)
 
 
-def get_next_actions(measurements, action_dict):
+def get_next_actions(measurements, action_dict, env):
     v = 0
-    for k in measurements:
+    
+    for k in measurements:   
         m = measurements[k]
         command = m["next_command"]
         name = 'Vehcile' + str(v)
@@ -1222,6 +1223,9 @@ def get_next_actions(measurements, action_dict):
             action_dict[name] = 5
         elif command == "LANE_FOLLOW":
             action_dict[name] = 3
+        # Test for discrete actions:
+        if not env.discrete_actions:
+            action_dict[name] = [1, 0]
         v = v + 1
     return action_dict
 
@@ -1248,7 +1252,7 @@ if __name__ == "__main__":
         #  Initialize server and clients.
         # env = MultiCarlaEnv(args)
         ENV_CONFIG_LIST = json.load(open('env/carla/config.json'))
-        print("--->", ENV_CONFIG_LIST)
+        
         env = MultiCarlaEnv()
         print('env finished')
         obs = env.reset()
@@ -1269,7 +1273,11 @@ if __name__ == "__main__":
         action_dict = {}
         for v in range(total_vehcile):
             vehcile_name = 'Vehcile' + str(v)
-            action_dict[vehcile_name] = 3
+            if env.discrete_actions:
+                action_dict[vehcile_name] = 3
+            else:
+                action_dict[vehcile_name] = [1, 0]# test number
+        print(action_dict)    
         #  3 in action_list means go straight.
         #action_list = {
         #'Vehcile0' : 3,
@@ -1283,11 +1291,9 @@ if __name__ == "__main__":
         #while not all_done:
         while i < 100:  # TEST
             i += 1
-            if env.discrete_actions:
-                obs, reward, done, info = env.step(action_dict)
-                action_dict = get_next_actions(info, action_dict)
-            else:
-                obs, reward, done, info = env.step([0, 1, 0])
+            
+            obs, reward, done, info = env.step(action_dict)
+            action_dict = get_next_actions(info, action_dict, env)
 
             for t in total_reward_dict:
                 total_reward_dict[t] += reward[t]
