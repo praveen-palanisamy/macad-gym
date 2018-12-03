@@ -2,6 +2,8 @@
 multi_actor_env.py CARLA-Gym multi actor env interface
 __author__:PP
 """
+
+
 class MultiActorEnv(object):
     """An environment that hosts multiple independent actors.
 

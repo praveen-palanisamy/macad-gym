@@ -4,7 +4,6 @@ Should support two modes of operation. See CARLA-Gym developer guide for more in
 __author__: PP, BP
 """
 
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -16,15 +15,14 @@ import sys
 import os
 import glob
 
-
-sys.path.append(glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
-                          f'{sys.version_info.minor}-linux-x86_64.egg')[0])
-
+sys.path.append(
+    glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
+              f'{sys.version_info.minor}-linux-x86_64.egg')[0])
 
 from env.multi_actor_env import *
 from env.carla.PythonAPI.manual_control import HUD, CameraManager
-import argparse #pygame
-import logging #pygame
+import argparse  #pygame
+import logging  #pygame
 try:
     import pygame
     from pygame.locals import K_DOWN
@@ -40,8 +38,8 @@ try:
     from pygame.locals import K_s
     from pygame.locals import K_w
 except ImportError:
-    raise RuntimeError('cannot import pygame, make sure pygame package is installed')
-
+    raise RuntimeError(
+        'cannot import pygame, make sure pygame package is installed')
 
 import atexit
 import cv2
@@ -58,8 +56,8 @@ import carla
 import numpy as np
 import collections
 
-import weakref # for collision
-import math # for collision
+import weakref  # for collision
+import math  # for collision
 
 try:
     import scipy.misc
@@ -72,7 +70,6 @@ from .scenarios import *
 from .reward import *
 #from .carla.settings import CarlaSettings
 from env.carla.carla.planner import *
-
 
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
@@ -94,6 +91,7 @@ LANE_FOLLOW = ""
 POS_COOR_MAP = None 
 
 # Number of vehicles/cars   
+
 #NUM_VEHICLE = 1
 
 # Number of max step
@@ -158,9 +156,6 @@ RETRIES_ON_ERROR = 5
 # Dummy Z coordinate to use when we only care about (x, y)
 GROUND_Z = 22
 
-
-
-
 DISCRETE_ACTIONS = {
     # coast
     0: [0.0, 0.0],
@@ -183,9 +178,9 @@ DISCRETE_ACTIONS = {
 }
 
 # The cam for pygame
-GLOBAL_CAM_POS = carla.Transform(carla.Location(x=178, y = 198, z = 40))
+GLOBAL_CAM_POS = carla.Transform(carla.Location(x=178, y=198, z=40))
 
-live_carla_processes = set()  
+live_carla_processes = set()
 
 
 def cleanup():
@@ -193,131 +188,144 @@ def cleanup():
     for pgid in live_carla_processes:
         os.killpg(pgid, signal.SIGKILL)
 
+
 def termination_cleanup(*args):
     cleanup()
     sys.exit(0)
+
 
 signal.signal(signal.SIGTERM, termination_cleanup)
 signal.signal(signal.SIGINT, termination_cleanup)
 atexit.register(cleanup)
 
 
-
 class LaneInvasionSensor(object):
     def __init__(self, parent_actor, hud):
         self.sensor = None
-        self._history = [] 
+        self._history = []
         self._parent = parent_actor
         self._hud = hud
         self.offlane = 0
         self.offroad = 0
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.lane_detector')
-        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        self.sensor = world.spawn_actor(
+            bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
-        self.sensor.listen(lambda event: LaneInvasionSensor._on_invasion(weak_self, event))
-        
+        self.sensor.listen(
+            lambda event: LaneInvasionSensor._on_invasion(weak_self, event))
+
     def get_invasion_history(self):
         history = collections.defaultdict(int)
         for frame, text in self._history:
             history[frame] = text
-        return history  
-        
+        return history
+
     @staticmethod
     def _on_invasion(weak_self, event):
         self = weak_self()
         if not self:
             return
+
+
 #        text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
 #        self._hud.notification('Crossed line %s' % ' and '.join(text))
-        text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
+        text = [
+            '%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)
+        ]
         self.offlane += 1
-        print('VEHICLE %s' % (self._parent).id + ' crossed line %s' % ' and '.join(text)) 
-        
+        print('VEHICLE %s' % (self._parent).id +
+              ' crossed line %s' % ' and '.join(text))
+
         #  if one means not cross two lanes, means cross to offroad
         if len(set(event.crossed_lane_markings)) == 1:
             self.offroad += 1
-            print('VEHICLE %s' % (self._parent).id + ' crossed road %s' % ' and '.join(text)) 
-        
-        self._history.append((event.frame_number,  text))
+            print('VEHICLE %s' % (self._parent).id +
+                  ' crossed road %s' % ' and '.join(text))
+
+        self._history.append((event.frame_number, text))
         if len(self._history) > 4000:
             self._history.pop(0)
-
-
 
 
 class CollisionSensor(object):
     def __init__(self, parent_actor, hud):
         self.sensor = None
-        self._history = [] 
+        self._history = []
         self._parent = parent_actor
         self._hud = hud
-        self.collision_vehicles = 0 
-        self.collision_pedestrains = 0 
+        self.collision_vehicles = 0
+        self.collision_pedestrains = 0
         self.collision_other = 0
         self.collision_id_set = set()
         self.collision_type_id_set = set()
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.collision')
-        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
+        self.sensor = world.spawn_actor(
+            bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
-        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
-        
+        self.sensor.listen(
+            lambda event: CollisionSensor._on_collision(weak_self, event))
+
     def get_collision_history(self):
         history = collections.defaultdict(int)
-        for frame, intensity in self._history :
-            history[frame] += intensity 
+        for frame, intensity in self._history:
+            history[frame] += intensity
         return history
-        
+
     @staticmethod
-    def _on_collision(weak_self, event): 
+    def _on_collision(weak_self, event):
         self = weak_self()
         if not self:
             return
+
+
 #        actor_type = get_actor_display_name(event.other_actor)
-#        self._hud.notification('Collision with %r' % actor_type)    
+#        self._hud.notification('Collision with %r' % actor_type)
         impulse = event.normal_impulse
         intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
         self._history.append((event.frame_number, intensity))
         if len(self._history) > 4000:
             self._history.pop(0)
-        print('vehicle %s ' % (self._parent).id + ' collision with %2d vehicles, %2d people, %2d others' %  self.dynamic_collided())            
+        print('vehicle %s ' % (self._parent).id +
+              ' collision with %2d vehicles, %2d people, %2d others' %
+              self.dynamic_collided())
         _cur = event.other_actor
-        if _cur.id == 0 : #the static world objects 
-            if _cur.type_id in self.collision_type_id_set :
+        if _cur.id == 0:  #the static world objects
+            if _cur.type_id in self.collision_type_id_set:
                 return
-            else :
+            else:
                 self.collision_type_id_set.add(_cur.type_id)
-        else :
-            if _cur.id in self.collision_id_set :
-                return 
-            else :
+        else:
+            if _cur.id in self.collision_id_set:
+                return
+            else:
                 self.collision_id_set.add(_cur.id)
-                
+
         collided_type = type(_cur).__name__
-        if collided_type == 'Vehicle' :
-            self.collision_vehicles += 1 
-        elif collided_type == 'Pedestrain' :   
-            self.collision_pedestrains += 1 
-        elif collided_type == 'Actor' :
-            self.collision_other += 1 
-        else :
+        if collided_type == 'Vehicle':
+            self.collision_vehicles += 1
+        elif collided_type == 'Pedestrain':
+            self.collision_pedestrains += 1
+        elif collided_type == 'Actor':
+            self.collision_other += 1
+        else:
             pass
-    
+
     def _reset(self):
-        self.collision_vehicles = 0 
-        self.collision_pedestrains = 0 
+        self.collision_vehicles = 0
+        self.collision_pedestrains = 0
         self.collision_other = 0
         self.collision_id_set = set()
         self.collision_type_id_set = set()
-     
-    def dynamic_collided(self):
-        return (self.collision_vehicles, self.collision_pedestrains, self.collision_other) 
 
+    def dynamic_collided(self):
+        return (self.collision_vehicles, self.collision_pedestrains,
+                self.collision_other)
 
 
 class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
@@ -371,27 +379,24 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
              Box(-128.0, 128.0, shape=(2,))])  # forward_speed, dist to goal
 
         self.planner_list = []
-        
+
         # For arg map.
         #self.config["server_map"] = "/Game/Carla/Maps/" + args.map
 
-        
         for k in self.config_list:
             config = self.config_list[k]
             #config["scenarios"] = self.get_scenarios(args.scenario, config)
             if config["enable_planner"]:
                 self.planner_list.append(Planner(self.city))
-        #print(self.config_list)    
-        
-        if self.city == "Town01":
-            self.pos_coor_map = json.load(open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))
-        else:
-            self.pos_coor_map = json.load(open("env/carla/POS_COOR/pos_cordi_map_town2.txt"))
-        print(self)
+        #print(self.config_list)
 
-        
-        
-        
+        if self.city == "Town01":
+            self.pos_coor_map = json.load(
+                open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))
+        else:
+            self.pos_coor_map = json.load(
+                open("env/carla/POS_COOR/pos_cordi_map_town2.txt"))
+        print(self)
 
         # TODO(ekl) this isn't really a proper gym spec
         self._spec = lambda: None
@@ -418,12 +423,12 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self.obs_dict = {}
         self.video = False
         self.image_pool = []
-        self.previous_actions = [] 
+        self.previous_actions = []
         self.previous_rewards = []
         self.last_reward = []
 
     def get_scenarios(self, choice):
-        
+
         if choice == "DEFAULT_SCENARIO_TOWN1":
             #config["server_map"] = "/Game/Carla/Maps/Town01"
             return DEFAULT_SCENARIO_TOWN1
@@ -446,42 +451,50 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             return DEFAULT_CURVE_TOWN1
 
     def init_server(self):
-        
+
         print("Initializing new Carla server...")
         # Create a new server process and start the client.
-        self.server_port = 2000 
+        self.server_port = 2000
         gpus = GPUtil.getGPUs()
         print('Get gpu:')
-        if not self.render and ( gpus is not None and len(gpus) ) > 0:
-            min_index = random.randint(0,len(gpus)-1)
+        if not self.render and (gpus is not None and len(gpus)) > 0:
+            min_index = random.randint(0, len(gpus) - 1)
             for i, gpu in enumerate(gpus):
                 if gpu.load < gpus[min_index].load:
                     min_index = i
 
             self.server_process = subprocess.Popen(
-                ("DISPLAY=:8 vglrun -d :7.{} {} "+self.server_map+" -windowed -ResX=800 -ResY=600 -carla-server -carla-world-port={}").format(min_index, SERVER_BINARY, self.server_port),
-                shell=True, preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
+                ("DISPLAY=:8 vglrun -d :7.{} {} " + self.server_map +
+                 " -windowed -ResX=800 -ResY=600 -carla-server -carla-world-port={}"
+                 ).format(min_index, SERVER_BINARY, self.server_port),
+                shell=True,
+                preexec_fn=os.setsid,
+                stdout=open(os.devnull, "w"))
         else:
             self.server_process = subprocess.Popen(
-                [SERVER_BINARY, self.server_map,
-                 "-windowed", "-ResX=800", "-ResY=600",
-                 #"-carla-settings=/home/fastisu/Documents/CARLA-Gym/bo_CS.ini",
-                 "-benchmark -fps=10"
-                 "-carla-server",
-                 "-carla-world-port={}".format(self.server_port)],
-                preexec_fn=os.setsid, stdout=open(os.devnull, "w"))
+                [
+                    SERVER_BINARY,
+                    self.server_map,
+                    "-windowed",
+                    "-ResX=800",
+                    "-ResY=600",
+                    #"-carla-settings=/home/fastisu/Documents/CARLA-Gym/bo_CS.ini",
+                    "-benchmark -fps=10"
+                    "-carla-server",
+                    "-carla-world-port={}".format(self.server_port)
+                ],
+                preexec_fn=os.setsid,
+                stdout=open(os.devnull, "w"))
         live_carla_processes.add(os.getpgid(self.server_process.pid))
 
         # wait for carlar server to start
         time.sleep(10)
-        
+
         self.actor_list = []
         self.cam_list = []
         self.colli_list = []
         self.lane_list = []
-        self.client = carla.Client("localhost", 2000)#self.server_port)
-        
-            
+        self.client = carla.Client("localhost", 2000)  #self.server_port)
 
     def clear_server_state(self):
         print("Clearing Carla server state")
@@ -507,7 +520,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         for _ in range(RETRIES_ON_ERROR):
             try:
                 if not self.server_process:
-                    self.init_server() 
+                    self.init_server()
                     print('Server is intiated.')
                 return self._reset()
             except Exception as e:
@@ -524,7 +537,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         array = array[:, :, :3]
         array = array[:, :, ::-1]
         self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-    
+
     def _on_render(self):
         if self._surface is not None:
             self._display.blit(self._surface, (0, 0))
@@ -534,16 +547,16 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
 
         # If config contains a single scenario, then use it if it's an array of scenarios, randomly choose one and init
         self.scenario_list = []
-        
+
         for k in self.config_list:
             config = self.config_list[k]
             scenario = self.get_scenarios(config["scenarios"])
-            if isinstance(scenario,dict):
+            if isinstance(scenario, dict):
                 self.scenario_list.append(scenario)
-            else: #ininstance array of dict
+            else:  #ininstance array of dict
                 self.scenario_list.append(random.choice(scenario))
 
-        NUM_VEHICLE = len(self.scenario_list)     
+        NUM_VEHICLE = len(self.scenario_list)
         self.num_vehicle = NUM_VEHICLE
 
         self.num_steps = [0] * self.num_vehicle
@@ -552,31 +565,20 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self.prev_image = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
-        
 
-        
-            
-
-        
         #  Create new camera in Carla_0.9.0.
         world = self.client.get_world()
         self.cur_map = world.get_map()
         #self.cur_map.save_to_disk(CARLA_OUT_PATH)
         #print(self.cur_map.get_spawn_points())
-        
 
-        
-        
         #  Asynchronously camera test:
         #print('image000:', self.image)
         #time.sleep(5)
         #print('image111:', self.image)
         #time.sleep(5)
         #print('image222:', self.image)
-        
 
-
-        
         for n in range(self.num_vehicle):
             self.image_pool.append([])
             self.previous_actions.append([])
@@ -589,31 +591,37 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         for i in range(self.num_vehicle):
             scenario = self.scenario_list[i]
             print(type(scenario))
-            s_id = str(scenario["start_pos_id"]) #str(start_id).decode("utf-8") # unicode is needed. this trans is for py2
-            e_id = str(scenario["end_pos_id"])    
+            s_id = str(
+                scenario["start_pos_id"]
+            )  #str(start_id).decode("utf-8") # unicode is needed. this trans is for py2
+            e_id = str(scenario["end_pos_id"])
             POS_S[i] = self.pos_coor_map[s_id]
             POS_E[i] = self.pos_coor_map[e_id]
-        
+
         world = self.client.get_world()
         self.weather = [
             world.get_weather().cloudyness,
             world.get_weather().precipitation,
             world.get_weather().precipitation_deposits,
-            world.get_weather().wind_intensity]
+            world.get_weather().wind_intensity
+        ]
 
-        
         for i in range(self.num_vehicle):
             blueprints = world.get_blueprint_library().filter('vehicle')
             blueprint = random.choice(blueprints)
             #color = random.choice(blueprint.get_attribute('color').recommended_values)
             #blueprint.set_attribute('color', color)
             transform = carla.Transform(
-	        carla.Location(x=POS_S[i][0], y=POS_S[i][1], z=POS_S[i][2]),
-	        carla.Rotation(pitch = 0, yaw=0, roll = 0))
-            print('spawning vehicle %r with %d wheels' % (blueprint.id, blueprint.get_attribute('number_of_wheels')))
+                carla.Location(x=POS_S[i][0], y=POS_S[i][1], z=POS_S[i][2]),
+                carla.Rotation(pitch=0, yaw=0, roll=0))
+            print('spawning vehicle %r with %d wheels' %
+                  (blueprint.id, blueprint.get_attribute('number_of_wheels')))
             vehicle = world.try_spawn_actor(blueprint, transform)
-            print('vehicle at ', vehicle.get_location().x, vehicle.get_location().y, vehicle.get_location().z)
-            #time.sleep(1000)       
+            print('vehicle at ',
+                  vehicle.get_location().x,
+                  vehicle.get_location().y,
+                  vehicle.get_location().z)
+            #time.sleep(1000)
             self.actor_list.append(vehicle)
             config = self.config_list[str(i)]
             if config["collision_sensor"] == "on":
@@ -623,35 +631,52 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
                 lane_sensor = LaneInvasionSensor(vehicle, 0)
                 self.lane_list.append(lane_sensor)
 
-            if i == 0: #TEST!!
+            if i == 0:  #TEST!!
                 config = self.config_list[str(i)]
                 cam_type, cc = self.get_camera(config)
                 self.cc = cc
                 cam_blueprint = world.get_blueprint_library().find(cam_type)
-                camera = world.spawn_actor(cam_blueprint, carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)), attach_to=self.actor_list[i]) 
+                camera = world.spawn_actor(
+                    cam_blueprint,
+                    carla.Transform(
+                        carla.Location(x=-5.5, z=2.8),
+                        carla.Rotation(pitch=-15)),
+                    attach_to=self.actor_list[i])
                 self.cam_list.append(camera)
-                self.cam_list[i].listen(lambda image: self.get_image(image, i, cc))           
-                
+                self.cam_list[i].listen(
+                    lambda image: self.get_image(image, i, cc))
+
                 #wait the camera's launching time to get first image
                 print("camera finished")
                 time.sleep(3)
-        self.cam_start = time.time()   
+        self.cam_start = time.time()
         print('All vehicles are created.')
 
         #UNDER TEST START-----------------------------------------------------------------------------------
         debugger = world.debug
-        location = carla.Location(x=178.7699737548828, y=198.75999450683594, z=39.430625915527344)
-        debugger.draw_point(location, size=0.1, color=carla.Color(), life_time=-1.0, persistent_lines=True)
+        location = carla.Location(
+            x=178.7699737548828, y=198.75999450683594, z=39.430625915527344)
+        debugger.draw_point(
+            location,
+            size=0.1,
+            color=carla.Color(),
+            life_time=-1.0,
+            persistent_lines=True)
         print(location.distance)
         print(self.cur_map.get_waypoint(location, project_to_road=True))
-        print(self.cur_map.get_waypoint(location, project_to_road=True).lane_width)
+        print(
+            self.cur_map.get_waypoint(location,
+                                      project_to_road=True).lane_width)
         print(type(self.cur_map.get_waypoint(location, project_to_road=True)))
         for wp in self.cur_map.generate_waypoints(1.0):
-            debugger.draw_point(wp.transform.location, size=0.1, color=carla.Color(), life_time=-1.0, persistent_lines=True)
+            debugger.draw_point(
+                wp.transform.location,
+                size=0.1,
+                color=carla.Color(),
+                life_time=-1.0,
+                persistent_lines=True)
         print(type(self.cur_map.generate_waypoints(1.0)))
         #UNDER TEST END-------------------------------------------------------------------------------------
-
-
 
         #  Need to print for multiple client
         self.start_pos = POS_S
@@ -661,37 +686,38 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self.py_measurement = {}
         self.prev_measurement = {}
         self.obs = []
-        
+
         for i in range(self.num_vehicle):
-            self.start_coord.append([
-                self.start_pos[i][0] // 100, self.start_pos[i][1] // 100])
-            self.end_coord.append([
-                self.end_pos[i][0] // 100, self.end_pos[i][1] // 100])
-            
-            print(
-                "Client {} start pos {} ({}), end {} ({})".format(
-                    i, self.start_pos[i], self.start_coord[i],
-                    self.end_pos[i], self.end_coord[i]))
-             
+            self.start_coord.append(
+                [self.start_pos[i][0] // 100, self.start_pos[i][1] // 100])
+            self.end_coord.append(
+                [self.end_pos[i][0] // 100, self.end_pos[i][1] // 100])
+
+            print("Client {} start pos {} ({}), end {} ({})".format(
+                i, self.start_pos[i], self.start_coord[i], self.end_pos[i],
+                self.end_coord[i]))
+
             # Notify the server that we want to start the episode at the
             # player_start index. This function blocks until the server is ready
             # to start the episode.
-        
+
             #  no episode block in 0.9.0
             #print("Starting new episode...")
             #self.client.start_episode(self.scenario["start_pos_id"])
-        
+
             #  start read observation. each loop read one vehcile infor
             py_mt = self._read_observation(i)
             vehcile_name = 'Vehcile'
             vehcile_name += str(i)
             self.py_measurement[vehcile_name] = py_mt
             self.prev_measurement[vehcile_name] = py_mt
-            
-            obs = self.encode_obs(self.image, self.py_measurement[vehcile_name], i)
+
+            obs = self.encode_obs(self.image,
+                                  self.py_measurement[vehcile_name], i)
             self.obs_dict[vehcile_name] = obs
-         
+
         return self.obs_dict
+
     def get_camera(self, config):
         if config["camera_type"] == "rgb":
             camera_type = 'sensor.camera.rgb'
@@ -717,21 +743,19 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             camera_type = 'sensor.camera.semantic_segmentation'
             cc = carla.ColorConverter.CityScapesPalette
             config["use_depth_camera"] = False
-        return camera_type,cc
+        return camera_type, cc
 
     def get_image(self, image, i, cc):
 
-        #image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/{}_%04d.png'.format(i,self.episode_id) % image.frame_number)    
+        #image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/{}_%04d.png'.format(i,self.episode_id) % image.frame_number)
         #image.save_to_disk(image_dir, cc)
         self.image_pool[i].append(image)
         self.original_image = image
-        self._parse_image(image) # py_game render use
+        self._parse_image(image)  # py_game render use
         self.image = self.preprocess_image(image, i)
-        
-        
-        
+
     def encode_obs(self, image, py_measurements, vehcile_number):
-        
+
         assert self.framestack in [1, 2]
         # currently, the image is generated asynchronously
         prev_image = self.prev_image
@@ -739,6 +763,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         if prev_image is None:
             prev_image = image
         if self.framestack == 2:
+
             image = np.concatenate([prev_image, image], axis=2)
             #image = np.concatenate([prev_image, image])
         if not self.config_list[str(vehcile_number)]["send_measurements"]:
@@ -751,6 +776,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             COMMAND_ORDINAL[py_measurements["next_command"]],
             [py_measurements["forward_speed"],
              py_measurements["distance_to_goal"]])
+
         self.last_obs = obs
         return obs
 
@@ -760,26 +786,27 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             reward_dict = {}
             done_dict = {}
             info_dict = {}
-            
+
             actor_num = 0
             print(action_dict)
             for action in action_dict:
+
                 print("--->",action);
                 obs, reward, done, info = self._step(action_dict[action], actor_num)
                 
+
                 vehcile_name = 'Vehcile'
-                vehcile_name +=str(actor_num)
+                vehcile_name += str(actor_num)
                 actor_num += 1
                 obs_dict[vehcile_name] = obs
                 reward_dict[vehcile_name] = reward
                 done_dict[vehcile_name] = done
                 info_dict[vehcile_name] = info
-            #self.step_number += 1        
+            #self.step_number += 1
             return obs_dict, reward_dict, done_dict, info_dict
         except Exception:
-            print(
-                "Error during step, terminating episode early",
-                traceback.format_exc())
+            print("Error during step, terminating episode early",
+                  traceback.format_exc())
             self.clear_server_state()
             return (self.last_obs, 0.0, True, {})
 
@@ -793,48 +820,52 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             brake = float(np.abs(np.clip(forward, -1, 0)))
             steer = 2 * float(sigmoid(action[1]) - 0.5)
         else:
-            throttle = float(np.clip(action[0], 0, 0.6))#10
+            throttle = float(np.clip(action[0], 0, 0.6))  #10
             brake = float(np.abs(np.clip(action[0], -1, 0)))
             steer = float(np.clip(action[1], -1, 1))
         reverse = False
-        hand_brake = False 
+        hand_brake = False
         if self.verbose:
-            print(
-                "steer", steer, "throttle", throttle, "brake", brake,
-                "reverse", reverse)
+            print("steer", steer, "throttle", throttle, "brake", brake,
+                  "reverse", reverse)
 
         #  send control
         config = self.config_list[str(i)]
-        if config['manual_control']: 
+        if config['manual_control']:
             if i == 0:
                 #pygame need this
                 self._display = pygame.display.set_mode(
-                        (800, 600),
-                        pygame.HWSURFACE | pygame.DOUBLEBUF)
+                    (800, 600), pygame.HWSURFACE | pygame.DOUBLEBUF)
                 logging.debug('pygame started')
-         
-                control1 = self._get_keyboard_control1(pygame.key.get_pressed())
+
+                control1 = self._get_keyboard_control1(
+                    pygame.key.get_pressed())
                 self.actor_list[i].apply_control(control1)
                 self._on_render()
             else:
                 self._display = pygame.display.set_mode(
-                        (800, 600),
-                        pygame.HWSURFACE | pygame.DOUBLEBUF)
+                    (800, 600), pygame.HWSURFACE | pygame.DOUBLEBUF)
                 logging.debug('pygame started')
-         
-                control2 = self._get_keyboard_control2(pygame.key.get_pressed())
+
+                control2 = self._get_keyboard_control2(
+                    pygame.key.get_pressed())
                 self.actor_list[i].apply_control(control2)
                 self._on_render()
-        elif config["auto_control"]:    
+        elif config["auto_control"]:
             self.actor_list[i].set_autopilot()
         else:
             # Test waypoints
             #next_point_transform = self.get_transform_from_nearest_way_point(i, self.end_pos)
-            #next_point_transform.location.z = 40 # the point with z = 0, and the default z of cars are 40 
+            #next_point_transform.location.z = 40 # the point with z = 0, and the default z of cars are 40
             #self.actor_list[i].set_transform(next_point_transform)
-            self.actor_list[i].apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake, hand_brake=hand_brake, reverse=reverse))
+            self.actor_list[i].apply_control(
+                carla.VehicleControl(
+                    throttle=throttle,
+                    steer=steer,
+                    brake=brake,
+                    hand_brake=hand_brake,
+                    reverse=reverse))
 
-        
         # Process observations
         py_measurements = self._read_observation(i)
         print('<<<<<<', py_measurements["collision_other"])
@@ -863,28 +894,28 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #    self.num_steps.append(0)
         #if i == len(self.total_reward):
         #    self.total_reward.append(0)
-        
+
         self.total_reward[i] += reward
         py_measurements["reward"] = reward
         py_measurements["total_reward"] = self.total_reward
-        done = (self.num_steps[i] > MAX_STEP or #self.scenario["max_steps"] or
-                py_measurements["next_command"] == "REACH_GOAL")# or
-                #(self.config["early_terminate_on_collision"] and
-                # collided_done(py_measurements)))
+        done = (
+            self.num_steps[i] > MAX_STEP or  #self.scenario["max_steps"] or
+            py_measurements["next_command"] == "REACH_GOAL")  # or
+        #(self.config["early_terminate_on_collision"] and
+        # collided_done(py_measurements)))
         py_measurements["done"] = done
-        
+
         self.prev_measurement[vehcile_name] = py_measurements
         self.num_steps[i] += 1
         print('>>>', py_measurements["collision_other"])
         # Write out measurements to file
-        if i == self.num_vehicle - 1:#print all cars measurement
+        if i == self.num_vehicle - 1:  #print all cars measurement
             if CARLA_OUT_PATH:
                 if not self.measurements_file:
                     self.measurements_file = open(
                         os.path.join(
-                            CARLA_OUT_PATH,
-                            "measurements_{}.json".format(self.episode_id)),
-                        "w")
+                            CARLA_OUT_PATH, "measurements_{}.json".format(
+                                self.episode_id)), "w")
                 self.measurements_file.write(json.dumps(py_measurements))
                 self.measurements_file.write("\n")
                 if done:
@@ -894,9 +925,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
                     #    self.images_to_video()
                     #    self.video = Trueseg_city_space
         image = self.preprocess_image(self.original_image, i)
-        return (
-            self.encode_obs(image, py_measurements, i), reward, done,
-            py_measurements)
+        return (self.encode_obs(image, py_measurements, i), reward, done,
+                py_measurements)
 
     def get_transform_from_nearest_way_point(self, vehicle_id, pos):
         vehcile = self.actor_list[vehicle_id]
@@ -911,14 +941,15 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             diff_x = trans.x - pos[vehicle_id][0]
             diff_y = trans.y - pos[vehicle_id][1]
             diff_z = trans.z - pos[vehicle_id][2]
-            cur_dist = np.linalg.norm([diff_x,diff_y,diff_z])
+            cur_dist = np.linalg.norm([diff_x, diff_y, diff_z])
             if cur_dist < smallest_dist:
                 next_point = p
         text = "road id = %d, lane id = %d, transform = %s"
-        print(text % (next_point.road_id, next_point.lane_id, next_point.transform))
-           
+        print(text % (next_point.road_id, next_point.lane_id,
+                      next_point.transform))
+
         #debugger = self.client.get_world().debug
-        #debugger.draw_point(next_point.transform.location, size=0.1, color=carla.Color(), life_time=-1.0, persistent_lines=True)        
+        #debugger.draw_point(next_point.transform.location, size=0.1, color=carla.Color(), life_time=-1.0, persistent_lines=True)
         return next_point.transform
 
     def _get_keyboard_control1(self, keys):
@@ -939,6 +970,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #    self._autopilot_enabled = not self._autopilot_enabled
         #control.reverse = self._is_on_reverse
         return control
+
     def _get_keyboard_control2(self, keys):
         control = carla.VehicleControl()
         if keys[K_LEFT]:
@@ -962,17 +994,17 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         videos_dir = os.path.join(CARLA_OUT_PATH, "Videos")
         if not os.path.exists(videos_dir):
             os.makedirs(videos_dir)
-        
+
         ffmpeg_cmd = (
             "ffmpeg -loglevel -8 -r 20 -f image2 -s {x_res}x{y_res} "
             "-pattern_type glob "
-            "-i '{img}/*.png' -vcodec libx264 {vid}.mp4 && rm -f {img}/*.png"#&& rm -f {img}/*.png
+            "-i '{img}/*.png' -vcodec libx264 {vid}.mp4 && rm -f {img}/*.png"  #&& rm -f {img}/*.png
         ).format(
             x_res=self.render_x_res,
             y_res=self.render_y_res,
             #first_frame_num = self.first_frame_num,
             vid=os.path.join(videos_dir, self.episode_id),
-            img=os.path.join(CARLA_OUT_PATH,"images"))
+            img=os.path.join(CARLA_OUT_PATH, "images"))
         print("Executing ffmpeg command", ffmpeg_cmd)
         subprocess.call(ffmpeg_cmd, shell=True)
 
@@ -985,8 +1017,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             data = data[:, :, :1]
             data = data[:, :, ::-1]
             data = cv2.resize(
-                data, (self.x_res, self.y_res),
-                interpolation=cv2.INTER_AREA)
+                data, (self.x_res, self.y_res), interpolation=cv2.INTER_AREA)
             data = np.expand_dims(data, 2)
         else:
             data = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
@@ -994,27 +1025,21 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             data = data[:, :, :3]
             data = data[:, :, ::-1]
             data = cv2.resize(
-                data, (self.x_res, self.y_res),
-                interpolation=cv2.INTER_AREA)
+                data, (self.x_res, self.y_res), interpolation=cv2.INTER_AREA)
             data = (data.astype(np.float32) - 128) / 128
-        
+
         return data
 
-        
-
-        
-       
     def _read_observation(self, i):
         # Read the data produced by the server this frame.
         #  read_data() depends tcp from old API. carla/PythonClient/carla/client.py
         #measurements, sensor_data = self.client.read_data()
-        
-        
+
         # Print some of the measurements.
         #  set verbose false, because donot know what measurements from read_data is.
         #if self.config["verbose"]:
         #    print_measurements(measurements)
-        
+
         #  Old API of cameras.
         #observation = None
         #if self.config["use_depth_camera"]:
@@ -1022,8 +1047,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #else:
         #    camera_name = "CameraRGB"
         #for name, image in sensor_data.items():
-            #if name == camera_name:
-                #observation = image
+        #if name == camera_name:
+        #observation = image
 
         print(type(self.actor_list[i].get_transform().rotation.pitch))
         print(type(0.0))
@@ -1033,16 +1058,13 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         cur_config = self.config_list[str(i)]
         planner_enabled = cur_config["enable_planner"]
         if planner_enabled:
-            next_command = COMMANDS_ENUM[
-                self.planner_list[i].get_next_command(
-                    [cur.get_location().x, cur.get_location().y,
-                     GROUND_Z],
-                    [cur.get_transform().rotation.pitch, cur.get_transform().rotation.yaw,
-                     GROUND_Z],
-                    [self.end_pos[i][0], self.end_pos[i][1],
-                     GROUND_Z],
-                    [0.0, 90.0, GROUND_Z])
-            ]
+            next_command = COMMANDS_ENUM[self.planner_list[i].get_next_command(
+                [cur.get_location().x,
+                 cur.get_location().y, GROUND_Z], [
+                     cur.get_transform().rotation.pitch,
+                     cur.get_transform().rotation.yaw, GROUND_Z
+                 ], [self.end_pos[i][0], self.end_pos[i][1], GROUND_Z],
+                [0.0, 90.0, GROUND_Z])]
         else:
             next_command = "LANE_FOLLOW"
         #time.sleep(1000)
@@ -1052,9 +1074,6 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         intersection_otherlane = self.lane_list[i].offlane
         intersection_offroad = self.lane_list[i].offroad
         print("---->", collision_other)
-            
-
-
 
         #  A simple planner
         #current_x = self.actor_list[i].get_location().x
@@ -1063,47 +1082,43 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #distance_to_goal_euclidean = float(np.linalg.norm(
         #    [current_x - self.end_pos[i][0],
         #     current_y - self.end_pos[i][1]]) / 100)
-        
+
         #distance_to_goal = distance_to_goal_euclidean
-        
 
         #diff_x =  abs(current_x - self.end_pos[i][0])
         #diff_y =  abs(current_y - self.end_pos[i][1])
 
-
         #diff_s_x = abs(current_x - self.start_pos[i][0])
         #diff_s_y = abs(current_y - self.start_pos[i][1])
 
-        
-        
         #next_command = "LANE_FOLLOW"
         self.previous_actions[i].append(next_command)
-        
+
         #if diff_x < 1 and diff_y < 1:
         #if current_x - self.end_pos[i][0] > 0:
         #if (diff_s_x + diff_s_y > 30) or (diff_x < 5 and diff_y < 5):  # ONLY FOR TEST
         #    next_command = "REACH_GOAL"
-        
-        self.previous_rewards[i].append(self.last_reward[i])    
-        
+
+        self.previous_rewards[i].append(self.last_reward[i])
 
         if next_command == "REACH_GOAL":
             distance_to_goal = 0.0  # avoids crash in planner
         elif planner_enabled:
             distance_to_goal = self.planner_list[i].get_shortest_path_distance(
-                [cur.get_location().x, cur.get_location().y,
-                     GROUND_Z],
-                [cur.get_transform().rotation.pitch, cur.get_transform().rotation.yaw,
-                     GROUND_Z],
-                [self.end_pos[i][0], self.end_pos[i][1],
-                     GROUND_Z],
+                [cur.get_location().x,
+                 cur.get_location().y, GROUND_Z], [
+                     cur.get_transform().rotation.pitch,
+                     cur.get_transform().rotation.yaw, GROUND_Z
+                 ], [self.end_pos[i][0], self.end_pos[i][1], GROUND_Z],
                 [0, 90, 0]) / 100
         else:
             distance_to_goal = -1
 
-        distance_to_goal_euclidean = float(np.linalg.norm(
-            [self.actor_list[i].get_location().x - self.end_pos[i][0],
-             self.actor_list[i].get_location().y - self.end_pos[i][1]]) / 100)
+        distance_to_goal_euclidean = float(
+            np.linalg.norm([
+                self.actor_list[i].get_location().x - self.end_pos[i][0],
+                self.actor_list[i].get_location().y - self.end_pos[i][1]
+            ]) / 100)
         py_measurements = {
             "episode_id": self.episode_id,
             "step": self.num_steps[i],
@@ -1113,7 +1128,7 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             "yaw": self.actor_list[i].get_transform().rotation.yaw,
             "roll": self.actor_list[i].get_transform().rotation.roll,
             "forward_speed": self.actor_list[i].get_velocity().x,
-            "distance_to_goal": distance_to_goal,#use planner
+            "distance_to_goal": distance_to_goal,  #use planner
             "distance_to_goal_euclidean": distance_to_goal_euclidean,
             "collision_vehicles": collision_vehicles,
             "collision_pedestrians": collision_pedestrians,
@@ -1129,12 +1144,16 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             "y_res": self.y_res,
             "num_vehicles": self.scenario_list[i]["num_vehicles"],
             "num_pedestrians": self.scenario_list[i]["num_pedestrians"],
-            "max_steps": 1000, # set 1000 now. self.scenario["max_steps"],
+            "max_steps": 1000,  # set 1000 now. self.scenario["max_steps"],
             "next_command": next_command,
-            "previous_actions": {i:self.previous_actions[i]},
-            "previous_rewards": {i:self.previous_rewards[i]}
+            "previous_actions": {
+                i: self.previous_actions[i]
+            },
+            "previous_rewards": {
+                i: self.previous_rewards[i]
+            }
         }
-        
+
         #  self.original_image.save_to_disk can also implemented here.
         #save_to_disk(self.original_image)
         #if CARLA_OUT_PATH and self.config["log_images"]:
@@ -1148,9 +1167,8 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         #        scipy.misc.imsave(out_file, image.data)
 
         #assert observation is not None, sensor_data
-        
-        return py_measurements
 
+        return py_measurements
 
 
 
@@ -1183,10 +1201,10 @@ def sigmoid(x):
 
 def collided_done(py_measurements):
     m = py_measurements
-    collided = (
-        m["collision_vehicles"] > 0 or m["collision_pedestrians"] > 0 or
-        m["collision_other"] > 0)
+    collided = (m["collision_vehicles"] > 0 or m["collision_pedestrians"] > 0
+                or m["collision_other"] > 0)
     return bool(collided or m["total_reward"] < -100)
+
 
 def get_next_actions(measurements, action_dict):
     v = 0
@@ -1207,31 +1225,25 @@ def get_next_actions(measurements, action_dict):
         v = v + 1
     return action_dict
 
+
 if __name__ == "__main__":
-    #  Episode for loop  
+    #  Episode for loop
     #from multi_env import MultiCarlaEnv
     argparser = argparse.ArgumentParser(
         description='CARLA Manual Control Client')
     argparser.add_argument(
-        '--scenario',
-        default = '3',
-        help='print debug information')
+        '--scenario', default='3', help='print debug information')
 
     argparser.add_argument(
         '--config',
-        default = 'env/carla/config.json',
+        default='env/carla/config.json',
         help='print debug information')
 
     argparser.add_argument(
-        '--map',
-        default = 'Town01',
-        help='print debug information')
-
+        '--map', default='Town01', help='print debug information')
 
     args = argparser.parse_args()
 
-    
-    
     for _ in range(1):
         #  Initialize server and clients.
         # env = MultiCarlaEnv(args)
@@ -1239,12 +1251,10 @@ if __name__ == "__main__":
         print("--->", ENV_CONFIG_LIST)
         env = MultiCarlaEnv()
         print('env finished')
-        obs = env.reset() 
+        obs = env.reset()
         print('obs infor:')
         print(obs)
-        
-        
-        
+
         done = False
         i = 0
         total_vehcile = len(obs)
@@ -1253,17 +1263,17 @@ if __name__ == "__main__":
         for n in range(total_vehcile):
             vehcile_name = 'Vehcile'
             vehcile_name += str(n)
-            total_reward_dict[vehcile_name] = 0 
+            total_reward_dict[vehcile_name] = 0
 
         #  Initialize all vehciles' action to be 3
         action_dict = {}
         for v in range(total_vehcile):
             vehcile_name = 'Vehcile' + str(v)
             action_dict[vehcile_name] = 3
-        #  3 in action_list means go straight. 
+        #  3 in action_list means go straight.
         #action_list = {
-            #'Vehcile0' : 3,
-            #'Vehcile1' : 3,
+        #'Vehcile0' : 3,
+        #'Vehcile1' : 3,
         #}
         #server_clock = pygame.time.Clock()
         #print(server_clock.get_fps())
@@ -1271,23 +1281,24 @@ if __name__ == "__main__":
         start = time.time()
         all_done = False
         #while not all_done:
-        while i < 100: # TEST
+        while i < 100:  # TEST
             i += 1
             if env.discrete_actions:
                 obs, reward, done, info = env.step(action_dict)
                 action_dict = get_next_actions(info, action_dict)
             else:
                 obs, reward, done, info = env.step([0, 1, 0])
-            
+
             for t in total_reward_dict:
                 total_reward_dict[t] += reward[t]
-            
-            print("Step", i, "rew", reward, "total", total_reward_dict, "done", done)
+
+            print("Step", i, "rew", reward, "total", total_reward_dict, "done",
+                  done)
 
             #  Test whether all vehicles have finished.
             done_temp = True
             for d in done:
-                done_temp  = done_temp and done[d]
+                done_temp = done_temp and done[d]
             all_done = done_temp
             time.sleep(0.1)
         print(obs)
@@ -1305,16 +1316,15 @@ if __name__ == "__main__":
         print("cam time:", total_time)
         pool = env.image_pool[0]
         last_image = pool[-1]
-        print("server fps:", (last_image.frame_number)/total_time)
-        print("server fps:", len(env.image_pool[0])/total_time)
+        print("server fps:", (last_image.frame_number) / total_time)
+        print("server fps:", len(env.image_pool[0]) / total_time)
         #print(len(env.image_pool[1]))
-        
+
         for n in range(total_vehcile):
             for image in env.image_pool[n]:
-                image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/%04d.png'.format(n) % image.frame_number)    
+                image_dir = os.path.join(
+                    CARLA_OUT_PATH,
+                    'images/{}/%04d.png'.format(n) % image.frame_number)
                 image.save_to_disk(image_dir, env.cc)
-    
+
         #env.images_to_video()
-
-
-        

@@ -1,185 +1,85 @@
 name: carla_gym
 channels:
-- soumith
-- defaults
+  - defaults
 dependencies:
-- alabaster=0.7.10=py36_0
-- astroid=1.5.3=py36_0
-- babel=2.5.0=py36_0
-- bleach=2.1.3=py36_0
-- cached-property=1.4.2=py36_0
-- cairo=1.14.8=0
-- certifi=2016.2.28=py36_0
-- cffi=1.10.0=py36_0
-- chainer=1.24.0=py36_0
-- chardet=3.0.4=py36_0
-- cudatoolkit=8.0=3
-- cudnn=7.0.5=cuda8.0_0
-- cycler=0.10.0=py36_0
-- dbus=1.10.20=0
-- decorator=4.1.2=py36_0
-- docutils=0.14=py36_0
-- entrypoints=0.2.3=py36_0
-- expat=2.1.0=0
-- fontconfig=2.12.1=3
-- freetype=2.5.5=2
-- glib=2.50.2=1
-- graphviz=2.38.0=5
-- gst-plugins-base=1.8.0=0
-- gstreamer=1.8.0=0
-- h5py=2.7.1=py36h3585f63_0
-- harfbuzz=0.9.39=2
-- hdf5=1.10.1=h9caa474_1
-- html5lib=1.0.1=py36h2f9c1c0_0
-- icu=54.1=0
-- imagesize=0.7.1=py36_0
-- intel-openmp=2018.0.0=hc7b2577_8
-- ipykernel=4.6.1=py36_0
-- ipython=6.1.0=py36_0
-- ipython_genutils=0.2.0=py36_0
-- ipywidgets=6.0.0=py36_0
-- isort=4.2.15=py36_0
-- jbig=2.1=0
-- jedi=0.10.2=py36_2
-- jinja2=2.9.6=py36_0
-- jpeg=9b=0
-- jsonschema=2.6.0=py36_0
-- jupyter=1.0.0=py36_3
-- jupyter_client=5.1.0=py36_0
-- jupyter_console=5.1.0=py36_0
-- jupyter_core=4.3.0=py36_0
-- lazy-object-proxy=1.3.1=py36_0
-- libffi=3.2.1=1
-- libgcc=5.2.0=0
-- libgcc-ng=7.2.0=h7cc24e2_2
-- libgfortran=3.0.0=1
-- libgfortran-ng=7.2.0=hdf63c60_3
-- libiconv=1.14=0
-- libpng=1.6.27=0
-- libsodium=1.0.10=0
-- libstdcxx-ng=7.2.0=hdf63c60_3
-- libtiff=4.0.6=3
-- libtool=2.4.2=0
-- libxcb=1.12=1
-- libxml2=2.9.4=0
-- markupsafe=1.0=py36_0
-- matplotlib=2.0.2=np113py36_0
-- mistune=0.7.4=py36_0
-- mkl=2018.0.3
-- nbconvert=5.2.1=py36_0
-- nbformat=4.3.0=py36_0
-- nccl=1.3.4=cuda8.0_1
-- notebook=5.0.0=py36_0
-- numpy=1.13.3=py36ha266831_3
-- numpydoc=0.7.0=py36_0
-- olefile=0.44=py36_0
-- openssl=1.0.2l=0
-- pandas=0.20.3=py36_0
-- pandocfilters=1.4.1=py36_0
-- pango=1.40.3=1
-- path.py=10.3.1=py36_0
-- patsy=0.4.1=py36ha3be15e_0
-- pcre=8.39=1
-- pexpect=4.2.1=py36_0
-- pickleshare=0.7.4=py36_0
-- pillow=4.2.1=py36_0
-- pip=9.0.1=py36_1
-- pixman=0.34.0=0
-- prompt_toolkit=1.0.15=py36_0
-- psutil=5.2.2=py36_0
-- ptyprocess=0.5.2=py36_0
-- pycodestyle=2.3.1=py36_0
-- pycparser=2.18=py36_0
-- pyflakes=1.6.0=py36_0
-- pygments=2.2.0=py36_0
-- pylint=1.7.2=py36_0
-- pyparsing=2.2.0=py36_0
-- pyqt=5.6.0=py36_2
-- python=3.6.2=0
-- python-dateutil=2.6.1=py36_0
-- pytorch=0.3.0=py36cuda8.0cudnn7.0_0
-- pytz=2017.2=py36_0
-- pyzmq=16.0.2=py36_0
-- qt=5.6.2=5
-- qtawesome=0.4.4=py36_0
-- qtconsole=4.3.1=py36_0
-- qtpy=1.3.1=py36_0
-- readline=6.2=2
-- requests=2.14.2=py36_0
-- rope=0.9.4=py36_1
-- scipy=1.0.0=py36hbf646e7_0
-- seaborn=0.8.1=py36hfad7ec4_0
-- setuptools=36.4.0=py36_1
-- simplegeneric=0.8.1=py36_1
-- singledispatch=3.4.0.3=py36_0
-- sip=4.18=py36_0
-- six=1.10.0=py36_0
-- snowballstemmer=1.2.1=py36_0
-- sphinx=1.6.3=py36_0
-- sphinxcontrib=1.0=py36_0
-- sphinxcontrib-websupport=1.0.1=py36_0
-- spyder=3.2.3=py36_0
-- sqlite=3.13.0=0
-- statsmodels=0.8.0=py36h8533d0b_0
-- terminado=0.6=py36_0
-- testpath=0.3.1=py36_0
-- tk=8.5.18=0
-- tornado=4.5.1=py36_0
-- traitlets=4.3.2=py36_0
-- wcwidth=0.1.7=py36_0
-- webencodings=0.5.1=py36h800622e_1
-- wheel=0.29.0=py36_0
-- widgetsnbextension=2.0.0=py36_0
-- wrapt=1.10.11=py36_0
-- xz=5.2.3=0
-- zeromq=4.1.5=0
-- zlib=1.2.11=0
-- cuda80=1.0=0
-- torchvision=0.1.9=py36h7584368_1
-- pip:
-  - atari-py==0.1.6
-  - attrs==17.3.0
-  - bokeh==0.12.13
-  - boto==2.48.0
-  - boto3==1.5.3
-  - botocore==1.8.17
-  - bz2file==0.98
-  - click==6.7
-  - cloudpickle==0.5.2
-  - colorama==0.3.9
-  - flatbuffers
-  - funcsigs==1.0.2
-  - gputil==1.2.3
-  - gym==0.10.5
-  - idna==2.6
-  - ipython-genutils==0.2.0
-  - jmespath==0.9.3
-  - jupyter-client==5.1.0
-  - jupyter-console==5.1.0
-  - jupyter-core==4.4.0
-  - markdown==2.6.9
-  - mccabe==0.6.1
-  - opencv-python==3.3.0.10
-  - parso==0.1.0
-  - pluggy==0.6.0
-  - prompt-toolkit==1.0.15
-  - protobuf==3.4.0
-  - pvlib==0.5.1
-  - py==1.5.2
-  - pygame==1.9.3
-  - pyglet==1.2.4
-  - pyopengl==3.1.0
-  - pytest==3.3.1
-  - pyyaml==3.12
-  - ray==0.5.2
-  - redis==2.10.6
-  - rope-py3k==0.9.4.post1
-  - s3transfer==0.1.12
-  - smart-open==1.5.5
-  - tensorboardx==1.0
-  - tensorflow-gpu==1.3.0
-  - tensorflow-tensorboard==0.1.6
-  - torch==0.3.0
-  - urllib3==1.22
-  - visdom==0.1.5
-  - werkzeug==0.12.2
+  - ca-certificates=2018.03.07=0
+  - certifi=2018.10.15=py36_0
+  - libedit=3.1.20170329=h6b74fdf_2
+  - libffi=3.2.1=hd88cf55_4
+  - libgcc-ng=8.2.0=hdf63c60_1
+  - libstdcxx-ng=8.2.0=hdf63c60_1
+  - ncurses=6.1=hf484d3e_0
+  - openssl=1.1.1=h7b6447c_0
+  - pip=10.0.1=py36_0
+  - python=3.6.7=h0371630_0
+  - readline=7.0=h7b6447c_5
+  - setuptools=40.4.3=py36_0
+  - sqlite=3.25.2=h7b6447c_0
+  - tk=8.6.8=hbc83047_0
+  - wheel=0.32.2=py36_0
+  - xz=5.2.4=h14c3975_4
+  - zlib=1.2.11=ha838bed_2
+  - pip:
+    - atari-py==0.1.1
+    - atomicwrites==1.2.0
+    - attrs==18.1.0
+    - bleach==1.5.0
+    - cffi==1.11.5
+    - chardet==3.0.4
+    - click==6.7
+    - cmake==3.12.0
+    - colorama==0.3.9
+    - coverage==4.5.1
+    - cython==0.27.3
+    - decorator==4.3.0
+    - dill==0.2.8.2
+    - flake8==3.6.0
+    - flatbuffers==2015.12.22.1
+    - funcsigs==1.0.2
+    - future==0.16.0
+    - gputil==1.3.0
+    - gym==0.10.5
+    - html5lib==0.9999999
+    - hyperopt==0.1.1
+    - idna==2.7
+    - lz4==2.1.0
+    - markdown==2.6.11
+    - mccabe==0.6.1
+    - mkl-fft==1.0.4
+    - mkl-random==1.0.1
+    - more-itertools==4.3.0
+    - networkx==2.1
+    - nose2==0.8.0
+    - numpy==1.15.1
+    - opencv-python==3.4.2.17
+    - pillow==5.2.0
+    - pluggy==0.7.1
+    - protobuf==3.6.1
+    - psutil==5.4.7
+    - py==1.5.4
+    - py-trees==0.8.1
+    - pycodestyle==2.4.0
+    - pycparser==2.18
+    - pydot==1.3.0
+    - pyflakes==2.0.0
+    - pygame==1.9.4
+    - pyglet==1.3.2
+    - pymongo==3.7.1
+    - pyopengl==3.1.0
+    - pyparsing==2.3.0
+    - pytest==3.7.3
+    - pyyaml==3.13
+    - pyzmq==17.1.2
+    - redis==2.10.6
+    - requests==2.19.1
+    - rllab==0.0.1.dev0
+    - scipy==1.1.0
+    - six==1.11.0
+    - tensorflow-gpu==1.4.1
+    - tensorflow-tensorboard==0.4.0
+    - torch==0.4.1.post2
+    - tqdm==4.26.0
+    - urllib3==1.23
+    - werkzeug==0.14.1
+    - yapf==0.25.0
+    - zmq==0.0.0
