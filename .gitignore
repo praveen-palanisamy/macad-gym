@@ -1,0 +1,6 @@
+core
+*__pycache__
+.*.sw?
+*~
+.idea
+
