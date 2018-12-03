@@ -23,7 +23,7 @@ fi
 git fetch upstream ${BASE_BRANCH}
 
 YAPF_FLAGS=(
-    '--style' {'based_on_style':pep8}
+    '--style' {'based_on_style':pep8, 'column_limit':79}
     '--recursive'
     '--parallel'
 )
