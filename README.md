@@ -5,6 +5,8 @@
 If you are looking for a stable version that "works", use the master branch.
 This branch will soon replace the master branch and will become the mainstream.
 
+1. [Getting Started](#getting-started)
+2. [Developer Contribution Guide](http://bitbucket.org:carla-gym/carla_gym.git
 
 ### Getting Started
 
@@ -40,7 +42,11 @@ This branch will soon replace the master branch and will become the mainstream.
     
     `python -m env.carla.multi_env`
 
+### Developer Contribution Guide
 
-I changed the conda_env.yaml file to avoid some errors.
+- Be sure to `source activate carla_gym` before developing/testing
+- Be sure to `git pull` often to make sure you are working on the latest copy
+- Follow [PEP8 coding standards](https://www.python.org/dev/peps/pep-0008/) and [Google style](http://google.github.io/styleguide/pyguide.html). Before pushing your local commits, Run `bash .ci/format_code.sh`, this will reformat the files you have changed and show you the list of updated file. Review the changes and if all looks good, stage them again and then push
+- Make sure the CI pipeline reports success. If not, please look at the CI run's log file, fix the reported errors
 
   
