@@ -92,11 +92,47 @@ TURN_RIGHT = ""
 TURN_LEFT = ""
 LANE_FOLLOW = ""
 POS_COOR_MAP = None 
+
 # Number of vehicles/cars   
 #NUM_VEHICLE = 1
 
 # Number of max step
 MAX_STEP = 1000
+
+
+
+ENV_CONFIG_LIST = {
+        "0": {
+            "log_images": True,
+            "enable_planner": True,
+            "render": True,  # Whether to render to screen or send to VFB
+            "framestack": 2,  # note: only [1, 2] currently supported
+            "convert_images_to_video": False,
+            "early_terminate_on_collision": True,
+            "verbose": False,
+            "reward_function": "corl2017",
+            "render_x_res": 800,
+            "render_y_res": 600,
+            "x_res": 80,
+            "y_res": 80,
+            "server_map": "/Game/Carla/Maps/Town01", 
+            "scenarios": "DEFAULT_SCENARIO_TOWN1",# # no scenarios
+            "use_depth_camera": False,
+            "discrete_actions": True,
+            "squash_action_logits": False,
+            "manual_control": False,
+            "auto_control": False,
+            "camera_type": "rgb",
+            "collision_sensor": "on", #off
+            "lane_sensor": "on", #off
+            "server_process": False,
+            "send_measurements": False
+        }
+}
+
+
+
+
 
 # Carla planner commands
 COMMANDS_ENUM = {
@@ -285,16 +321,20 @@ class CollisionSensor(object):
 
 
 class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
-    def __init__(self, args):#config=ENV_CONFIG
+    def __init__(self, config_list = ENV_CONFIG_LIST):
 
-        config_name = args.config
-       
+        #config_name = args.config
         #config=ENV_CONFIG
-        self.config_list = json.load(open(config_name))
-
+        #self.config_list = json.load(open(config_name))
+        self.config_list = ENV_CONFIG_LIST
         # Get general/same config for actors.
         # For now , it contains map, city, discrete_actions, image_space, observation_space.
-        general_config = self.config_list["0"]
+        print(ENV_CONFIG_LIST)
+        print(self.config_list)
+        for k in self.config_list:
+            print(type(k))
+            print(self.config_list[k])
+        general_config = self.config_list[str(0)]
         self.server_map = general_config["server_map"]
         self.city = self.server_map.split("/")[-1]
         self.render = general_config["render"]
@@ -306,7 +346,30 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         self.render_y_res = general_config["render_y_res"]
         self.x_res = general_config["x_res"]
         self.y_res = general_config["y_res"]
+        self.use_depth_camera = False #!!test
+
+        # Needed by agents
+        if self.discrete_actions:
+            self.action_space = Discrete(len(DISCRETE_ACTIONS))
+        else:
+            self.action_space = Box(-1.0, 1.0, shape=(2,))
         
+        
+        if self.use_depth_camera:
+            image_space = Box(
+                -1.0, 1.0, shape=(
+                    self.y_res, self.x_res,
+                    1 * self.framestack))
+        else:
+            image_space = Box(
+                0.0, 255.0, shape=(
+                    self.y_res, self.x_res,
+                    3 * self.framestack))
+        self.observation_space = Tuple(
+            [image_space,
+             Discrete(len(COMMANDS_ENUM)),  # next_command
+             Box(-128.0, 128.0, shape=(2,))])  # forward_speed, dist to goal
+
         self.planner_list = []
         
         # For arg map.
@@ -552,10 +615,13 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             print('vehicle at ', vehicle.get_location().x, vehicle.get_location().y, vehicle.get_location().z)
             #time.sleep(1000)       
             self.actor_list.append(vehicle)
-            collision_sensor = CollisionSensor(vehicle, 0)
-            lane_sensor = LaneInvasionSensor(vehicle, 0)
-            self.colli_list.append(collision_sensor)
-            self.lane_list.append(lane_sensor)
+            config = self.config_list[str(i)]
+            if config["collision_sensor"] == "on"
+                collision_sensor = CollisionSensor(vehicle, 0)
+                self.colli_list.append(collision_sensor)
+            if config["lane_sensor"] == "on"
+                lane_sensor = LaneInvasionSensor(vehicle, 0)
+                self.lane_list.append(lane_sensor)
 
             if i == 0: #TEST!!
                 config = self.config_list[str(i)]
@@ -673,8 +739,11 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         if prev_image is None:
             prev_image = image
         if self.framestack == 2:
-            #image = np.concatenate([prev_image, image], axis=2)
-            image = np.concatenate([prev_image, image])
+            image = np.concatenate([prev_image, image], axis=2)
+            #image = np.concatenate([prev_image, image])
+        if not self.config_list[str(vehcile_number)]["send_measurements"]:
+            print("+++++++++++++++++++")
+            return image
         obs = (
             'Vehcile number: ',
             vehcile_number,
@@ -693,7 +762,9 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             info_dict = {}
             
             actor_num = 0
+            print(action_dict)
             for action in action_dict:
+                print("--->",action);
                 obs, reward, done, info = self._step(action_dict[action], actor_num)
                 
                 vehcile_name = 'Vehcile'
@@ -1266,13 +1337,16 @@ if __name__ == "__main__":
     
     for _ in range(1):
         #  Initialize server and clients.
-        env = MultiCarlaEnv(args)
+        # env = MultiCarlaEnv(args)
+        ENV_CONFIG_LIST = json.load(open('env/carla/config.json'))
+        print("--->", ENV_CONFIG_LIST)
+        env = MultiCarlaEnv()
         print('env finished')
         obs = env.reset() 
         print('obs infor:')
         print(obs)
-        #time.sleep(1000) #  test use
-
+        
+        
         
         done = False
         i = 0
