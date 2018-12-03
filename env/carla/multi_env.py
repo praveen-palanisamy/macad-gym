@@ -69,7 +69,7 @@ except Exception:
 import gym
 from gym.spaces import Box, Discrete, Tuple
 from .scenarios import *
-
+from .reward import *
 #from .carla.settings import CarlaSettings
 from env.carla.carla.planner import *
 
@@ -616,10 +616,10 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
             #time.sleep(1000)       
             self.actor_list.append(vehicle)
             config = self.config_list[str(i)]
-            if config["collision_sensor"] == "on"
+            if config["collision_sensor"] == "on":
                 collision_sensor = CollisionSensor(vehicle, 0)
                 self.colli_list.append(collision_sensor)
-            if config["lane_sensor"] == "on"
+            if config["lane_sensor"] == "on":
                 lane_sensor = LaneInvasionSensor(vehicle, 0)
                 self.lane_list.append(lane_sensor)
 
@@ -853,8 +853,10 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         }
         vehcile_name = 'Vehcile'
         vehcile_name += str(i)
-        reward = compute_reward(
-            self, self.prev_measurement[vehcile_name], py_measurements, i)
+
+        flag = config["reward_function"]
+        cmpt_reward = Reward()
+        reward = cmpt_reward.compute_reward(self.prev_measurement[vehcile_name], py_measurements, flag)
         self.last_reward[i] = reward # to make the previous_rewards in py_measurements
         #  update num_steps and total_reward lists if next car comes
         #if i == len(self.num_steps):
@@ -1150,111 +1152,6 @@ class MultiCarlaEnv(MultiActorEnv): #MultiActorEnv
         return py_measurements
 
 
-def compute_reward_corl2017(env, prev, current):
-    reward = 0.0
-
-    cur_dist = current["distance_to_goal"]
-
-    prev_dist = prev["distance_to_goal"]
-
-    if env.verbose:
-        print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
-
-    # Distance travelled toward the goal in m
-    reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
-
-    # Change in speed (km/h)
-    reward += 0.05 * (current["forward_speed"] - prev["forward_speed"])
-    
-
-    #  no collision and sidewarlk now.
-    # New collision damage
-    reward -= .00002 * (
-        current["collision_vehicles"] + current["collision_pedestrians"] +
-        current["collision_other"] - prev["collision_vehicles"] -
-        prev["collision_pedestrians"] - prev["collision_other"])
-
-    # New sidewalk intersection
-    reward -= 2 * (
-        current["intersection_offroad"] - prev["intersection_offroad"])
-
-    # New opposite lane intersection
-    reward -= 2 * (
-        current["intersection_otherlane"] - prev["intersection_otherlane"])
-
-    return reward
-
-
-def compute_reward_custom(env, prev, current):
-    reward = 0.0
-
-    cur_dist = current["distance_to_goal"]
-    prev_dist = prev["distance_to_goal"]
-
-    if env.verbose:
-        print("Cur dist {}, prev dist {}".format(cur_dist, prev_dist))
-
-    # Distance travelled toward the goal in m
-    reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
-
-    # Speed reward, up 30.0 (km/h)
-    reward += np.clip(current["forward_speed"], 0.0, 30.0) / 10
-
-    # New collision damage
-    new_damage = (
-        current["collision_vehicles"] + current["collision_pedestrians"] +
-        current["collision_other"] - prev["collision_vehicles"] -
-        prev["collision_pedestrians"] - prev["collision_other"])
-    if new_damage:
-        reward -= 100.0
-
-    # Sidewalk intersection
-    reward -= current["intersection_offroad"]
-
-    # Opposite lane intersection
-    reward -= current["intersection_otherlane"]
-
-    # Reached goal
-    if current["next_command"] == "REACH_GOAL":
-        reward += 100.0
-
-    return reward
-
-
-def compute_reward_lane_keep(env, prev, current):
-    reward = 0.0
-
-    # Speed reward, up 30.0 (km/h)
-    reward += np.clip(current["forward_speed"], 0.0, 30.0) / 10
-
-    # New collision damage
-    new_damage = (
-        current["collision_vehicles"] + current["collision_pedestrians"] +
-        current["collision_other"] - prev["collision_vehicles"] -
-        prev["collision_pedestrians"] - prev["collision_other"])
-    if new_damage:
-        reward -= 100.0
-
-    # Sidewalk intersection
-    reward -= current["intersection_offroad"]
-
-    # Opposite lane intersection
-    reward -= current["intersection_otherlane"]
-
-    return reward
-
-
-REWARD_FUNCTIONS = {
-    "corl2017": compute_reward_corl2017,
-    "custom": compute_reward_custom,
-    "lane_keep": compute_reward_lane_keep,
-}
-
-
-def compute_reward(env, prev, current,i):
-    config = env.config_list[str(i)]
-    return REWARD_FUNCTIONS[config["reward_function"]](
-        env, prev, current)
 
 
 def print_measurements(measurements):
