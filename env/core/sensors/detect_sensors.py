@@ -1,5 +1,7 @@
 import carla
 import weakref
+
+
 class LaneInvasionSensor(object):
     def __init__(self, parent_actor, hud):
         self.sensor = None

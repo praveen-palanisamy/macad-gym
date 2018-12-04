@@ -28,8 +28,10 @@ try:
     from pygame.locals import K_s
     from pygame.locals import K_w
 except ImportError:
-    raise RuntimeError('cannot import pygame, make sure pygame package is installed')
+    raise RuntimeError(
+        'cannot import pygame, make sure pygame package is installed')
 import carla
+
 
 class KeyboardControl(object):
     def __init__(self, world, start_in_autopilot, actor_id):
@@ -52,7 +54,8 @@ class KeyboardControl(object):
                     world.restart()
                 elif event.key == K_F1:
                     world.hud.toggle_info()
-                elif event.key == K_h or (event.key == K_SLASH and pygame.key.get_mods() & KMOD_SHIFT):
+                elif event.key == K_h or (event.key == K_SLASH and
+                                          pygame.key.get_mods() & KMOD_SHIFT):
                     world.hud.help.toggle()
                 elif event.key == K_TAB:
                     world.camera_manager.toggle_camera()
@@ -71,14 +74,16 @@ class KeyboardControl(object):
                 elif event.key == K_p:
                     self._autopilot_enabled = not self._autopilot_enabled
                     self.vehicle.set_autopilot(self._autopilot_enabled)
-                    world.hud.notification('Autopilot %s' % ('On' if self._autopilot_enabled else 'Off'))
+                    world.hud.notification(
+                        'Autopilot %s' %
+                        ('On' if self._autopilot_enabled else 'Off'))
         if not self._autopilot_enabled:
             if self.actor_id == 0:
                 self._parse_keys1(pygame.key.get_pressed(), clock.get_time())
             elif self.actor_id == 1:
                 self._parse_keys2(pygame.key.get_pressed(), clock.get_time())
-            elif self.actor_id == -1: # use default ones
-                self._parse_keys(pygame.key.get_pressed(), clock.get_time()) 
+            elif self.actor_id == -1:  # use default ones
+                self._parse_keys(pygame.key.get_pressed(), clock.get_time())
             self.vehicle.apply_control(self._control)
 
     def _parse_keys(self, keys, milliseconds):
@@ -108,7 +113,7 @@ class KeyboardControl(object):
         self._control.steer = round(self._steer_cache, 1)
         self._control.brake = 1.0 if keys[K_s] else 0.0
         self._control.hand_brake = keys[K_SPACE]
-    
+
     def _parse_keys2(self, keys, milliseconds):
         self._control.throttle = 1.0 if keys[K_UP] else 0.0
         steer_increment = 5e-4 * milliseconds
@@ -122,8 +127,8 @@ class KeyboardControl(object):
         self._control.steer = round(self._steer_cache, 1)
         self._control.brake = 1.0 if keys[K_DOWN] else 0.0
         self._control.hand_brake = keys[K_SPACE]
-    
+
     @staticmethod
     def _is_quit_shortcut(key):
-        return (key == K_ESCAPE) or (key == K_q and pygame.key.get_mods() & KMOD_CTRL)
-
+        return (key == K_ESCAPE) or (key == K_q
+                                     and pygame.key.get_mods() & KMOD_CTRL)

@@ -182,15 +182,13 @@ signal.signal(signal.SIGINT, termination_cleanup)
 atexit.register(cleanup)
 
 
-
-
-
 class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
     def __init__(self, config_list=ENV_CONFIG_LIST):
 
         #config_name = args.config
         #config=ENV_CONFIG
         #self.config_list = json.load(open(config_name))
+        #json.loads(args.config)
         self.config_list = ENV_CONFIG_LIST
         # Get general/same config for actors.
         # For now , it contains map, city, discrete_actions, image_space, observation_space.
@@ -213,9 +211,9 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
         self.y_res = general_config["y_res"]
         self.use_depth_camera = False  #!!test
         self.camera_list = CameraList(CARLA_OUT_PATH)
-        pygame.font.init()# font init() for HUD
+        pygame.font.init()  # font init() for HUD
         self.hud = HUD(self.render_x_res, self.render_y_res)
-        
+
         # Needed by agents
         if self.discrete_actions:
             self.action_space = Discrete(len(DISCRETE_ACTIONS))
@@ -349,7 +347,7 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
         time.sleep(10)
 
         self.actor_list = []
-        
+
         self.colli_list = []
         self.lane_list = []
 
@@ -387,9 +385,9 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
                 self.clear_server_state()
                 error = e
         raise error
-    
+
     def _on_render(self, i):
-        surface = self.camera_list.cam_list[0]._surface # 0 for test now.
+        surface = self.camera_list.cam_list[0]._surface  # 0 for test now.
         if surface is not None:
             self._display.blit(surface, (0, 0))
         pygame.display.flip()
@@ -436,11 +434,11 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
 
         POS_S = [[0] * 3] * self.num_vehicle
         POS_E = [[0] * 3] * self.num_vehicle
-        
+
         self.last_reward = [0] * self.num_vehicle
         for i in range(self.num_vehicle):
             scenario = self.scenario_list[i]
-            
+
             s_id = str(
                 scenario["start_pos_id"]
             )  #str(start_id).decode("utf-8") # unicode is needed. this trans is for py2
@@ -483,7 +481,7 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
 
             if 0 == 0:  #TEST!!
                 config = self.config_list[str(i)]
-                
+
                 camera_manager = CameraManager(self.actor_list[i], self.hud)
                 camera_manager.set_sensor(0, notify=False)
                 self.camera_list.cam_list.append(camera_manager)
@@ -493,7 +491,6 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
                 time.sleep(3)
         self.cam_start = time.time()
         print('All vehicles are created.')
-
         """
         #UNDER TEST START-----------------------------------------------------------------------------------
         debugger = world.debug
@@ -547,8 +544,6 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
             #print("Starting new episode...")
             #self.client.start_episode(self.scenario["start_pos_id"])
 
-            
-            
         i = 0
         for cam in self.camera_list.cam_list:
             #  start read observation. each loop read one vehcile infor
@@ -558,14 +553,11 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
             self.py_measurement[vehcile_name] = py_mt
             self.prev_measurement[vehcile_name] = py_mt
             image = preprocess_image(env, cam.image, i)
-            obs = self.encode_obs(image,
-                                  self.py_measurement[vehcile_name], i)
+            obs = self.encode_obs(image, self.py_measurement[vehcile_name], i)
             self.obs_dict[vehcile_name] = obs
             i = i + 1
 
         return self.obs_dict
-
-    
 
     def encode_obs(self, image, py_measurements, vehcile_number):
 
@@ -599,10 +591,9 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
             info_dict = {}
 
             actor_num = 0
-            
+
             for action in action_dict:
 
-                
                 obs, reward, done, info = self._step(action_dict[action],
                                                      actor_num)
 
@@ -652,7 +643,7 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
 
                 controller1 = KeyboardControl(self, False, i)
                 controller1.parse_events(self, clock)
-                
+
                 self._on_render(i)
             else:
                 self._display = pygame.display.set_mode(
@@ -660,7 +651,7 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
                 logging.debug('pygame started')
                 controller2 = KeyboardControl(self, False, i)
                 controller2.parse_events(self, clock)
-                
+
                 self._on_render(i)
         elif config["auto_control"]:
             self.actor_list[i].set_autopilot()
@@ -742,7 +733,6 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
         return (self.encode_obs(image, py_measurements, i), reward, done,
                 py_measurements)
 
-    
     def _read_observation(self, i):
         # Read the data produced by the server this frame.
         #  read_data() depends tcp from old API. carla/PythonClient/carla/client.py
@@ -920,8 +910,8 @@ def collided_done(py_measurements):
 
 def get_next_actions(measurements, action_dict, env):
     v = 0
-    
-    for k in measurements:   
+
+    for k in measurements:
         m = measurements[k]
         command = m["next_command"]
         name = 'Vehcile' + str(v)
@@ -964,7 +954,7 @@ if __name__ == "__main__":
         #  Initialize server and clients.
         # env = MultiCarlaEnv(args)
         ENV_CONFIG_LIST = json.load(open('env/carla/config.json'))
-        
+
         env = MultiCarlaEnv()
         print('env finished')
         obs = env.reset()
@@ -988,7 +978,7 @@ if __name__ == "__main__":
             if env.discrete_actions:
                 action_dict[vehcile_name] = 3
             else:
-                action_dict[vehcile_name] = [1, 0]# test number
+                action_dict[vehcile_name] = [1, 0]  # test number
         #  3 in action_list means go straight.
         #action_list = {
         #'Vehcile0' : 3,
@@ -1002,7 +992,7 @@ if __name__ == "__main__":
         #while not all_done:
         while i < 50:  # TEST
             i += 1
-            
+
             obs, reward, done, info = env.step(action_dict)
             action_dict = get_next_actions(info, action_dict, env)
 
@@ -1029,13 +1019,13 @@ if __name__ == "__main__":
             actor.destroy()
         # Start save the images from memory to disk:
         print("Saving the images from memory to disk:")
-        
+
         # Test fps
         #pool = env.camera_list.image_pool[0]
         #last_image = pool[-1]
         #print("server fps:", (last_image.frame_number) / total_time)
         #print("server fps:", len(env.camera_list.image_pool[0]) / total_time)
-        
+
         env.camera_list.save_images_to_disk()
 
         #env.images_to_video()
