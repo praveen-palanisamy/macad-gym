@@ -446,7 +446,8 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
 
         print("Initializing new Carla server...")
         # Create a new server process and start the client.
-        self.server_port = 2000
+        self.server_port = random.randint(10000, 60000)
+
         gpus = GPUtil.getGPUs()
         print('Get gpu:')
         if not self.render and (gpus is not None and len(gpus)) > 0:
@@ -486,7 +487,7 @@ class MultiCarlaEnv(MultiActorEnv):  #MultiActorEnv
         self.cam_list = []
         self.colli_list = []
         self.lane_list = []
-        self.client = carla.Client("localhost", 2000)  #self.server_port)
+        self.client = carla.Client("localhost", self.server_port)
 
     def clear_server_state(self):
         print("Clearing Carla server state")
