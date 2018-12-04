@@ -7,18 +7,32 @@ __author__: PP, BP
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
-from enum import Enum
-
+import argparse
+import atexit
 from datetime import datetime
-import sys
-import os
 import glob
+import logging
+import json
+import os
+import random
+import signal
+import subprocess
+import sys
+import time
+import traceback
+
+import GPUtil
+from gym.spaces import Box, Discrete, Tuple
+import pygame
+try:
+    import scipy.misc
+except Exception:
+    pass
 
 sys.path.append(
     glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
               f'{sys.version_info.minor}-linux-x86_64.egg')[0])
-
+import carla
 from env.multi_actor_env import *
 from env.core.sensors.utils import preprocess_image, get_transform_from_nearest_way_point
 from env.core.sensors.camera_manager import CameraManager
@@ -26,38 +40,9 @@ from env.core.sensors.camera_list import CameraList
 from env.core.sensors.hud import HUD
 from env.core.sensors.detect_sensors import LaneInvasionSensor, CollisionSensor
 from env.core.controllers.keyboard_control import KeyboardControl
-#from env.carla.PythonAPI.manual_control import CameraManager
-import argparse  #pygame
-import logging  #pygame
 
-import atexit
-import cv2
-
-import json
-import random
-import signal
-import subprocess
-import sys
-import time
-import traceback
-import GPUtil
-import carla
-import numpy as np
-import collections
-
-import weakref  # for collision
-import math  # for collision
-import pygame
-try:
-    import scipy.misc
-except Exception:
-    pass
-
-import gym
-from gym.spaces import Box, Discrete, Tuple
-from .scenarios import *
-from .reward import *
-#from .carla.settings import CarlaSettings
+from env.carla.scenarios import *
+from env.carla.reward import *
 from env.carla.carla.planner import *
 
 # Set this where you want to save image outputs (or empty string to disable)
@@ -933,8 +918,6 @@ def get_next_actions(measurements, action_dict, env):
 
 
 if __name__ == "__main__":
-    #  Episode for loop
-    #from multi_env import MultiCarlaEnv
     argparser = argparse.ArgumentParser(
         description='CARLA Manual Control Client')
     argparser.add_argument(
