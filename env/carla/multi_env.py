@@ -472,18 +472,18 @@ class MultiCarlaEnv(MultiActorEnv):
         i = 0
         for cam in self.camera_list.cam_list:
             py_mt = self._read_observation(i)
-            vehcile_name = 'Vehcile'
-            vehcile_name += str(i)
-            self.py_measurement[vehcile_name] = py_mt
-            self.prev_measurement[vehcile_name] = py_mt
+            vehicle_name = 'Vehicle'
+            vehicle_name += str(i)
+            self.py_measurement[vehicle_name] = py_mt
+            self.prev_measurement[vehicle_name] = py_mt
             image = preprocess_image(env, cam.image, i)
-            obs = self.encode_obs(image, self.py_measurement[vehcile_name], i)
-            self.obs_dict[vehcile_name] = obs
+            obs = self.encode_obs(image, self.py_measurement[vehicle_name], i)
+            self.obs_dict[vehicle_name] = obs
             i = i + 1
 
         return self.obs_dict
 
-    def encode_obs(self, image, py_measurements, vehcile_number):
+    def encode_obs(self, image, py_measurements, vehicle_number):
         assert self.framestack in [1, 2]
         #  currently, the image is generated asynchronously
         prev_image = self.prev_image
@@ -493,9 +493,9 @@ class MultiCarlaEnv(MultiActorEnv):
         if self.framestack == 2:
             # image = np.concatenate([prev_image, image], axis=2)
             image = np.concatenate([prev_image, image])
-        if not self.config_list[str(vehcile_number)]["send_measurements"]:
+        if not self.config_list[str(vehicle_number)]["send_measurements"]:
             return image
-        obs = ('Vehcile number: ', vehcile_number, image,
+        obs = ('Vehicle number: ', vehicle_number, image,
                COMMAND_ORDINAL[py_measurements["next_command"]], [
                    py_measurements["forward_speed"],
                    py_measurements["distance_to_goal"]
@@ -515,13 +515,13 @@ class MultiCarlaEnv(MultiActorEnv):
             for action in action_dict:
                 obs, reward, done, info = self._step(action_dict[action],
                                                      actor_num)
-                vehcile_name = 'Vehcile'
-                vehcile_name += str(actor_num)
+                vehicle_name = 'Vehicle'
+                vehicle_name += str(actor_num)
                 actor_num += 1
-                obs_dict[vehcile_name] = obs
-                reward_dict[vehcile_name] = reward
-                done_dict[vehcile_name] = done
-                info_dict[vehcile_name] = info
+                obs_dict[vehicle_name] = obs
+                reward_dict[vehicle_name] = reward
+                done_dict[vehicle_name] = done
+                info_dict[vehicle_name] = info
             return obs_dict, reward_dict, done_dict, info_dict
         except Exception:
             print("Error during step, terminating episode early",
@@ -604,27 +604,27 @@ class MultiCarlaEnv(MultiActorEnv):
         # Compute reward
         flag = config["reward_function"]
         cmpt_reward = Reward()
-        vehcile_name = 'Vehcile'
-        vehcile_name += str(i)
+        vehicle_name = 'Vehicle'
+        vehicle_name += str(i)
         reward = cmpt_reward.compute_reward(
-            self.prev_measurement[vehcile_name], py_measurements, flag)
+            self.prev_measurement[vehicle_name], py_measurements, flag)
 
         self.last_reward[i] = reward  # to make the previous_rewards in py_measurements
         self.total_reward[i] += reward
         py_measurements["reward"] = reward
         py_measurements["total_reward"] = self.total_reward
         done = (
-            self.num_steps[i] > MAX_STEP or  #self.scenario["max_steps"] or
+            self.num_steps[i] > MAX_STEP or  # self.scenario["max_steps"] or
             py_measurements["next_command"] == "REACH_GOAL")  # or
         # (self.config["early_terminate_on_collision"] and
         # collided_done(py_measurements)))
         py_measurements["done"] = done
 
-        self.prev_measurement[vehcile_name] = py_measurements
+        self.prev_measurement[vehicle_name] = py_measurements
         self.num_steps[i] += 1
 
         # Write out measurements to file
-        if i == self.num_vehicle - 1:  #print all cars measurement
+        if i == self.num_vehicle - 1:  # print all cars measurement
             if CARLA_OUT_PATH:
                 if not self.measurements_file:
                     self.measurements_file = open(
@@ -764,7 +764,7 @@ def get_next_actions(measurements, action_dict, env):
     for k in measurements:
         m = measurements[k]
         command = m["next_command"]
-        name = 'Vehcile' + str(v)
+        name = 'Vehicle' + str(v)
         if command == "REACH_GOAL":
             action_dict[name] = 0
         elif command == "GO_STRAIGHT":
@@ -810,22 +810,22 @@ if __name__ == "__main__":
         print(obs)
 
 
-        total_vehcile = len(obs)
+        total_vehicle = len(obs)
         #  Initialize total reward dict.
         total_reward_dict = {}
-        for n in range(total_vehcile):
-            vehcile_name = 'Vehcile'
-            vehcile_name += str(n)
-            total_reward_dict[vehcile_name] = 0
+        for n in range(total_vehicle):
+            vehicle_name = 'Vehicle'
+            vehicle_name += str(n)
+            total_reward_dict[vehicle_name] = 0
 
-        #  Initialize all vehciles' action to be 3
+        #  Initialize all vehicles' action to be 3
         action_dict = {}
-        for v in range(total_vehcile):
-            vehcile_name = 'Vehcile' + str(v)
+        for v in range(total_vehicle):
+            vehicle_name = 'Vehicle' + str(v)
             if env.discrete_actions:
-                action_dict[vehcile_name] = 3
+                action_dict[vehicle_name] = 3
             else:
-                action_dict[vehcile_name] = [1, 0]  # test number
+                action_dict[vehicle_name] = [1, 0]  # test number
 
         #server_clock = pygame.time.Clock()
         #print(server_clock.get_fps())
