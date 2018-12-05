@@ -1,6 +1,6 @@
 import carla
 import weakref
-
+import math
 
 class LaneInvasionSensor(object):
     def __init__(self, parent_actor, hud):

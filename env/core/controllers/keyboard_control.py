@@ -34,16 +34,17 @@ import carla
 
 
 class KeyboardControl(object):
-    def __init__(self, world, start_in_autopilot, actor_id):
+    def __init__(self, world, start_in_autopilot):
         self._autopilot_enabled = start_in_autopilot
         self._control = carla.VehicleControl()
         self._steer_cache = 0.0
-        self.actor_id = actor_id
-        self.vehicle = world.actor_list[actor_id]
-        self.vehicle.set_autopilot(self._autopilot_enabled)
-        #world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
+        self.actor_id = None
+        self.vehicle = None
+        # world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
     def parse_events(self, world, clock):
+        self.vehicle = world.actor_list[self.actor_id]
+        self.vehicle.set_autopilot(self._autopilot_enabled)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return True
