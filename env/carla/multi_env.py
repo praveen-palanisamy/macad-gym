@@ -476,7 +476,7 @@ class MultiCarlaEnv(MultiActorEnv):
             vehicle_name += str(i)
             self.py_measurement[vehicle_name] = py_mt
             self.prev_measurement[vehicle_name] = py_mt
-            image = preprocess_image(env, cam.image, i)
+            image = preprocess_image(self, cam.image, i)
             obs = self.encode_obs(image, self.py_measurement[vehicle_name], i)
             self.obs_dict[vehicle_name] = obs
             i = i + 1
