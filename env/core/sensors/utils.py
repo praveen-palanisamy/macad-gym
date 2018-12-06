@@ -5,11 +5,15 @@ import sys
 
 
 def preprocess_image(config, image):
-    # This function has input:
-    # a dict var which is config
-    # , and an image from sensor.listen.
-    # Output:
-    # Image array.
+    """Process image raw data to array data.
+
+    Args:
+        config: a dict var.
+        image: from sensor.listen.
+
+    Returns:
+        Image array.
+    """
 
     # Retrieve data from config
     render_x_res = config["render_x_res"]
@@ -41,12 +45,16 @@ def preprocess_image(config, image):
 
 
 def get_transform_from_nearest_way_point(cur_map, cur_location, dst_location):
-    # This function has input:
-    # a carla.Map var,
-    # a carla.Location var which is current car location,
-    # a carla.Location var which is the destination location.
-    # Output:
-    # The carla.Transform var which from the nearest way_point to the destination location.
+    """Get the transform of the nearest way_point
+
+    Args:
+        cur_map: a carla.Map var.
+        cur_location: a carla.Location var which is current car location
+        dst_location: a carla.Location var which is the destination location
+
+    Returns:
+        The carla.Transform var which from the nearest way_point to the destination location
+    """
 
     # Get next possible way_points
     way_points = cur_map.get_waypoint(cur_location)

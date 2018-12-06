@@ -404,6 +404,7 @@ class MultiCarlaEnv(MultiActorEnv):
             POS_E[i] = self.pos_coor_map[e_id]
 
         world = self.client.get_world()
+        self.world = world
         self.weather = [
             world.get_weather().cloudyness,
             world.get_weather().precipitation,
@@ -476,7 +477,8 @@ class MultiCarlaEnv(MultiActorEnv):
             vehicle_name += str(i)
             self.py_measurement[vehicle_name] = py_mt
             self.prev_measurement[vehicle_name] = py_mt
-            image = preprocess_image(self, cam.image, i)
+            config = self.config_list[str(i)]
+            image = preprocess_image(config, cam.image)
             obs = self.encode_obs(image, self.py_measurement[vehicle_name], i)
             self.obs_dict[vehicle_name] = obs
             i = i + 1
@@ -572,8 +574,11 @@ class MultiCarlaEnv(MultiActorEnv):
         elif config["auto_control"]:
             self.actor_list[i].set_autopilot()
         else:
-            # Do not delete this part, test waypoints planner.
-            # next_point_transform = get_transform_from_nearest_way_point(self, i, self.end_pos)
+            # TODO: Planner based on waypoints.
+            # cur_location = self.actor_list[i].get_location()
+            # dst_location = carla.Location(x = self.end_pos[i][0], y = self.end_pos[i][1], z = self.end_pos[i][2])
+            # cur_map = self.world.get_map()
+            # next_point_transform = get_transform_from_nearest_way_point(cur_map, cur_location, dst_location)
             # next_point_transform.location.z = 40 # the point with z = 0, and the default z of cars are 40
             # self.actor_list[i].set_transform(next_point_transform)
             self.actor_list[i].apply_control(
@@ -639,8 +644,10 @@ class MultiCarlaEnv(MultiActorEnv):
                     #if self.config["convert_images_to_video"] and (not self.video):
                     #    self.images_to_video()
                     #    self.video = Trueseg_city_space
+
         original_image = self.camera_list.cam_list[i].image
-        image = preprocess_image(self, original_image, i)
+        config = self.config_list[str(i)]
+        image = preprocess_image(config, original_image)
         return (self.encode_obs(image, py_measurements, i), reward, done,
                 py_measurements)
 
@@ -850,9 +857,9 @@ if __name__ == "__main__":
             all_done = done_temp
             time.sleep(0.1)
 
-        print(obs)
-        print(reward)
-        print(done)
+        # print(obs)
+        # print(reward)
+        # print(done)
 
         print("{} fps".format(i / (time.time() - start)))
         for cam in env.camera_list.cam_list:
