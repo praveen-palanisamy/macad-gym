@@ -56,20 +56,10 @@ SERVER_BINARY = os.environ.get(
 
 assert os.path.exists(SERVER_BINARY)
 
-#  Assign initial value since they are not importable from an old APT carla.planner
-REACH_GOAL = ""
-GO_STRAIGHT = ""
-TURN_RIGHT = ""
-TURN_LEFT = ""
-LANE_FOLLOW = ""
-POS_COOR_MAP = None
-
-# NUM_VEHICLE = 1
-
 # Number of max step
 MAX_STEP = 1000
 
-ENV_CONFIG_LIST = {
+DEFAULT_MULTIENV_CONFIG= {
     "0": {
         "log_images": True,
         "enable_planner": True,
@@ -172,14 +162,10 @@ class MultiCarlaEnv(MultiActorEnv):
         A list of config files for actors.
 
     """
-    def __init__(self, config_list=ENV_CONFIG_LIST):
 
-        # Different ways to set config:
-        # config_name = args.config
-        # config = ENV_CONFIG
-        # self.config_list = json.load(open(config_name))
-        # TODO: load from config, json.loads(args.config)
-        self.config_list = ENV_CONFIG_LIST
+    def __init__(self, config_list=DEFAULT_MULTIENV_CONFIG):
+
+        self.config_list = config_list
 
         # Set attributes as in gym's specs
         self.reward_range = (-np.inf, np.inf)
@@ -242,7 +228,6 @@ class MultiCarlaEnv(MultiActorEnv):
             self.pos_coor_map = json.load(
                 open("env/carla/POS_COOR/pos_cordi_map_town2.txt"))
 
-        # TODO(ekl) this isn't really a proper gym spec
         self._spec = lambda: None
         self._spec.id = "Carla-v0"
         self.server_port = None
@@ -273,8 +258,7 @@ class MultiCarlaEnv(MultiActorEnv):
         self.lane_list = []
         self.scenario_list = []
 
-    @staticmethod
-    def get_scenarios(choice):
+    def get_scenarios(self, choice):
         if choice == "DEFAULT_SCENARIO_TOWN1":
             return DEFAULT_SCENARIO_TOWN1
         elif choice == "DEFAULT_SCENARIO_TOWN1_2":
@@ -497,11 +481,9 @@ class MultiCarlaEnv(MultiActorEnv):
                 camera_manager.set_sensor(0, notify=False)
                 self.camera_list.cam_list.append(camera_manager)
 
-        # Wait the camera's launching time to get first image
-        time.sleep(3)
+        time.sleep(3)  # Wait for the camera to initialize
         print('All vehicles are created.')
 
-        #  Need to print for multiple client
         self.start_pos = POS_S
         self.end_pos = POS_E
         self.start_coord = []
@@ -520,7 +502,6 @@ class MultiCarlaEnv(MultiActorEnv):
                 i, self.start_pos[i], self.start_coord[i], self.end_pos[i],
                 self.end_coord[i]))
 
-        #  start read observation.
         i = 0
         for cam in self.camera_list.cam_list:
             py_mt = self._read_observation(i)
@@ -549,7 +530,6 @@ class MultiCarlaEnv(MultiActorEnv):
             dict: observation data
         """
         assert self.framestack in [1, 2]
-        #  currently, the image is generated asynchronously
         prev_image = self.prev_image
         self.prev_image = image
         if prev_image is None:
@@ -559,7 +539,7 @@ class MultiCarlaEnv(MultiActorEnv):
             image = np.concatenate([prev_image, image])
         if not self.config_list[str(vehicle_number)]["send_measurements"]:
             return image
-        obs = ('Vehicle number: ', vehicle_number, image,
+        obs = (image,  # 'Vehicle number: ', vehicle_number,
                COMMAND_ORDINAL[py_measurements["next_command"]], [
                    py_measurements["forward_speed"],
                    py_measurements["distance_to_goal"]
@@ -908,9 +888,9 @@ if __name__ == "__main__":
     for _ in range(1):
         #  Initialize server and clients.
         # env = MultiCarlaEnv(args)
-        multi_env_config = json.load(open('env/carla/config.json'))
+        multi_env_config = json.load(open(args.config))
 
-        env = MultiCarlaEnv()
+        env = MultiCarlaEnv(multi_env_config)
         obs = env.reset()
         total_vehicle = env.num_vehicle
 

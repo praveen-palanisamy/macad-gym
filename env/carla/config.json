@@ -3,7 +3,7 @@
         "log_images": false,
         "enable_planner": true,
         "render": true,
-        "framestack": 2,
+        "framestack": 1,
         "convert_images_to_video": false,
         "early_terminate_on_collision": true,
         "verbose": false,
@@ -22,13 +22,13 @@
         "camera_type": "rgb",
         "collision_sensor": "on",
         "lane_sensor": "on",
-        "send_measurements": true
+        "send_measurements": false
     },
     "1": {
         "log_images": false,
         "enable_planner": true,
         "render": true,
-        "framestack": 2,
+        "framestack": 1,
         "convert_images_to_video": false,
         "early_terminate_on_collision": true,
         "verbose": false,
@@ -47,6 +47,6 @@
         "camera_type": "rgb",
         "collision_sensor": "on",
         "lane_sensor": "on",
-        "send_measurements": true
+        "send_measurements": false
     }
 }
