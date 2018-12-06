@@ -175,6 +175,10 @@ class MultiCarlaEnv(MultiActorEnv):
         # TODO: load from config, json.loads(args.config)
         self.config_list = ENV_CONFIG_LIST
 
+        # Set attributes as in gym's specs
+        self.reward_range = (-np.inf, np.inf)
+        self.metadata = {'render.modes': 'human'}
+
         # Get general/same config for actors.
         general_config = self.config_list[str(0)]
         self.server_map = general_config["server_map"]
@@ -325,11 +329,20 @@ class MultiCarlaEnv(MultiActorEnv):
         # Start client
         self.client = carla.Client("localhost", self.server_port)
 
+    def clean_world(self):
+        for cam in env.camera_list.cam_list:
+            cam.sensor.destroy()
+        for actor in env.actor_list:
+            actor.destroy()
+        for colli in env.colli_list:
+            colli.sensor.destroy()
+        for lane in env.lane_list:
+            lane.sensor.destroy()
+
     def clear_server_state(self):
         print("Clearing Carla server state")
         try:
             if self.client:
-                self.client.disconnect()
                 self.client = None
         except Exception as e:
             print("Error disconnecting client: {}".format(e))
@@ -354,7 +367,7 @@ class MultiCarlaEnv(MultiActorEnv):
                 return self._reset()
             except Exception as e:
                 print("Error during reset: {}".format(traceback.format_exc()))
-                self.clear_server_state()
+                self.delclear_server_state()
                 error = e
         raise error
 
@@ -477,8 +490,9 @@ class MultiCarlaEnv(MultiActorEnv):
             vehicle_name += str(i)
             self.py_measurement[vehicle_name] = py_mt
             self.prev_measurement[vehicle_name] = py_mt
+
             config = self.config_list[str(i)]
-            image = preprocess_image(config, cam.image)
+            image = preprocess_image(cam.image, config)
             obs = self.encode_obs(image, self.py_measurement[vehicle_name], i)
             self.obs_dict[vehicle_name] = obs
             i = i + 1
@@ -647,7 +661,8 @@ class MultiCarlaEnv(MultiActorEnv):
 
         original_image = self.camera_list.cam_list[i].image
         config = self.config_list[str(i)]
-        image = preprocess_image(config, original_image)
+        image = preprocess_image(original_image, config)
+
         return (self.encode_obs(image, py_measurements, i), reward, done,
                 py_measurements)
 
@@ -808,16 +823,12 @@ if __name__ == "__main__":
     for _ in range(1):
         #  Initialize server and clients.
         # env = MultiCarlaEnv(args)
-        ENV_CONFIG_LIST = json.load(open('env/carla/config.json'))
+        multi_env_config = json.load(open('env/carla/config.json'))
 
         env = MultiCarlaEnv()
-        print('env finished')
         obs = env.reset()
-        print('obs infor:')
-        print(obs)
+        total_vehicle = env.num_vehicle
 
-
-        total_vehicle = len(obs)
         #  Initialize total reward dict.
         total_reward_dict = {}
         for n in range(total_vehicle):
@@ -857,24 +868,13 @@ if __name__ == "__main__":
             all_done = done_temp
             time.sleep(0.1)
 
-        # print(obs)
-        # print(reward)
-        # print(done)
-
         print("{} fps".format(i / (time.time() - start)))
-        for cam in env.camera_list.cam_list:
-            cam.sensor.destroy()
-        for actor in env.actor_list:
-            actor.destroy()
-        # Start save the images from memory to disk:
-        print("Saving the images from memory to disk:")
 
-        # Test fps
-        #pool = env.camera_list.image_pool[0]
-        #last_image = pool[-1]
-        #print("server fps:", (last_image.frame_number) / total_time)
-        #print("server fps:", len(env.camera_list.image_pool[0]) / total_time)
+        # Clean actors in world
+        env.clean_world()
 
-        env.camera_list.save_images_to_disk()
-
-        #env.images_to_video()
+        # TODO: Fix this
+        #if multi_env_config["FIX_ME"]["log_images"]:
+            # Save the images from memory to disk:
+            # print("FIX Saving the images from memory to disk:")
+            # env.camera_list.save_images_to_disk()

@@ -4,15 +4,15 @@ import cv2
 import sys
 
 
-def preprocess_image(config, image):
+def preprocess_image(image, config):
     """Process image raw data to array data.
 
     Args:
-        config: a dict var.
-        image: from sensor.listen.
+        config (dict): the config its actor.
+        image (carla.Image): current image raw data.
 
     Returns:
-        Image array.
+        list: Image array.
     """
 
     # Retrieve data from config
@@ -48,12 +48,13 @@ def get_transform_from_nearest_way_point(cur_map, cur_location, dst_location):
     """Get the transform of the nearest way_point
 
     Args:
-        cur_map: a carla.Map var.
-        cur_location: a carla.Location var which is current car location
-        dst_location: a carla.Location var which is the destination location
+        cur_map (carla.Map): current map.
+        cur_location (carla.Location): current actor location.
+        dst_location (carla.Location): actor's destination location.
 
     Returns:
-        The carla.Transform var which from the nearest way_point to the destination location
+        carla.Transform: the transform of the nearest way_point
+            to the destination location.
     """
 
     # Get next possible way_points
