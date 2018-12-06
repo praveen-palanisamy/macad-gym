@@ -58,6 +58,8 @@ class CameraManager(object):
     def set_recording_option(self, option):
         """Set class vars to select recording method.
 
+        Option 1: save image to disk while the program runs.(Default)
+        Option 2: save to memory first. Save to disk when program finishes.
 
         Args:
             option (int): record method.
