@@ -21,7 +21,7 @@ class CameraManager(object):
         self._parent = parent_actor
         self._hud = hud
         self._recording = False
-        self._list_record = not self._recording
+        self._memory_record = False
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.6, z=1.7)),
             carla.Transform(
@@ -54,6 +54,21 @@ class CameraManager(object):
                 bp.set_attribute('image_size_y', str(hud.dim[1]))
             item.append(bp)
         self._index = None
+
+    def set_recording_option(self, option):
+        """Set class vars to select recording method.
+
+
+        Args:
+            option (int): record method.
+
+        Returns:
+            N/A.
+        """
+        if option == 1:
+            self._recording = True
+        elif option == 2:
+            self._memory_record = True
 
     def toggle_camera(self):
         self._transform_index = (self._transform_index + 1) % len(
@@ -126,5 +141,7 @@ class CameraManager(object):
                 image.frame_number)
             image.save_to_disk(image_dir)  #, env.cc
             # image.save_to_disk('_out/%08d' % image.frame_number)
-        else:
+        elif self._memory_record:
             self.image_list.append(image)
+        else:
+            pass

@@ -18,6 +18,8 @@ class CameraList(object):
 
         # Save images from actors from their corresponding camera manager.
         for cam_manager in self.cam_list:
+            if not cam_manager._memory_record:
+                continue
             actor_id = cam_manager._parent.id
             for image in cam_manager.image_list:
                 image_dir = os.path.join(

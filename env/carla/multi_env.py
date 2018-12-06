@@ -59,7 +59,7 @@ assert os.path.exists(SERVER_BINARY)
 # Number of max step
 MAX_STEP = 1000
 
-DEFAULT_MULTIENV_CONFIG= {
+DEFAULT_MULTIENV_CONFIG = {
     "0": {
         "log_images": True,
         "enable_planner": True,
@@ -373,7 +373,7 @@ class MultiCarlaEnv(MultiActorEnv):
                 return self._reset()
             except Exception as e:
                 print("Error during reset: {}".format(traceback.format_exc()))
-                self.delclear_server_state()
+                self.clear_server_state()
                 error = e
         raise error
 
@@ -476,8 +476,16 @@ class MultiCarlaEnv(MultiActorEnv):
             # Spawn cameras
             if 0 == 0:  #TEST!!
                 config = self.config_list[str(i)]
-
                 camera_manager = CameraManager(self.actor_list[i], self.hud)
+                print(config["log_images"])
+                if not config["log_images"]:
+                    pass
+                else:
+                    # 1: default save method
+                    # 2: save to memory first
+                    # We may finally chose one of the two,
+                    # the two are under test now.
+                    camera_manager.set_recording_option(1)
                 camera_manager.set_sensor(0, notify=False)
                 self.camera_list.cam_list.append(camera_manager)
 
@@ -701,7 +709,7 @@ class MultiCarlaEnv(MultiActorEnv):
                 if done:
                     self.measurements_file.close()
                     self.measurements_file = None
-                    #if self.config["convert_images_to_video"] and (not self.video):
+                    # if self.config["convert_images_to_video"] and (not self.video):
                     #    self.images_to_video()
                     #    self.video = Trueseg_city_space
 
@@ -910,13 +918,13 @@ if __name__ == "__main__":
             else:
                 action_dict[vehicle_name] = [1, 0]  # test number
 
-        #server_clock = pygame.time.Clock()
-        #print(server_clock.get_fps())
+        # server_clock = pygame.time.Clock()
+        # print(server_clock.get_fps())
 
         start = time.time()
         all_done = False
         i = 0
-        #while not all_done:
+        # while not all_done:
         while i < 50:  # TEST
             i += 1
             obs, reward, done, info = env.step(action_dict)
@@ -938,8 +946,6 @@ if __name__ == "__main__":
         # Clean actors in world
         env.clean_world()
 
-        # TODO: Fix this
-        #if multi_env_config["FIX_ME"]["log_images"]:
-            # Save the images from memory to disk:
-            # print("FIX Saving the images from memory to disk:")
-            # env.camera_list.save_images_to_disk()
+        # Set record options before set_sensor
+        env.camera_list.save_images_to_disk()
+

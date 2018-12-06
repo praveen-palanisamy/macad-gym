@@ -1,6 +1,6 @@
 {
     "0": {
-        "log_images": false,
+        "log_images": true,
         "enable_planner": true,
         "render": true,
         "framestack": 1,
@@ -25,7 +25,7 @@
         "send_measurements": false
     },
     "1": {
-        "log_images": false,
+        "log_images": true,
         "enable_planner": true,
         "render": true,
         "framestack": 1,
