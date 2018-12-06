@@ -477,7 +477,6 @@ class MultiCarlaEnv(MultiActorEnv):
             if 0 == 0:  #TEST!!
                 config = self.config_list[str(i)]
                 camera_manager = CameraManager(self.actor_list[i], self.hud)
-                print(config["log_images"])
                 if not config["log_images"]:
                     pass
                 else:
