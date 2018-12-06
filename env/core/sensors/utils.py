@@ -4,7 +4,7 @@ import cv2
 import sys
 
 
-def preprocess_image(config, image):
+def preprocess_image(image, config):
     # This function has input:
     # a dict var which is config
     # , and an image from sensor.listen.

@@ -175,6 +175,10 @@ class MultiCarlaEnv(MultiActorEnv):
         # TODO: load from config, json.loads(args.config)
         self.config_list = ENV_CONFIG_LIST
 
+        # Set attributes as in gym's specs
+        self.reward_range = (-np.inf, np.inf)
+        self.metadata = {'render.modes': 'human'}
+
         # Get general/same config for actors.
         general_config = self.config_list[str(0)]
         self.server_map = general_config["server_map"]
@@ -476,7 +480,7 @@ class MultiCarlaEnv(MultiActorEnv):
             vehicle_name += str(i)
             self.py_measurement[vehicle_name] = py_mt
             self.prev_measurement[vehicle_name] = py_mt
-            image = preprocess_image(self, cam.image, i)
+            image = preprocess_image(cam.image, self.config_list[str(i)])
             obs = self.encode_obs(image, self.py_measurement[vehicle_name], i)
             self.obs_dict[vehicle_name] = obs
             i = i + 1
@@ -640,7 +644,7 @@ class MultiCarlaEnv(MultiActorEnv):
                     #    self.images_to_video()
                     #    self.video = Trueseg_city_space
         original_image = self.camera_list.cam_list[i].image
-        image = preprocess_image(self, original_image, i)
+        image = preprocess_image(original_image, self.config_list[str(i)])
         return (self.encode_obs(image, py_measurements, i), reward, done,
                 py_measurements)
 
@@ -801,14 +805,10 @@ if __name__ == "__main__":
     for _ in range(1):
         #  Initialize server and clients.
         # env = MultiCarlaEnv(args)
-        ENV_CONFIG_LIST = json.load(open('env/carla/config.json'))
+        multi_env_config = json.load(open('env/carla/config.json'))
 
         env = MultiCarlaEnv()
-        print('env finished')
         obs = env.reset()
-        print('obs infor:')
-        print(obs)
-
 
         total_vehicle = len(obs)
         #  Initialize total reward dict.
@@ -850,24 +850,17 @@ if __name__ == "__main__":
             all_done = done_temp
             time.sleep(0.1)
 
-        print(obs)
-        print(reward)
-        print(done)
 
         print("{} fps".format(i / (time.time() - start)))
         for cam in env.camera_list.cam_list:
             cam.sensor.destroy()
         for actor in env.actor_list:
             actor.destroy()
-        # Start save the images from memory to disk:
-        print("Saving the images from memory to disk:")
 
-        # Test fps
-        #pool = env.camera_list.image_pool[0]
-        #last_image = pool[-1]
-        #print("server fps:", (last_image.frame_number) / total_time)
-        #print("server fps:", len(env.camera_list.image_pool[0]) / total_time)
-
-        env.camera_list.save_images_to_disk()
+        # TODO: Fix this
+        #if multi_env_config["FIX_ME"]["log_images"]:
+            # Save the images from memory to disk:
+            # print("FIX Saving the images from memory to disk:")
+            # env.camera_list.save_images_to_disk()
 
         #env.images_to_video()
