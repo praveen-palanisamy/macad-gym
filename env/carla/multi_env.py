@@ -166,6 +166,12 @@ atexit.register(cleanup)
 
 
 class MultiCarlaEnv(MultiActorEnv):
+    """Carla environment, similar to the World class of manual_control.py from Carla.
+
+    Args:
+        A list of config files for actors.
+
+    """
     def __init__(self, config_list=ENV_CONFIG_LIST):
 
         # Different ways to set config:
@@ -194,7 +200,7 @@ class MultiCarlaEnv(MultiActorEnv):
         self.y_res = general_config["y_res"]
         self.use_depth_camera = False  #!!test
         self.camera_list = CameraList(CARLA_OUT_PATH)
-        # self.config["server_map"] = "/Game/Carla/Maps/" + args.map # For arg map.
+        # self.config["server_map"] = "/Game/Carla/Maps/" + args.map  # For arg map.
 
         # Initialize to be compatible with cam_manager to set HUD.
         pygame.font.init()  # for HUD
@@ -236,11 +242,9 @@ class MultiCarlaEnv(MultiActorEnv):
             self.pos_coor_map = json.load(
                 open("env/carla/POS_COOR/pos_cordi_map_town2.txt"))
 
-
         # TODO(ekl) this isn't really a proper gym spec
         self._spec = lambda: None
         self._spec.id = "Carla-v0"
-
         self.server_port = None
         self.server_process = None
         self.client = None
@@ -287,7 +291,11 @@ class MultiCarlaEnv(MultiActorEnv):
             return DEFAULT_CURVE_TOWN1
 
     def init_server(self):
+        """Initialize carla server and client
 
+        Returns:
+            N/A
+        """
         print("Initializing new Carla server...")
         # Create a new server process and start the client.
         self.server_port = random.randint(10000, 60000)
@@ -323,13 +331,19 @@ class MultiCarlaEnv(MultiActorEnv):
                 stdout=open(os.devnull, "w"))
         live_carla_processes.add(os.getpgid(self.server_process.pid))
 
-        #  wait for carlar server to start
+        #  wait for carla server to start
         time.sleep(10)
 
         # Start client
         self.client = carla.Client("localhost", self.server_port)
 
     def clean_world(self):
+        """Destroy all sensors after the program terminates.
+
+        Returns:
+            N/A
+
+        """
         for cam in env.camera_list.cam_list:
             cam.sensor.destroy()
         for actor in env.actor_list:
@@ -340,6 +354,8 @@ class MultiCarlaEnv(MultiActorEnv):
             lane.sensor.destroy()
 
     def clear_server_state(self):
+        """Clear server process"""
+
         print("Clearing Carla server state")
         try:
             if self.client:
@@ -358,6 +374,12 @@ class MultiCarlaEnv(MultiActorEnv):
         self.clear_server_state()
 
     def reset(self):
+        """Reset the carla world, call init_server()
+
+        Returns:
+            N/A
+
+        """
         error = None
         for _ in range(RETRIES_ON_ERROR):
             try:
@@ -372,6 +394,14 @@ class MultiCarlaEnv(MultiActorEnv):
         raise error
 
     def _on_render(self, i):
+        """Render the pygame window.
+        
+        Args:
+            i (int): the index of list self.actor_list.
+
+        Returns:
+            N/A
+        """
         # 0 instead of i, easy test
         surface = self.camera_list.cam_list[0]._surface
         if surface is not None:
@@ -379,6 +409,14 @@ class MultiCarlaEnv(MultiActorEnv):
         pygame.display.flip()
 
     def _reset(self):
+        """Initialize actors.
+
+        Get poses for vehicle actors and spawn them.
+        Spawn all sensors as needed.
+
+        Returns:
+            dict: observation dictionaries for actors.
+        """
 
         # If config contains a single scenario, then use it,
         # if it's an array of scenarios, randomly choose one and init
@@ -500,6 +538,16 @@ class MultiCarlaEnv(MultiActorEnv):
         return self.obs_dict
 
     def encode_obs(self, image, py_measurements, vehicle_number):
+        """Encode args values to observation data (dict).
+
+        Args:
+            image (array): processed image after func pre_process()
+            py_measurements (dict): measurement file
+            vehicle_number (int): index from actor_list
+
+        Returns:
+            dict: observation data
+        """
         assert self.framestack in [1, 2]
         #  currently, the image is generated asynchronously
         prev_image = self.prev_image
@@ -521,6 +569,17 @@ class MultiCarlaEnv(MultiActorEnv):
         return obs
 
     def step(self, action_dict):
+        """One step for actors in simulation
+
+        Args:
+            action_dict (dict): actions represented by integers.
+
+        Returns:
+            dict: observation dict.
+            dict: current reward dict.
+            dict: bools indicate whether vehicles finish.
+            dict: measurement dict.
+        """
         try:
             obs_dict = {}
             reward_dict = {}
@@ -546,6 +605,22 @@ class MultiCarlaEnv(MultiActorEnv):
             return self.last_obs, 0.0, True, {}
 
     def _step(self, action, i):
+        """sub func of step()
+
+        Send control to actor_list[i].
+        Get its measurement.
+        Compute its reward.
+
+        Args:
+            action (list): a len-two list, e.g., [1.0, 0.0].
+            i: index from actor_list.
+
+        Returns:
+            dict: observation data.
+            float: current reward for actor actor_list[i].
+            bool: whether the actor gets to the destination.
+            dict: measurement data.
+        """
         if self.discrete_actions:
             action = DISCRETE_ACTIONS[int(action)]
         assert len(action) == 2, "Invalid action {}".format(action)
@@ -575,15 +650,6 @@ class MultiCarlaEnv(MultiActorEnv):
             controller = KeyboardControl(self, False)
             controller.actor_id = i
             controller.parse_events(self, clock)
-            """
-            if i == 0:
-                controller1 = KeyboardControl(self, False)
-                controller1.actor_id = i
-                controller1.parse_events(self, clock)
-            else:
-                controller2 = KeyboardControl(self, False, i)
-                controller2.parse_events(self, clock)
-            """
             self._on_render(i)
         elif config["auto_control"]:
             self.actor_list[i].set_autopilot()
@@ -667,6 +733,15 @@ class MultiCarlaEnv(MultiActorEnv):
                 py_measurements)
 
     def _read_observation(self, i):
+        """Read observation and return measurement.
+
+        Args:
+            i (index): index of actor_list.
+
+        Returns:
+            dict: measurement data.
+
+        """
         cur = self.actor_list[i]
         cur_config = self.config_list[str(i)]
         planner_enabled = cur_config["enable_planner"]
@@ -682,7 +757,7 @@ class MultiCarlaEnv(MultiActorEnv):
             next_command = "LANE_FOLLOW"
 
         collision_vehicles = self.colli_list[i].collision_vehicles
-        collision_pedestrians = self.colli_list[i].collision_pedestrains
+        collision_pedestrians = self.colli_list[i].collision_pedestrians
         collision_other = self.colli_list[i].collision_other
         intersection_otherlane = self.lane_list[i].offlane
         intersection_offroad = self.lane_list[i].offroad
@@ -781,8 +856,18 @@ def collided_done(py_measurements):
     return bool(collided or m["total_reward"] < -100)
 
 
-def get_next_actions(measurements, action_dict, env):
+def get_next_actions(measurements, is_discrete_actions):
+    """Get/Update next action, work with way_point based planner.
+
+    Args:
+        measurements (dict): measurement data.
+        is_discrete_actions (bool): whether use discrete actions
+
+    Returns:
+        dict: action_dict, dict of len-two integer lists.
+    """
     v = 0
+    action_dict = {}
     for k in measurements:
         m = measurements[k]
         command = m["next_command"]
@@ -798,7 +883,7 @@ def get_next_actions(measurements, action_dict, env):
         elif command == "LANE_FOLLOW":
             action_dict[name] = 3
         # Test for discrete actions:
-        if not env.discrete_actions:
+        if not is_discrete_actions:
             action_dict[name] = [1, 0]
         v = v + 1
     return action_dict
@@ -855,7 +940,7 @@ if __name__ == "__main__":
         while i < 50:  # TEST
             i += 1
             obs, reward, done, info = env.step(action_dict)
-            action_dict = get_next_actions(info, action_dict, env)
+            action_dict = get_next_actions(info, env.discrete_actions)
             for t in total_reward_dict:
                 total_reward_dict[t] += reward[t]
             print("Step", i, "rew", reward, "total", total_reward_dict, "done",

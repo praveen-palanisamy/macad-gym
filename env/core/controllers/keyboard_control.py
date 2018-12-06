@@ -34,6 +34,8 @@ import carla
 
 
 class KeyboardControl(object):
+    """This class from carla, manual_control.py
+    """
     def __init__(self, world, start_in_autopilot):
         self._autopilot_enabled = start_in_autopilot
         self._control = carla.VehicleControl()
