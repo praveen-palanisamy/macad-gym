@@ -59,7 +59,7 @@ assert os.path.exists(SERVER_BINARY)
 # Number of max step
 MAX_STEP = 1000
 
-ENV_CONFIG_LIST = {
+DEFAULT_MULTIENV_CONFIG= {
     "0": {
         "log_images": True,
         "enable_planner": True,
@@ -156,14 +156,9 @@ atexit.register(cleanup)
 
 
 class MultiCarlaEnv(MultiActorEnv):
-    def __init__(self, config_list=ENV_CONFIG_LIST):
+    def __init__(self, config_list=DEFAULT_MULTIENV_CONFIG):
 
-        # Different ways to set config:
-        # config_name = args.config
-        # config = ENV_CONFIG
-        # self.config_list = json.load(open(config_name))
-        # TODO: load from config, json.loads(args.config)
-        self.config_list = ENV_CONFIG_LIST
+        self.config_list = config_list
 
         # Set attributes as in gym's specs
         self.reward_range = (-np.inf, np.inf)
@@ -807,9 +802,9 @@ if __name__ == "__main__":
     for _ in range(1):
         #  Initialize server and clients.
         # env = MultiCarlaEnv(args)
-        multi_env_config = json.load(open('env/carla/config.json'))
+        multi_env_config = json.load(open(args.config))
 
-        env = MultiCarlaEnv()
+        env = MultiCarlaEnv(multi_env_config)
         obs = env.reset()
         total_vehicle = env.num_vehicle
 
