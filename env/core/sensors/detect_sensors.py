@@ -1,6 +1,7 @@
 import carla
 import weakref
 import math
+import collections
 
 
 class LaneInvasionSensor(object):
