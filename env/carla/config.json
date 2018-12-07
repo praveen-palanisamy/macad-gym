@@ -22,6 +22,7 @@
         "camera_type": "rgb",
         "collision_sensor": "on",
         "lane_sensor": "on",
+        "camera": "on",
         "send_measurements": false
     },
     "1": {
@@ -47,6 +48,7 @@
         "camera_type": "rgb",
         "collision_sensor": "on",
         "lane_sensor": "on",
+        "camera": "on",
         "send_measurements": false
     }
 }

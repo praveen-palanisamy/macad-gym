@@ -1,145 +1,295 @@
-#===============================================================================
-#-- VehicleManager -------------------------------------------------------------
-#===============================================================================
+import pygame
+import random
+import logging
+import numpy as np
+import carla
+from env.core.sensors.camera_manager import CameraManager
+from env.core.sensors.detect_sensors import LaneInvasionSensor, CollisionSensor
+from env.core.controllers.keyboard_control import KeyboardControl
+
+# Mapping from string repr to one-hot encoding index to feed to the model
+COMMAND_ORDINAL = {
+    "REACH_GOAL": 0,
+    "GO_STRAIGHT": 1,
+    "TURN_RIGHT": 2,
+    "TURN_LEFT": 3,
+    "LANE_FOLLOW": 4,
+}
+
+# Carla planner commands
+COMMANDS_ENUM = {
+    0.0: "REACH_GOAL",
+    5.0: "GO_STRAIGHT",
+    4.0: "TURN_RIGHT",
+    3.0: "TURN_LEFT",
+    2.0: "LANE_FOLLOW",
+}
+
+DISCRETE_ACTIONS = {
+    # coast
+    0: [0.0, 0.0],
+    # turn left
+    1: [0.0, -0.5],
+    # turn right
+    2: [0.0, 0.5],
+    # forward
+    3: [1.0, 0.0],
+    # brake
+    4: [-0.5, 0.0],
+    # forward left
+    5: [0.5, -0.05],
+    # forward right
+    6: [0.5, 0.05],
+    # brake left
+    7: [-0.5, -0.5],
+    # brake right
+    8: [-0.5, 0.5],
+}
+
+GROUND_Z = 22
+
+
 class VehicleManager(object):
-    def __init__(self, vehicle, autopilot_enabled=False):
-        self._vehicle = vehicle
-        self._autopilot_enabled = autopilot_enabled
-        self._hud = None  #TODO
-        self._collision_sensor = CollisionSensor(self._vehicle, self._hud)
-        self._lane_invasion_sensor = LaneInvasionSensor(
-            self._vehicle, self._hud)
-        self._start_pos = None
-        self._end_pos = None
+    def __init__(self):
+        # General attributes:
+        self._world = None
+        self._config = None
+        self._planner = None  # needed?
+
+        # Vehicle related attributes:
+        self._vehicle = None
+        self._camera_manager = None
+        self._collision_sensor = None
+        self._lane_invasion_sensor = None
+
+        # Planner related
+        self._planner = None
+        self._start_transform = None
+        self._end_transform = None
+
+        self.previous_actions = None
+        self.previous_reward = None
+        self.last_reward = None
         self._start_coord = None
         self._end_coord = None
 
-    def get_location(self):
-        return self._vehicle.get_location()
 
-    def get_velocity(self):
-        return self._vehicle.get_velocity()
+        # Others
+        self._prev_image = None
+        self._parent_list_id = None # try to delete this.
 
-    def draw_waypoints(self, helper, wp):
-        nexts = list(wp.next(1.0))
-        if not nexts:
-            raise RuntimeError("No more waypoints")
-        wp_next = random.choice(nexts)
-        text = "road id = %d, lane id = %d, transform = %s"
-        #            print(text % (wp_next.road_id, wp_next.lane_id, wp_next.transform))
-        self.inner_wp_draw(helper, wp_next)
+    def set_world(self, world):
+        """Set world."""
+        self._world = world
 
-    def inner_wp_draw(self, helper, wp, depth=4):
-        if depth < 0:
-            return
-        for w in wp.next(4.0):
-            t = w.transform
-            begin = t.location + carla.Location(
-                z=40)  #TODO, the wp Z-coord is set as 0, not visiable
-            angle = math.radians(t.rotation.yaw)
-            end = begin + carla.Location(x=math.cos(angle), y=math.sin(angle))
-            helper.draw_arrow(begin, end, arrow_size=0.1, life_time=1.0)
-            self.inner_wp_draw(helper, w, depth - 1)
+    def set_config(self, config):
+        """Set config"""
+        self._config = config
 
-    def set_autopilot(self, autopilot_enabled):
-        self._autopilot_enabled = autopilot_enabled
-        self._vehicle.set_autopilot(self._autopilot_enabled)
+    def set_vehicle(self, transform):
+        """Spawn vehicle.
 
-    def get_autopilot(self):
-        return self._autopilot_enabled
+        Args:
+            transform (carla.Transform): start location and rotation.
 
-    def apply_control(self, control):
-        self._vehicle.apply_control(control)
+        Returns:
+            N/A.
+        """
+        # Initialize blueprints and vehicle properties.
+        bps = self._world.get_blueprint_library().filter('vehicle')
+        bp = random.choice(bps)
+        print('spawning vehicle %r with %d wheels' %
+              (bp.id, bp.get_attribute('number_of_wheels')))
 
-    def dynamic_collided(self):
-        return self._collision_sensor.dynamic_collided()
+        # Spawn vehicle.
+        vehicle = self._world.try_spawn_actor(bp, transform)
+        print('vehicle at ',
+              vehicle.get_location().x,
+              vehicle.get_location().y,
+              vehicle.get_location().z)
 
-    def offlane_invasion(self):
-        return self._lane_invasion_sensor.get_offlane_percentage()
+        # Set sensors to the vehicle
+        self._set_sensors()
 
-    # TODO: this routine need interect with road map data
-    # issue#17, CPP code can be viewed at ACarlaVehicleController:IntersectPlayerWithRoadMap
-    def offroad_invasion(self):
-        return 0
+    def _set_sensors(self):
+        """Set sensors as needed from config"""
 
-    #TODO: for demo, all vehicles has same start_pos & end_pos
-    #but in reality, need find the nearest pos at each spawn location
-    def _nearest_pos(self, vid):
+        config = self._config
+        cam_state = config["camera"]
+        colli_sensor_state = config["collision_sensor"]
+        lane_sensor_state = config["lane_sensor"]
+
+        if cam_state == "on":
+            camera_manager = CameraManager(self._vehicle, self._hud)
+            if config["log_images"]:
+                # 1: default save method
+                # 2: save to memory first
+                # We may finally chose one of the two,
+                # the two are under test now.
+                camera_manager.set_recording_option(1)
+            camera_manager.set_sensor(0, notify=False)
+        self._camera_manager = camera_manager
+
+        if colli_sensor_state == "on":
+            self._collision_sensor = CollisionSensor(self._vehicle, 0)
+        if lane_sensor_state == "on":
+            self._lane_invasion_sensor = LaneInvasionSensor(self._vehicle, 0)
+
+    def apply_scenario(self):
         pass
 
-    def _pos_coord(self, scenario):
-        POS_COOR_MAP = json.load(
-            open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))
-        #TODO: failure due to start_id type maybe list or int
-        start_id = scenario["start_pos_id"]
-        end_id = scenario["end_pos_id"]
-        self._start_pos = POS_COOR_MAP[str(start_id[0])]
-        self._end_pos = POS_COOR_MAP[str(end_id[0])]
-        self._start_coord = [
-            self._start_pos[0] // 100, self._start_pos[1] // 100
-        ]
-        self._end_coord = [self._end_pos[0] // 100, self._end_pos[1] // 100]
-        return (self._start_pos, self._end_pos, self._start_coord,
-                self._end_coord)
-     
-    def read_observation(self, scenario, config, step=0):
-        c_vehicles, c_pedestrains, c_other = self.dynamic_collided()
-        c_offline = self.offlane_invasion()
-        c_offroad = self.offroad_invasion()
-        start_pos, end_pos, start_coord, end_coord = self._pos_coord(scenario)
-        cur_ = self._vehicle.get_transform()
-        cur_x = cur_.location.x
-        cur_y = cur_.location.y
-        x_orient = cur_.rotation
-        y_orient = cur_.rotation
-        distance_to_goal_euclidean = float(
-            np.linalg.norm([cur_x - end_pos[0], cur_y - end_pos[1]]) / 100)
-        distance_to_goal = distance_to_goal_euclidean
-        endcondition = atomic_scenario_behavior.InTriggerRegion(
-            self._vehicle, 294, 304, 193, 203, name="reach end position")
-        if endcondition.update() != py_trees.common.Status.SUCCESS:
-            next_command = "LANE_FOLLOW"
+    def apply_control(self, ctrl_arg):
+        config = self._config
+        if config['manual_control']:
+            clock = pygame.time.Clock()
+            # pygame
+            self._display = pygame.display.set_mode(
+                (800, 600), pygame.HWSURFACE | pygame.DOUBLEBUF)
+            logging.debug('pygame started')
+            controller = KeyboardControl(self, False)
+            controller.actor_id = self._parent_list_id
+            controller.parse_events(self, clock)
+            self._on_render()
+        elif config["auto_control"]:
+            self._vehicle.set_autopilot()
         else:
-            next_command = "REACH_GOAL"
+            # TODO: Planner based on waypoints.
+            # cur_location = self._vehicle.get_location()
+            # dst_location = carla.Location(x = self.end_pos[i][0], y = self.end_pos[i][1], z = self.end_pos[i][2])
+            # cur_map = self.world.get_map()
+            # next_point_transform = get_transform_from_nearest_way_point(cur_map, cur_location, dst_location)
+            # next_point_transform.location.z = 40 # the point with z = 0, and the default z of cars are 40
+            # self.actor_list[i].set_transform(next_point_transform)
+            self._vehicle.apply_control(
+                carla.VehicleControl(
+                    throttle=ctrl_arg[0],
+                    steer=ctrl_arg[1],
+                    brake=ctrl_arg[2],
+                    hand_brake=ctrl_arg[3],
+                    reverse=ctrl_arg[4]))
 
-        previous_action = "LANE_FOLLOW"
+    # TODO: use the render in cam_manager instead of this.
+    def _on_render(self):
+        """Render the pygame window."""
+        surface = self._camera_manager._surface
+        if surface is not None:
+            self._display.blit(surface, (0, 0))
+        pygame.display.flip()
 
-        vehicle_data = {
-            "episode_id": 0,
-            "step": step,
-            "x": cur_x,
-            "y": cur_y,
-            "x_orient": x_orient,
-            "y_orient": y_orient,
-            "forward_speed": self._vehicle.get_velocity().x,
-            "distance_to_goal": distance_to_goal,
+    def _read_observation(self):
+        """Read observation and return measurement.
+
+        Returns:
+            dict: measurement data.
+
+        """
+        cur = self._vehicle
+        planner_enabled = self._config["enable_planner"]
+        planner = self._planner
+        end_loc = self._end_transform.location
+        end_rot = self._end_transform.rotation
+
+        if planner_enabled:
+            next_command = COMMANDS_ENUM[planner.get_next_command(
+                [cur.get_location().x,
+                 cur.get_location().y, GROUND_Z], [
+                     cur.get_transform().rotation.pitch,
+                     cur.get_transform().rotation.yaw, GROUND_Z
+                 ], [end_loc.x, end_loc.y, GROUND_Z],
+                [end_rot.pitch, end_rot.yaw, GROUND_Z])]  # [0.0, 90.0, GROUND_Z])]
+        else:
+            next_command = "LANE_FOLLOW"
+
+        collision_vehicles = self._collision_sensor.collision_vehicles
+        collision_pedestrians = self._collision_sensor.collision_pedestrians
+        collision_other = self._collision_sensor.collision_other
+        intersection_otherlane = self._lane_invasion_sensor.offlane
+        intersection_offroad = self._lane_invasion_sensor.offroad
+
+        self.previous_actions.append(next_command)
+        self.previous_rewards.append(self.last_reward)
+
+        if next_command == "REACH_GOAL":
+            distance_to_goal = 0.0  # avoids crash in planner
+        elif planner_enabled:
+            distance_to_goal = planner.get_shortest_path_distance(
+                [cur.get_location().x,
+                 cur.get_location().y, GROUND_Z], [
+                     cur.get_transform().rotation.pitch,
+                     cur.get_transform().rotation.yaw, GROUND_Z
+                 ], [end_loc.x, end_loc.y, GROUND_Z],
+                [end_rot.pitch, end_rot.yaw, GROUND_Z]) / 100
+        else:
+            distance_to_goal = -1
+
+        distance_to_goal_euclidean = float(
+            np.linalg.norm([
+                cur.get_location().x - end_loc.x,
+                cur.get_location().y - end_loc.y
+            ]) / 100)
+
+        py_measurements = {
+            "episode_id": self.episode_id,
+            "step": self.num_steps,
+            "x": cur.get_location().x,
+            "y": cur.get_location().y,
+            "pitch": cur.get_transform().rotation.pitch,
+            "yaw": cur.get_transform().rotation.yaw,
+            "roll": cur.get_transform().rotation.roll,
+            "forward_speed": cur.get_velocity().x,
+            "distance_to_goal": distance_to_goal,  #use planner
             "distance_to_goal_euclidean": distance_to_goal_euclidean,
-            "collision_vehicles": c_vehicles,
-            "collision_pedestrians": c_pedestrains,
-            "collision_other": c_other,
-            "intersection_offroad": c_offroad,
-            "intersection_otherlane": c_offline,
-            "weather": None,
-            "map": config["server_map"],
-            "start_coord": start_coord,
-            "end_coord": end_coord,
-            "current_scenario": scenario,
-            "x_res": config["x_res"],
-            "y_res": config["y_res"],
-            "num_vehicles": config["num_vehicles"],
-            "num_pedestrians": config["num_pedestrians"],
-            "max_steps": 10000,
+            "collision_vehicles": collision_vehicles,
+            "collision_pedestrians": collision_pedestrians,
+            "collision_other": collision_other,
+            "intersection_offroad": intersection_offroad,
+            "intersection_otherlane": intersection_otherlane,
+            "weather": self.weather, # random.choice(self.scenario["weather_distribution"]),
+            "map": self.server_map,
+            "start_coord": self.start_coord[i],
+            "end_coord": self.end_coord[i],
+            "current_scenario": self.scenario_list[i],
+            "x_res": self.x_res,
+            "y_res": self.y_res,
+            "num_vehicles": self.scenario_list[i]["num_vehicles"],
+            "num_pedestrians": self.scenario_list[i]["num_pedestrians"],
+            "max_steps": 1000,  # set 1000 now. self.scenario["max_steps"],
             "next_command": next_command,
-            "previous_action": previous_action,
-            "previous_reward": 0
+            "previous_actions": {self.previous_actions},
+            "previous_rewards": {self.previous_rewards}
         }
 
-        return vehicle_data
-    
+        return py_measurements
+
+    def encode_obs(self, image, py_measurements):
+        """Encode args values to observation data (dict).
+
+        Args:
+            image (array): processed image after func pre_process()
+            py_measurements (dict): measurement file
+
+        Returns:
+            dict: observation data
+        """
+        framestack = str(self._config["framestack"])
+        assert framestack in [1, 2]
+        prev_image = self._prev_image
+        self._prev_image = image
+        if prev_image is None:
+            prev_image = image
+        if framestack == 2:
+            # image = np.concatenate([prev_image, image], axis=2)
+            image = np.concatenate([prev_image, image])
+        if not self._config["send_measurements"]:
+            return image
+        obs = (image,  # 'Vehicle number: ', vehicle_number,
+               COMMAND_ORDINAL[py_measurements["next_command"]], [
+                   py_measurements["forward_speed"],
+                   py_measurements["distance_to_goal"]
+               ])
+        return obs
+
     def __del__(self):
-        for actor in [
-                self._collision_sensor.sensor,
-                self._lane_invasion_sensor.sensor
-        ]:
+        for actor in [self._collision_sensor.sensor, self._lane_invasion_sensor.sensor]:
             if actor is not None:
                 actor.destroy()

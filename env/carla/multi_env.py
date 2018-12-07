@@ -453,6 +453,7 @@ class MultiCarlaEnv(MultiActorEnv):
             transform = carla.Transform(
                 carla.Location(x=POS_S[i][0], y=POS_S[i][1], z=POS_S[i][2]),
                 carla.Rotation(pitch=0, yaw=0, roll=0))
+
             print('spawning vehicle %r with %d wheels' %
                   (blueprint.id, blueprint.get_attribute('number_of_wheels')))
 
