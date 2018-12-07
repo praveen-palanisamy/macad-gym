@@ -1,0 +1,27 @@
+{
+    "0": {
+        "log_images": false,
+        "enable_planner": true,
+        "render": true,
+        "framestack": 1,
+        "convert_images_to_video": false,
+        "early_terminate_on_collision": true,
+        "verbose": false,
+        "reward_function": "corl2017",
+        "render_x_res": 800,
+        "render_y_res": 600,
+        "x_res": 84,
+        "y_res": 84,
+        "server_map": "/Game/Carla/Maps/Town01",
+        "scenarios": "DEFAULT_SCENARIO_TOWN1",
+        "use_depth_camera": false,
+        "discrete_actions": false,
+        "squash_action_logits": false,
+        "manual_control": false,
+        "auto_control": true,
+        "camera_type": "rgb",
+        "collision_sensor": "on",
+        "lane_sensor": "on",
+        "send_measurements": true
+    }
+}
