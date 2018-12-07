@@ -2,10 +2,13 @@ import pygame
 import random
 import logging
 import numpy as np
+import time
 import carla
 from env.core.sensors.camera_manager import CameraManager
 from env.core.sensors.detect_sensors import LaneInvasionSensor, CollisionSensor
 from env.core.controllers.keyboard_control import KeyboardControl
+from env.core.sensors.hud import HUD
+from env.carla.carla.planner.planner import Planner
 
 # Mapping from string repr to one-hot encoding index to feed to the model
 COMMAND_ORDINAL = {
@@ -56,6 +59,7 @@ class VehicleManager(object):
         self._config = None
         self._planner = None  # needed?
 
+
         # Vehicle related attributes:
         self._vehicle = None
         self._camera_manager = None
@@ -66,6 +70,7 @@ class VehicleManager(object):
         self._planner = None
         self._start_transform = None
         self._end_transform = None
+        self._scenario = None
 
         self.previous_actions = None
         self.previous_reward = None
@@ -76,15 +81,31 @@ class VehicleManager(object):
 
         # Others
         self._prev_image = None
-        self._parent_list_id = None # try to delete this.
+        self.previous_actions = []
+        self.previous_rewards = []
+        self._weather = None
+
+        # try to delete this. only used for control two cars concurrently.
+        self._parent_list_id = None
 
     def set_world(self, world):
         """Set world."""
+        self._weather = [
+            world.get_weather().cloudyness,
+            world.get_weather().precipitation,
+            world.get_weather().precipitation_deposits,
+            world.get_weather().wind_intensity
+        ]
         self._world = world
 
     def set_config(self, config):
         """Set config"""
         self._config = config
+
+    def _set_planner(self):
+        """Set planner from city"""
+        city = self._config["server_map"].split("/")[-1]
+        self._planner = Planner(city)
 
     def set_vehicle(self, transform):
         """Spawn vehicle.
@@ -107,6 +128,7 @@ class VehicleManager(object):
               vehicle.get_location().x,
               vehicle.get_location().y,
               vehicle.get_location().z)
+        self._vehicle = vehicle
 
         # Set sensors to the vehicle
         self._set_sensors()
@@ -120,7 +142,10 @@ class VehicleManager(object):
         lane_sensor_state = config["lane_sensor"]
 
         if cam_state == "on":
-            camera_manager = CameraManager(self._vehicle, self._hud)
+            # Initialize to be compatible with cam_manager to set HUD.
+            pygame.font.init()  # for HUD
+            hud = HUD(config["render_x_res"], config["render_y_res"])
+            camera_manager = CameraManager(self._vehicle, hud)
             if config["log_images"]:
                 # 1: default save method
                 # 2: save to memory first
@@ -128,6 +153,7 @@ class VehicleManager(object):
                 # the two are under test now.
                 camera_manager.set_recording_option(1)
             camera_manager.set_sensor(0, notify=False)
+            time.sleep(3)  # Wait for the camera to initialize
         self._camera_manager = camera_manager
 
         if colli_sensor_state == "on":
@@ -135,10 +161,24 @@ class VehicleManager(object):
         if lane_sensor_state == "on":
             self._lane_invasion_sensor = LaneInvasionSensor(self._vehicle, 0)
 
-    def apply_scenario(self):
-        pass
+    def set_transform(self, trans):
+        """Set transform"""
+        self._end_transform = trans
 
-    def apply_control(self, ctrl_arg):
+    def set_scenario(self, scenario):
+        """Set scenario"""
+        self._scenario = scenario
+
+    def apply_control(self, ctrl_args):
+        """Apply control to current vehicle.
+
+        Args:
+            ctrl_args(list): send control infor, e.g., throttle.
+
+        Returns:
+            N/A.
+
+        """
         config = self._config
         if config['manual_control']:
             clock = pygame.time.Clock()
@@ -146,8 +186,8 @@ class VehicleManager(object):
             self._display = pygame.display.set_mode(
                 (800, 600), pygame.HWSURFACE | pygame.DOUBLEBUF)
             logging.debug('pygame started')
-            controller = KeyboardControl(self, False)
-            controller.actor_id = self._parent_list_id
+            controller = KeyboardControl(self._world, False)
+            controller.actor_id = ctrl_args[5]  # only in manual_control mode
             controller.parse_events(self, clock)
             self._on_render()
         elif config["auto_control"]:
@@ -162,11 +202,11 @@ class VehicleManager(object):
             # self.actor_list[i].set_transform(next_point_transform)
             self._vehicle.apply_control(
                 carla.VehicleControl(
-                    throttle=ctrl_arg[0],
-                    steer=ctrl_arg[1],
-                    brake=ctrl_arg[2],
-                    hand_brake=ctrl_arg[3],
-                    reverse=ctrl_arg[4]))
+                    throttle=ctrl_args[0],
+                    steer=ctrl_args[1],
+                    brake=ctrl_args[2],
+                    hand_brake=ctrl_args[3],
+                    reverse=ctrl_args[4]))
 
     # TODO: use the render in cam_manager instead of this.
     def _on_render(self):
@@ -176,7 +216,7 @@ class VehicleManager(object):
             self._display.blit(surface, (0, 0))
         pygame.display.flip()
 
-    def _read_observation(self):
+    def read_observation(self):
         """Read observation and return measurement.
 
         Returns:
@@ -185,6 +225,7 @@ class VehicleManager(object):
         """
         cur = self._vehicle
         planner_enabled = self._config["enable_planner"]
+        self._set_planner()
         planner = self._planner
         end_loc = self._end_transform.location
         end_rot = self._end_transform.rotation
@@ -218,7 +259,7 @@ class VehicleManager(object):
                      cur.get_transform().rotation.pitch,
                      cur.get_transform().rotation.yaw, GROUND_Z
                  ], [end_loc.x, end_loc.y, GROUND_Z],
-                [end_rot.pitch, end_rot.yaw, GROUND_Z]) / 100
+                [end_rot.pitch, end_rot.yaw, 0]) / 100
         else:
             distance_to_goal = -1
 
@@ -229,34 +270,24 @@ class VehicleManager(object):
             ]) / 100)
 
         py_measurements = {
-            "episode_id": self.episode_id,
-            "step": self.num_steps,
             "x": cur.get_location().x,
             "y": cur.get_location().y,
             "pitch": cur.get_transform().rotation.pitch,
             "yaw": cur.get_transform().rotation.yaw,
             "roll": cur.get_transform().rotation.roll,
             "forward_speed": cur.get_velocity().x,
-            "distance_to_goal": distance_to_goal,  #use planner
+            "distance_to_goal": distance_to_goal,
             "distance_to_goal_euclidean": distance_to_goal_euclidean,
             "collision_vehicles": collision_vehicles,
             "collision_pedestrians": collision_pedestrians,
             "collision_other": collision_other,
             "intersection_offroad": intersection_offroad,
             "intersection_otherlane": intersection_otherlane,
-            "weather": self.weather, # random.choice(self.scenario["weather_distribution"]),
-            "map": self.server_map,
-            "start_coord": self.start_coord[i],
-            "end_coord": self.end_coord[i],
-            "current_scenario": self.scenario_list[i],
-            "x_res": self.x_res,
-            "y_res": self.y_res,
-            "num_vehicles": self.scenario_list[i]["num_vehicles"],
-            "num_pedestrians": self.scenario_list[i]["num_pedestrians"],
-            "max_steps": 1000,  # set 1000 now. self.scenario["max_steps"],
+            "map": self._config["server_map"],
+            "current_scenario": self._scenario,
             "next_command": next_command,
-            "previous_actions": {self.previous_actions},
-            "previous_rewards": {self.previous_rewards}
+            "previous_actions": self.previous_actions,
+            "previous_rewards": self.previous_rewards
         }
 
         return py_measurements
@@ -271,7 +302,7 @@ class VehicleManager(object):
         Returns:
             dict: observation data
         """
-        framestack = str(self._config["framestack"])
+        framestack = self._config["framestack"]
         assert framestack in [1, 2]
         prev_image = self._prev_image
         self._prev_image = image
