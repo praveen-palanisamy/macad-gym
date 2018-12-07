@@ -64,15 +64,15 @@ DEFAULT_MULTIENV_CONFIG = {
         "log_images": True,
         "enable_planner": True,
         "render": True,  # Whether to render to screen or send to VFB
-        "framestack": 2,  # note: only [1, 2] currently supported
+        "framestack": 1,  # note: only [1, 2] currently supported
         "convert_images_to_video": False,
         "early_terminate_on_collision": True,
         "verbose": False,
         "reward_function": "corl2017",
         "render_x_res": 800,
         "render_y_res": 600,
-        "x_res": 80,
-        "y_res": 80,
+        "x_res": 84,
+        "y_res": 84,
         "server_map": "/Game/Carla/Maps/Town01",
         "scenarios": "DEFAULT_SCENARIO_TOWN1",  # # no scenarios
         "use_depth_camera": False,
@@ -163,16 +163,16 @@ class MultiCarlaEnv(MultiActorEnv):
 
     """
 
-    def __init__(self, config_list=DEFAULT_MULTIENV_CONFIG):
+    def __init__(self, actor_configs=DEFAULT_MULTIENV_CONFIG):
 
-        self.config_list = config_list
+        self.actor_configs = actor_configs
 
         # Set attributes as in gym's specs
         self.reward_range = (-np.inf, np.inf)
         self.metadata = {'render.modes': 'human'}
 
         # Get general/same config for actors.
-        general_config = self.config_list[str(0)]
+        general_config = self.actor_configs[str(0)]
         self.server_map = general_config["server_map"]
         self.city = self.server_map.split("/")[-1]
         self.render = general_config["render"]
@@ -201,21 +201,24 @@ class MultiCarlaEnv(MultiActorEnv):
         if self.use_depth_camera:
             image_space = Box(
                 -1.0, 1.0, shape=(self.y_res, self.x_res, 1 * self.framestack))
-        else:
+        elif self.actor_configs["0"]["send_measurements"]:
             image_space = Box(
                 0.0,
                 255.0,
                 shape=(self.y_res, self.x_res, 3 * self.framestack))
-        self.observation_space = Tuple([
-            image_space,
-            Discrete(len(COMMANDS_ENUM)),  # next_command
-            Box(-128.0, 128.0, shape=(2, ))
+            self.observation_space = Tuple([
+                image_space,
+                Discrete(len(COMMANDS_ENUM)),  # next_command
+                Box(-128.0, 128.0, shape=(2, ))
         ])  # forward_speed, dist to goal
+        else:
+            self.observation_space = Box(0.0, 255.0,
+                                         shape=(self.y_res, self.x_res, 3 * self.framestack))
 
         # Set planner list for actors.
         self.planner_list = []
-        for k in self.config_list:
-            config = self.config_list[k]
+        for k in self.actor_configs:
+            config = self.actor_configs[k]
             # config["scenarios"] = self.get_scenarios(args.scenario, config)
             if config["enable_planner"]:
                 self.planner_list.append(Planner(self.city))
@@ -404,8 +407,8 @@ class MultiCarlaEnv(MultiActorEnv):
 
         # If config contains a single scenario, then use it,
         # if it's an array of scenarios, randomly choose one and init
-        for k in self.config_list:
-            config = self.config_list[k]
+        for k in self.actor_configs:
+            config = self.actor_configs[k]
             scenario = self.get_scenarios(config["scenarios"])
             if isinstance(scenario, dict):
                 self.scenario_list.append(scenario)
@@ -463,7 +466,7 @@ class MultiCarlaEnv(MultiActorEnv):
                   vehicle.get_location().y,
                   vehicle.get_location().z)
             self.actor_list.append(vehicle)
-            config = self.config_list[str(i)]
+            config = self.actor_configs[str(i)]
 
             # Spawn collision and lane sensors if necessary
             if config["collision_sensor"] == "on":
@@ -475,7 +478,7 @@ class MultiCarlaEnv(MultiActorEnv):
 
             # Spawn cameras
             if 0 == 0:  #TEST!!
-                config = self.config_list[str(i)]
+                config = self.actor_configs[str(i)]
                 camera_manager = CameraManager(self.actor_list[i], self.hud)
                 if not config["log_images"]:
                     pass
@@ -489,7 +492,7 @@ class MultiCarlaEnv(MultiActorEnv):
                 self.camera_list.cam_list.append(camera_manager)
 
         time.sleep(3)  # Wait for the camera to initialize
-        print('All vehicles are created.')
+        print('Environment initialized with requested actors.')
 
         self.start_pos = POS_S
         self.end_pos = POS_E
@@ -517,7 +520,7 @@ class MultiCarlaEnv(MultiActorEnv):
             self.py_measurement[vehicle_name] = py_mt
             self.prev_measurement[vehicle_name] = py_mt
 
-            config = self.config_list[str(i)]
+            config = self.actor_configs[str(i)]
             image = preprocess_image(cam.image, config)
             obs = self.encode_obs(image, self.py_measurement[vehicle_name], i)
             self.obs_dict[vehicle_name] = obs
@@ -544,7 +547,7 @@ class MultiCarlaEnv(MultiActorEnv):
         if self.framestack == 2:
             # image = np.concatenate([prev_image, image], axis=2)
             image = np.concatenate([prev_image, image])
-        if not self.config_list[str(vehicle_number)]["send_measurements"]:
+        if not self.actor_configs[str(vehicle_number)]["send_measurements"]:
             return image
         obs = (image,  # 'Vehicle number: ', vehicle_number,
                COMMAND_ORDINAL[py_measurements["next_command"]], [
@@ -574,6 +577,8 @@ class MultiCarlaEnv(MultiActorEnv):
             info_dict = {}
 
             actor_num = 0
+            done_dict["__all__"] = False
+            # TODO: The loop iter should go over self.agents not action_dict
             for action in action_dict:
                 obs, reward, done, info = self._step(action_dict[action],
                                                      actor_num)
@@ -583,6 +588,8 @@ class MultiCarlaEnv(MultiActorEnv):
                 obs_dict[vehicle_name] = obs
                 reward_dict[vehicle_name] = reward
                 done_dict[vehicle_name] = done
+                if sum(list(done_dict.values())) == len(action_dict):
+                    done_dict["__all__"] = True
                 info_dict[vehicle_name] = info
             return obs_dict, reward_dict, done_dict, info_dict
         except Exception:
@@ -626,8 +633,7 @@ class MultiCarlaEnv(MultiActorEnv):
             print("steer", steer, "throttle", throttle, "brake", brake,
                   "reverse", reverse)
 
-        #  send control
-        config = self.config_list[str(i)]
+        config = self.actor_configs[str(i)]
         if config['manual_control']:
             clock = pygame.time.Clock()
             # pygame
@@ -713,7 +719,7 @@ class MultiCarlaEnv(MultiActorEnv):
                     #    self.video = Trueseg_city_space
 
         original_image = self.camera_list.cam_list[i].image
-        config = self.config_list[str(i)]
+        config = self.actor_configs[str(i)]
         image = preprocess_image(original_image, config)
 
         return (self.encode_obs(image, py_measurements, i), reward, done,
@@ -730,7 +736,7 @@ class MultiCarlaEnv(MultiActorEnv):
 
         """
         cur = self.actor_list[i]
-        cur_config = self.config_list[str(i)]
+        cur_config = self.actor_configs[str(i)]
         planner_enabled = cur_config["enable_planner"]
         if planner_enabled:
             next_command = COMMANDS_ENUM[self.planner_list[i].get_next_command(
@@ -921,9 +927,8 @@ if __name__ == "__main__":
         # print(server_clock.get_fps())
 
         start = time.time()
-        all_done = False
         i = 0
-        # while not all_done:
+        # while not done["__all__"]:
         while i < 50:  # TEST
             i += 1
             obs, reward, done, info = env.step(action_dict)
@@ -933,11 +938,11 @@ if __name__ == "__main__":
             print("Step", i, "rew", reward, "total", total_reward_dict, "done",
                   done)
 
-            #  Test whether all vehicles have finished.
+            # Set done[__all__] for env termination when all agents are done
             done_temp = True
             for d in done:
                 done_temp = done_temp and done[d]
-            all_done = done_temp
+            done["__all__"] = done_temp
             time.sleep(0.1)
 
         print("{} fps".format(i / (time.time() - start)))
