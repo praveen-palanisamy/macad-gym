@@ -54,11 +54,21 @@ format_changed() {
              yapf --in-place "${YAPF_EXCLUDES[@]}" "${YAPF_FLAGS[@]}"
         if which flake8 >/dev/null; then
             git diff --name-only --diff-filter=ACM "$MERGEBASE" -- '*.py' | xargs -P 5 \
-                 flake8 --max-line-length 80 --exclude=*/env/carla/PythonAPI/*,*/env/carla/carla/*,.git, __pycache__ #\
+                 flake8 --max-line-length 80 --exclude=./env/carla/PythonAPI/*,./env/carla/carla/*,.git,__pycache__ #\
                     #--ignore=C408,E121,E123,E126,E226,E24,E704,W503,W504,W605
         fi
     fi
 }
+
+
+# Run flake8 check on all files and report the result
+check_all() {
+if which flake8 >/dev/null; then
+    flake8 --max-line-length 80 --exclude=./env/carla/PythonAPI/*,./env/carla/carla/*,.git,__pycache__
+fi
+
+}
+
 
 # Format all files, and print the diff to stdout for the CI log.
 format_all() {
@@ -73,6 +83,8 @@ if [[ "$1" == '--files' ]]; then
     # entire python directory is formatted.
 elif [[ "$1" == '--all' ]]; then
     format_all
+elif [[ "$1" == '--check' ]]; then
+    check_all
 else
     # Format only the files that changed in last commit.
     format_changed
