@@ -1,6 +1,5 @@
 {
     "vehicle1": {
-        "log_images": false,
         "enable_planner": true,
         "render": true,
         "framestack": 1,
@@ -22,10 +21,11 @@
         "camera_type": "rgb",
         "collision_sensor": "on",
         "lane_sensor": "on",
-        "send_measurements": false
+        "send_measurements": false,
+        "log_images": false,
+        "log_measurements": false
     },
     "vehicle2": {
-        "log_images": false,
         "enable_planner": true,
         "render": true,
         "framestack": 1,
@@ -47,6 +47,8 @@
         "camera_type": "rgb",
         "collision_sensor": "on",
         "lane_sensor": "on",
-        "send_measurements": false
+        "send_measurements": false,
+        "log_images": false,
+        "log_measurements": false
     }
 }

@@ -1,6 +1,7 @@
 """
 multi_env.py: Multi-actor environment interface for CARLA-Gym
-Should support two modes of operation. See CARLA-Gym developer guide for more info
+Should support two modes of operation. See CARLA-Gym developer guide for
+more information
 __author__: PP, BP
 """
 
@@ -21,29 +22,27 @@ import sys
 import time
 import traceback
 
+import numpy as np  # linalg.norm is used
 import GPUtil
 from gym.spaces import Box, Discrete, Tuple
-
 import pygame
-try:
-    import scipy.misc
-except Exception:
-    pass
 
+from env.multi_actor_env import MultiActorEnv
+from env.core.sensors.utils import preprocess_image
+# from env.core.sensors.utils import get_transform_from_nearest_way_point
+from env.carla.reward import Reward
+from env.carla.carla.planner.planner import Planner
+from env.core.sensors.camera_list import CameraList
+from env.core.sensors.hud import HUD
 sys.path.append(
     glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
               f'{sys.version_info.minor}-linux-x86_64.egg')[0])
-import carla
-from env.core.sensors.utils import preprocess_image, get_transform_from_nearest_way_point
-from env.core.sensors.camera_manager import CameraManager
-from env.core.sensors.camera_list import CameraList
-from env.core.sensors.hud import HUD
-from env.core.sensors.detect_sensors import LaneInvasionSensor, CollisionSensor
-from env.core.controllers.keyboard_control import KeyboardControl
-from env.carla.scenarios import *
-from env.carla.reward import *
-from env.carla.carla.planner import *
-from env.multi_actor_env import *
+import carla  # noqa: E402
+# The following import depend on carla. TODO: Can it be made better?
+from env.core.sensors.camera_manager import CameraManager  # noqa: E402
+from env.core.sensors.detect_sensors import LaneInvasionSensor  # noqa: E402
+from env.core.sensors.detect_sensors import CollisionSensor  # noqa: E402
+from env.core.controllers.keyboard_control import KeyboardControl  # noqa: E402
 
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
@@ -56,12 +55,8 @@ SERVER_BINARY = os.environ.get(
 
 assert os.path.exists(SERVER_BINARY)
 
-# Number of max step
-MAX_STEP = 1000
-
 DEFAULT_MULTIENV_CONFIG = {
     "vehicle1": {
-        "log_images": True,
         "enable_planner": True,
         "render": True,  # Whether to render to screen or send to VFB
         "framestack": 1,  # note: only [1, 2] currently supported
@@ -84,7 +79,9 @@ DEFAULT_MULTIENV_CONFIG = {
         "collision_sensor": "on",  # off
         "lane_sensor": "on",  # off
         "server_process": False,
-        "send_measurements": False
+        "send_measurements": False,
+        "log_images": False,
+        "log_measurements": False
     }
 }
 
@@ -145,7 +142,7 @@ def cleanup():
         os.killpg(pgid, signal.SIGKILL)
 
 
-def termination_cleanup(*args):
+def termination_cleanup():
     cleanup()
     sys.exit(0)
 
@@ -158,17 +155,18 @@ MultiAgentEnvBases = [MultiActorEnv]
 try:
     from ray.rllib.env import MultiAgentEnv
     MultiAgentEnvBases.append(MultiAgentEnv)
-except:
+except ImportError as err:
+    logging.WARN(err, "\n Disabling RLlib support.")
     pass
 
 
 class MultiCarlaEnv(*MultiAgentEnvBases):
     def __init__(self, actor_configs=DEFAULT_MULTIENV_CONFIG):
-        """Carla environment, similar to the World class of manual_control.py from Carla.
+        """Carla environment implementation.
 
         The environment settings and scenarios are configure using env_config.
         Actors in the simulation that can be controlled are configured through
-        the actor_configs.
+        the actor_configs (TODO: Separate env & actor configs).
         Args:
             A list of config files for actors.
 
@@ -177,7 +175,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.actor_configs = actor_configs
 
         # Set attributes as in gym's specs
-        self.reward_range = (-np.inf, np.inf)
+        self.reward_range = (-float('inf'), float('inf'))
         self.metadata = {'render.modes': 'human'}
 
         # Get the first item in the actor_configs dict for common env properties
@@ -196,10 +194,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.y_res = self.env_config["y_res"]
         self.use_depth_camera = False  # !!test
         self.camera_list = CameraList(CARLA_OUT_PATH)
-        # TODO: Remove the uncessarily costly one planner per-actor
-        self.planners = {}  # A* based navigation planners. One per actor
+        self.planner = Planner(self.city)  # A* based navigation planner
 
-        # self.config["server_map"] = "/Game/Carla/Maps/" + args.map  # For arg map.
+        # self.config["server_map"] = "/Game/Carla/Maps/" + args.map
 
         # Initialize to be compatible with cam_manager to set HUD.
         pygame.font.init()  # for HUD
@@ -229,14 +226,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 0.0,
                 255.0,
                 shape=(self.y_res, self.x_res, 3 * self.framestack))
-
-        # Set planner list for actors.
-        # TODO consolidate all the per-actor ops inside one iterator loop
-        for actor_id in self.actor_configs:
-            config = self.actor_configs[actor_id]
-            # config["scenarios"] = self.get_scenarios(args.scenario, config)
-            if config["enable_planner"]:
-                self.planners.update({actor_id: Planner(self.city)})
 
         # Set pos_coor map for Town01 or Town02.
         if self.city == "Town01":
@@ -278,18 +267,25 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
     def get_scenarios(self, choice):
         if choice == "DEFAULT_SCENARIO_TOWN1":
+            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1
             return DEFAULT_SCENARIO_TOWN1
         elif choice == "DEFAULT_SCENARIO_TOWN1_2":
+            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1_2
             return DEFAULT_SCENARIO_TOWN1_2
         elif choice == "DEFAULT_SCENARIO_TOWN2":
+            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN2
             return DEFAULT_SCENARIO_TOWN2
         elif choice == "TOWN1_STRAIGHT":
+            from env.carla.scenarios import TOWN1_STRAIGHT
             return TOWN1_STRAIGHT
         elif choice == "CURVE_TOWN1":
+            from env.carla.scenarios import CURVE_TOWN1
             return CURVE_TOWN1
         elif choice == "CURVE_TOWN2":
+            from env.carla.scenarios import CURVE_TOWN2
             return CURVE_TOWN2
         elif choice == "DEFAULT_CURVE_TOWN1":
+            from env.carla.scenarios import DEFAULT_CURVE_TOWN1
             return DEFAULT_CURVE_TOWN1
 
     def init_server(self):
@@ -308,29 +304,25 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             for i, gpu in enumerate(gpus):
                 if gpu.load < gpus[min_index].load:
                     min_index = i
-
+            # TODO: Use env_config values for setting ResX, ResY params
             self.server_process = subprocess.Popen(
                 ("DISPLAY=:8 vglrun -d :7.{} {} " + self.server_map +
-                 " -windowed -ResX=800 -ResY=600 -carla-server -carla-world-port={}"
-                 ).format(min_index, SERVER_BINARY, self.server_port),
+                 "-windowed -ResX={} -ResY={} -carla-server"
+                 "-carla-world-port={}").format(min_index, SERVER_BINARY, 800,
+                                                600, self.server_port),
                 shell=True,
                 preexec_fn=os.setsid,
                 stdout=open(os.devnull, "w"))
         else:
-            self.server_process = subprocess.Popen(
-                [
-                    SERVER_BINARY,
-                    self.server_map,
-                    "-windowed",
-                    "-ResX=800",
-                    "-ResY=600",
-                    # "-carla-settings=/home/fastisu/Documents/CARLA-Gym/bo_CS.ini",
-                    "-benchmark -fps=10"
-                    "-carla-server",
-                    "-carla-world-port={}".format(self.server_port)
-                ],
-                preexec_fn=os.setsid,
-                stdout=open(os.devnull, "w"))
+            self.server_process = subprocess.Popen([
+                SERVER_BINARY, self.server_map, "-windowed", "-ResX=800",
+                "-ResY=600", "-benchmark -fps=10"
+                "-carla-server", "-carla-world-port={}".format(
+                    self.server_port)
+            ],
+                                                   preexec_fn=os.setsid,
+                                                   stdout=open(
+                                                       os.devnull, "w"))
         live_carla_processes.add(os.getpgid(self.server_process.pid))
 
         time.sleep(10)  # Wait for CARLA server to initialize
@@ -394,9 +386,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 error = e
         raise error
 
-    def _on_render(self):
+    def _on_render(self, i=0):
         """Render the pygame window.
-        
+
         Args:
             i (int): the index of list self.actor_list.
 
@@ -404,7 +396,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             N/A
         """
         # 0 instead of i, easy test
-        surface = self.camera_list.cam_list[0]._surface
+        i = 0
+        surface = self.camera_list.cam_list[i]._surface
         if surface is not None:
             self._display.blit(surface, (0, 0))
         pygame.display.flip()
@@ -419,33 +412,20 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             dict: observation dictionaries for actors.
         """
 
-        # If config contains a single scenario, then use it,
-        # if it's an array of scenarios, randomly choose one and init
-        for actor_id in self.actor_configs.keys():
-            actor_config = self.actor_configs[actor_id]
-            scenario = self.get_scenarios(actor_config["scenarios"])
-            if isinstance(scenario, dict):
-                self.scenario_map.update({actor_id: scenario})
-            else:  # instance array of dict
-                self.scenario_map.update({actor_id: random.choice(scenario)})
-
-        NUM_VEHICLE = len(self.actor_configs)
-        self.num_vehicle = NUM_VEHICLE
+        # TODO: num_actors not equal num_vehicle. Fix it when other actors are
+        # like pedestrians are added
+        self.num_vehicle = len(self.actor_configs)
         self.prev_measurement = None
         self.prev_image = None
         self.episode_id = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
         self.measurements_file = None
-
-        POS_S = {}
-        POS_E = {}
-
-        for actor_id in self.actor_configs.keys():
-            scenario = self.scenario_map[actor_id]
-            # str(start_id).decode("utf-8") # for py2
-            s_id = str(scenario["start_pos_id"])
-            e_id = str(scenario["end_pos_id"])
-            POS_S[actor_id] = self.pos_coor_map[s_id]
-            POS_E[actor_id] = self.pos_coor_map[e_id]
+        self.start_pos = {}  # Start pose for each actor
+        self.end_pos = {}  # End pose for each actor
+        self.start_coord = {}
+        self.end_coord = {}
+        self.py_measurement = {}
+        self.prev_measurement = {}
+        self.obs = []
 
         world = self.client.get_world()
         self.world = world
@@ -457,18 +437,34 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         ]
 
         for actor_id, actor_config in self.actor_configs.items():
+            actor_config = self.actor_configs[actor_id]
+            scenario = self.get_scenarios(actor_config["scenarios"])
+            # If config contains a single scenario, then use it,
+            # if it's an array of scenarios, randomly choose one and init
+            if isinstance(scenario, dict):
+                self.scenario_map.update({actor_id: scenario})
+            else:  # instance array of dict
+                self.scenario_map.update({actor_id: random.choice(scenario)})
+
+            self.scenario = self.scenario_map[actor_id]
+            # str(start_id).decode("utf-8") # for py2
+            s_id = str(self.scenario["start_pos_id"])
+            e_id = str(self.scenario["end_pos_id"])
+            self.start_pos[actor_id] = self.pos_coor_map[s_id]
+            self.end_pos[actor_id] = self.pos_coor_map[e_id]
+
             blueprints = world.get_blueprint_library().filter('vehicle')
             blueprint = random.choice(blueprints)
             transform = carla.Transform(
                 carla.Location(
-                    x=POS_S[actor_id][0],
-                    y=POS_S[actor_id][1],
-                    z=POS_S[actor_id][2]),
+                    x=self.start_pos[actor_id][0],
+                    y=self.start_pos[actor_id][1],
+                    z=self.start_pos[actor_id][2]),
                 carla.Rotation(pitch=0, yaw=0, roll=0))
             print('spawning vehicle %r with %d wheels' %
                   (blueprint.id, blueprint.get_attribute('number_of_wheels')))
 
-            # Spawn vehicle
+            # Spawn actors
             vehicle = world.try_spawn_actor(blueprint, transform)
             print('vehicle at ',
                   vehicle.get_location().x,
@@ -496,18 +492,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             camera_manager.set_sensor(0, notify=False)
             self.camera_list.cam_list.update({actor_id: camera_manager})
 
-        time.sleep(0.5)  # Wait for the camera to initialize
-        print('Environment initialized with requested actors.')
-
-        self.start_pos = POS_S
-        self.end_pos = POS_E
-        self.start_coord = {}
-        self.end_coord = {}
-        self.py_measurement = {}
-        self.prev_measurement = {}
-        self.obs = []
-
-        for actor_id in self.actor_configs.keys():
             self.start_coord.update({
                 actor_id: [
                     self.start_pos[actor_id][0] // 100,
@@ -521,11 +505,15 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 ]
             })
 
-            print("Client {} start pos {} ({}), end {} ({})".format(
-                actor_id, self.start_pos[actor_id], self.start_coord[actor_id],
-                self.end_pos[actor_id], self.end_coord[actor_id]))
+            print(
+                "Actor: {} start_pos(coord): {} ({}), end_pos(coord) {} ({})".
+                format(actor_id, self.start_pos[actor_id],
+                       self.start_coord[actor_id], self.end_pos[actor_id],
+                       self.end_coord[actor_id]))
 
-        i = 0
+        time.sleep(0.5)  # Small wait for the server to spawn all the actors
+        print('Environment initialized with requested actors.')
+        # TODO: CameraList class looks unnecessary. Cleanup.
         for actor_id, cam in self.camera_list.cam_list.items():
             # TODO: Move the initialization value setting to appropriate place
             # Set appropriate initial values
@@ -541,12 +529,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             obs = self.encode_obs(actor_id, image,
                                   self.py_measurement[actor_id])
             self.obs_dict[actor_id] = obs
-            i = i + 1
 
         return self.obs_dict
 
     def encode_obs(self, actor_id, image, py_measurements):
-        """Encode args values to observation data (dict).
+        """Encode sensor and measurements into obs based on state-space config.
 
         Args:
             actor_id (str): Actor identifier
@@ -554,7 +541,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             py_measurements (dict): measurement file
 
         Returns:
-            dict: observation data
+            obs (dict): properly encoded observation data for each actor
         """
         assert self.framestack in [1, 2]
         prev_image = self.prev_image
@@ -566,19 +553,22 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             image = np.concatenate([prev_image, image])
         if not self.actor_configs[actor_id]["send_measurements"]:
             return image
-        obs = (
-            image,  # 'Vehicle number: ', vehicle_number,
-            COMMAND_ORDINAL[py_measurements["next_command"]],
-            [
-                py_measurements["forward_speed"],
-                py_measurements["distance_to_goal"]
-            ])
+        obs = (image, COMMAND_ORDINAL[py_measurements["next_command"]], [
+            py_measurements["forward_speed"],
+            py_measurements["distance_to_goal"]
+        ])
 
         self.last_obs = obs
         return obs
 
     def step(self, action_dict):
-        """One step for actors in simulation
+        """Execute one environment step for the specified actors.
+
+        Executes the provided action for the corresponding actors in the
+        environment and returns the resulting environment observation, reward,
+        done and info (measurements) for each of the actors. The step is
+        performed asynchronously i.e. only for the specified actors and not
+        necessarily for all actors in the environment.
 
         Args:
             action_dict (dict): Actions to be executed for each actor. Keys are
@@ -598,7 +588,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             info_dict = {}
 
             done_dict["__all__"] = False
-            # TODO: The loop iter should go over self.agents not action_dict
             for actor_id, action in action_dict.items():
                 obs, reward, done, info = self._step(actor_id, action)
                 obs_dict[actor_id] = obs
@@ -615,9 +604,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             return self.last_obs, 0.0, True, {}
 
     def _step(self, actor_id, action):
-        """sub func of step()
+        """Perform the actual step in the CARLA environment
 
-        Send control to `actor_id` based on `action`. Get its measurement. Compute its reward.
+        Applies control to `actor_id` based on `action`, process measurements,
+        compute the rewards and terminal state info (dones).
 
         Args:
             actor_id(str): Actor identifier
@@ -639,7 +629,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             brake = float(np.abs(np.clip(forward, -1, 0)))
             steer = 2 * float(sigmoid(action[1]) - 0.5)
         else:
-            throttle = float(np.clip(action[0], 0, 0.6))  #10
+            throttle = float(np.clip(action[0], 0, 0.6))
             brake = float(np.abs(np.clip(action[0], -1, 0)))
             steer = float(np.clip(action[1], -1, 1))
         reverse = False
@@ -665,10 +655,13 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         else:
             # TODO: Planner based on waypoints.
             # cur_location = self.actor_list[i].get_location()
-            # dst_location = carla.Location(x = self.end_pos[i][0], y = self.end_pos[i][1], z = self.end_pos[i][2])
+            # dst_location = carla.Location(x = self.end_pos[i][0],
+            # y = self.end_pos[i][1], z = self.end_pos[i][2])
             # cur_map = self.world.get_map()
-            # next_point_transform = get_transform_from_nearest_way_point(cur_map, cur_location, dst_location)
-            # next_point_transform.location.z = 40 # the point with z = 0, and the default z of cars are 40
+            # next_point_transform = get_transform_from_nearest_way_point(
+            # cur_map, cur_location, dst_location)
+            # the point with z = 0, and the default z of cars are 40
+            # next_point_transform.location.z = 40
             # self.actor_list[i].set_transform(next_point_transform)
             self.actors[actor_id].apply_control(
                 carla.VehicleControl(
@@ -700,8 +693,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         reward = cmpt_reward.compute_reward(self.prev_measurement[actor_id],
                                             py_measurements, flag)
 
-        self.last_reward[
-            actor_id] = reward  # to make the previous_rewards in py_measurements
+        self.last_reward[actor_id] = reward
         if self.total_reward[actor_id] is None:
             self.total_reward[actor_id] = reward
         else:
@@ -709,19 +701,17 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         py_measurements["reward"] = reward
         py_measurements["total_reward"] = self.total_reward[actor_id]
-        done = (
-            self.num_steps[actor_id] > MAX_STEP
-            or  # self.scenario["max_steps"] or
-            py_measurements["next_command"] == "REACH_GOAL")  # or
-        # (self.config["early_terminate_on_collision"] and
-        # collided_done(py_measurements)))
+        done = (self.num_steps[actor_id] > self.scenario["max_steps"]
+                or py_measurements["next_command"] == "REACH_GOAL"
+                or (config["early_terminate_on_collision"]
+                    and collided_done(py_measurements)))
         py_measurements["done"] = done
 
         self.prev_measurement[actor_id] = py_measurements
         self.num_steps[actor_id] += 1
 
-        # Write out measurements to file
-        if CARLA_OUT_PATH:
+        if config["log_measurements"] and CARLA_OUT_PATH:
+            # Write out measurements to file
             if not self.measurements_file:
                 self.measurements_file = open(
                     os.path.join(
@@ -732,7 +722,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             if done:
                 self.measurements_file.close()
                 self.measurements_file = None
-                # if self.config["convert_images_to_video"] and (not self.video):
+                # if self.config["convert_images_to_video"] and (not self.video)
                 #    self.images_to_video()
                 #    self.video = Trueseg_city_space
 
@@ -757,16 +747,15 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         cur_config = self.actor_configs[actor_id]
         planner_enabled = cur_config["enable_planner"]
         if planner_enabled:
-            next_command = COMMANDS_ENUM[
-                self.planners[actor_id].get_next_command(
-                    [cur.get_location().x,
-                     cur.get_location().y, GROUND_Z], [
-                         cur.get_transform().rotation.pitch,
-                         cur.get_transform().rotation.yaw, GROUND_Z
-                     ], [
-                         self.end_pos[actor_id][0], self.end_pos[actor_id][1],
-                         GROUND_Z
-                     ], [0.0, 90.0, GROUND_Z])]
+            next_command = COMMANDS_ENUM[self.planner.get_next_command(
+                [cur.get_location().x,
+                 cur.get_location().y, GROUND_Z], [
+                     cur.get_transform().rotation.pitch,
+                     cur.get_transform().rotation.yaw, GROUND_Z
+                 ], [
+                     self.end_pos[actor_id][0], self.end_pos[actor_id][1],
+                     GROUND_Z
+                 ], [0.0, 90.0, GROUND_Z])]
         else:
             next_command = "LANE_FOLLOW"
 
@@ -782,16 +771,15 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         if next_command == "REACH_GOAL":
             distance_to_goal = 0.0  # avoids crash in planner
         elif planner_enabled:
-            distance_to_goal = self.planners[
-                actor_id].get_shortest_path_distance(
-                    [cur.get_location().x,
-                     cur.get_location().y, GROUND_Z], [
-                         cur.get_transform().rotation.pitch,
-                         cur.get_transform().rotation.yaw, GROUND_Z
-                     ], [
-                         self.end_pos[actor_id][0], self.end_pos[actor_id][1],
-                         GROUND_Z
-                     ], [0, 90, 0]) / 100
+            distance_to_goal = self.planner.get_shortest_path_distance(
+                [cur.get_location().x,
+                 cur.get_location().y, GROUND_Z], [
+                     cur.get_transform().rotation.pitch,
+                     cur.get_transform().rotation.yaw, GROUND_Z
+                 ], [
+                     self.end_pos[actor_id][0], self.end_pos[actor_id][1],
+                     GROUND_Z
+                 ], [0, 90, 0]) / 100
         else:
             distance_to_goal = -1
 
@@ -812,7 +800,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             "yaw": self.actors[actor_id].get_transform().rotation.yaw,
             "roll": self.actors[actor_id].get_transform().rotation.roll,
             "forward_speed": self.actors[actor_id].get_velocity().x,
-            "distance_to_goal": distance_to_goal,  #use planner
+            "distance_to_goal": distance_to_goal,
             "distance_to_goal_euclidean": distance_to_goal_euclidean,
             "collision_vehicles": collision_vehicles,
             "collision_pedestrians": collision_pedestrians,
@@ -828,7 +816,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             "y_res": self.y_res,
             "num_vehicles": self.scenario_map[actor_id]["num_vehicles"],
             "num_pedestrians": self.scenario_map[actor_id]["num_pedestrians"],
-            "max_steps": 1000,  # set 1000 now. self.scenario["max_steps"],
+            "max_steps": self.scenario["max_steps"],
             "next_command": next_command,
             "previous_actions": {
                 actor_id: self.previous_actions[actor_id]

@@ -21,7 +21,7 @@ before_script:
   #- source activate carla_gym
   - python -V               # Print out python version for debugging
 
-test:
+code_standard:
   script:
   #- python setup.py test
   - pip install flake8
