@@ -67,6 +67,8 @@ class CameraManager(object):
         Returns:
             N/A.
         """
+
+        # TODO: The options should be more verbose. Strings instead of ints
         if option == 1:
             self._recording = True
         elif option == 2:

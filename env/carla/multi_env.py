@@ -154,10 +154,15 @@ signal.signal(signal.SIGTERM, termination_cleanup)
 signal.signal(signal.SIGINT, termination_cleanup)
 atexit.register(cleanup)
 
-from ray.rllib.env import MultiAgentEnv
+MultiAgentEnvBases = [MultiActorEnv]
+try:
+    from ray.rllib.env import MultiAgentEnv
+    MultiAgentEnvBases.append(MultiAgentEnv)
+except:
+    pass
 
 
-class MultiCarlaEnv(MultiAgentEnv):
+class MultiCarlaEnv(*MultiAgentEnvBases):
     def __init__(self, actor_configs=DEFAULT_MULTIENV_CONFIG):
         """Carla environment, similar to the World class of manual_control.py from Carla.
 
@@ -481,14 +486,13 @@ class MultiCarlaEnv(MultiAgentEnv):
 
             # Spawn cameras
             camera_manager = CameraManager(self.actors[actor_id], self.hud)
-            if not actor_config["log_images"]:
-                pass
-            else:
-                # 1: default save method
-                # 2: save to memory first
-                # We may finally chose one of the two,
-                # the two are under test now.
+            if actor_config["log_images"]:
+                # TODO: The recording option should be part of config
+                # 1: Save to disk during runtime
+                # 2: save to memory first, dump to disk on exit
                 camera_manager.set_recording_option(1)
+
+            # TODO: Fix the hard-corded 0 id
             camera_manager.set_sensor(0, notify=False)
             self.camera_list.cam_list.update({actor_id: camera_manager})
 
