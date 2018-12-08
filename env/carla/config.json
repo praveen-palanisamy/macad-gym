@@ -1,6 +1,6 @@
 {
-    "0": {
-        "log_images": true,
+    "vehicle1": {
+        "log_images": false,
         "enable_planner": true,
         "render": true,
         "framestack": 1,
@@ -24,8 +24,8 @@
         "lane_sensor": "on",
         "send_measurements": false
     },
-    "1": {
-        "log_images": true,
+    "vehicle2": {
+        "log_images": false,
         "enable_planner": true,
         "render": true,
         "framestack": 1,
