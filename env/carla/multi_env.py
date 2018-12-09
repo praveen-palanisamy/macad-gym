@@ -131,7 +131,7 @@ DISCRETE_ACTIONS = {
 }
 
 # The cam for pygame
-GLOBAL_CAM_POS = carla.Transform(carla.Location(x=178, y=198, z=40))
+GLOBAL_CAM_POS = carla.Transform(carla.Location(x=278, y=198, z=40))
 
 live_carla_processes = set()
 
@@ -312,7 +312,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                                                 600, self.server_port),
                 shell=True,
                 preexec_fn=os.setsid,
-                stdout=open(os.devnull, "w"))
+                stdout=subprocess.PIPE)
         else:
             self.server_process = subprocess.Popen([
                 SERVER_BINARY, self.server_map, "-windowed", "-ResX=800",
@@ -321,8 +321,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     self.server_port)
             ],
                                                    preexec_fn=os.setsid,
-                                                   stdout=open(
-                                                       os.devnull, "w"))
+                                                   stdout=subprocess.PIPE)
+
         live_carla_processes.add(os.getpgid(self.server_process.pid))
 
         time.sleep(10)  # Wait for CARLA server to initialize
@@ -577,7 +577,32 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             dones (dict): Done values for each actor. Special key "__all__" is
                 set when all actors are done and the env terminates
             info (dict): Info for each actor.
+
+        Raises
+            RuntimeError: If `step(...)` is called before calling `reset()`
+            ValueError: If `action_dict` is not a dictionary of actions
+            ValueError: If `action_dict` contains actions for non-existent actor
         """
+
+        if (not self.server_process) or (not self.client):
+            raise RuntimeError("Cannot call step(...) before calling reset()")
+
+        assert len(self.actors), "No actors exist in the environment. Either" \
+                                 " the environment was not properly " \
+                                 "initialized using`reset()` or all the" \
+                                 " actors have exited. Cannot execute `step()`."
+
+        if not isinstance(action_dict, dict):
+            raise ValueError("`step(action_dict)` expected dict of actions. "
+                             "Got {}".format(type(action_dict)))
+        # Make sure the action_dict contains actions only for actors that
+        # exist in the environment
+        if not set(action_dict).issubset(set(self.actors)):
+            raise ValueError("Cannot execute actions for non-existent actors."
+                             " Received unexpected actor ids:{}".format(
+                                 set(action_dict).difference(set(
+                                     self.actors))))
+
         try:
             obs_dict = {}
             reward_dict = {}
@@ -594,9 +619,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     done_dict["__all__"] = True
                 info_dict[actor_id] = info
             return obs_dict, reward_dict, done_dict, info_dict
-        except Exception:
+        except Exception as xception:
             print("Error during step, terminating episode early",
-                  traceback.format_exc())
+                  xception)  # traceback.format_exc())
+
             self.clear_server_state()
             return self.last_obs, 0.0, True, {}
 
