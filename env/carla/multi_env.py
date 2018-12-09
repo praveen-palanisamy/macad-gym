@@ -40,8 +40,8 @@ sys.path.append(
 import carla  # noqa: E402
 # The following import depend on carla. TODO: Can it be made better?
 from env.core.sensors.camera_manager import CameraManager  # noqa: E402
-from env.core.sensors.detect_sensors import LaneInvasionSensor  # noqa: E402
-from env.core.sensors.detect_sensors import CollisionSensor  # noqa: E402
+from env.core.sensors.derived_sensors import LaneInvasionSensor  # noqa: E402
+from env.core.sensors.derived_sensors import CollisionSensor  # noqa: E402
 from env.core.controllers.keyboard_control import KeyboardControl  # noqa: E402
 
 # Set this where you want to save image outputs (or empty string to disable)
