@@ -331,19 +331,19 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.client = carla.Client("localhost", self.server_port)
 
     def clean_world(self):
-        """Destroy all sensors after the program terminates.
+        """Destroy all actors cleanly before exiting
 
         Returns:
             N/A
 
         """
-        for cam in env.camera_list.cam_list:
+        for cam in self.camera_list.cam_list.values():
             cam.sensor.destroy()
-        for actor in env.actors:
+        for actor in self.actors.values():
             actor.destroy()
-        for colli in env.collisions:
+        for colli in self.collisions.values():
             colli.sensor.destroy()
-        for lane in env.lane_invasions:
+        for lane in self.lane_invasions.values():
             lane.sensor.destroy()
 
     def clear_server_state(self):
@@ -362,9 +362,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             live_carla_processes.remove(pgid)
             self.server_port = None
             self.server_process = None
-
-    def __del__(self):
-        self.clear_server_state()
 
     def reset(self):
         """Reset the carla world, call init_server()
@@ -939,8 +936,8 @@ if __name__ == "__main__":
             action_dict = get_next_actions(info, env.discrete_actions)
             for actor_id in total_reward_dict.keys():
                 total_reward_dict[actor_id] += reward[actor_id]
-            print("Step", i, "rew", reward, "total", total_reward_dict, "done",
-                  done)
+            print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
+                i, reward, total_reward_dict, done))
 
             # Set done[__all__] for env termination when all agents are done
             done_temp = True
