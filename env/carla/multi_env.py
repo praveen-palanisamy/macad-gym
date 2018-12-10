@@ -61,32 +61,48 @@ SERVER_BINARY = os.environ.get(
 assert os.path.exists(SERVER_BINARY)
 
 DEFAULT_MULTIENV_CONFIG = {
-    "vehicle1": {
-        "enable_planner": True,
-        "render": True,  # Whether to render to screen or send to VFB
-        "framestack": 1,  # note: only [1, 2] currently supported
-        "convert_images_to_video": False,
-        "early_terminate_on_collision": True,
-        "verbose": False,
-        "reward_function": "corl2017",
+    "env": {
+        "server_map": "/Game/Carla/Maps/Town01",
+        "render": True,
         "render_x_res": 800,
         "render_y_res": 600,
-        "x_res": 84,
-        "y_res": 84,
-        "server_map": "/Game/Carla/Maps/Town01",
-        "scenarios": "DEFAULT_SCENARIO_TOWN1",  # # no scenarios
-        "use_depth_camera": False,
-        "discrete_actions": False,
+        "x_res": 80,
+        "y_res": 80,
+        "framestack": 1,
+        "discrete_actions": True,
         "squash_action_logits": False,
-        "manual_control": False,
-        "auto_control": False,
-        "camera_type": "rgb",
-        "collision_sensor": "on",  # off
-        "lane_sensor": "on",  # off
-        "server_process": False,
-        "send_measurements": False,
-        "log_images": False,
-        "log_measurements": False
+        "verbose": False,
+        "use_depth_camera": False,
+        "send_measurements": False
+    },
+    "actors": {
+        "vehicle1": {
+            "enable_planner": True,
+            "render": True,  # Whether to render to screen or send to VFB
+            "framestack": 1,  # note: only [1, 2] currently supported
+            "convert_images_to_video": False,
+            "early_terminate_on_collision": True,
+            "verbose": False,
+            "reward_function": "corl2017",
+            "render_x_res": 800,
+            "render_y_res": 600,
+            "x_res": 84,
+            "y_res": 84,
+            "server_map": "/Game/Carla/Maps/Town01",
+            "scenarios": "DEFAULT_SCENARIO_TOWN1",  # # no scenarios
+            "use_depth_camera": False,
+            "discrete_actions": False,
+            "squash_action_logits": False,
+            "manual_control": False,
+            "auto_control": False,
+            "camera_type": "rgb",
+            "collision_sensor": "on",  # off
+            "lane_sensor": "on",  # off
+            "server_process": False,
+            "send_measurements": False,
+            "log_images": False,
+            "log_measurements": False
+        }
     }
 }
 
@@ -166,7 +182,7 @@ except ImportError as err:
 
 
 class MultiCarlaEnv(*MultiAgentEnvBases):
-    def __init__(self, actor_configs=DEFAULT_MULTIENV_CONFIG):
+    def __init__(self, configs=DEFAULT_MULTIENV_CONFIG):
         """Carla environment implementation.
 
         The environment settings and scenarios are configure using env_config.
@@ -176,16 +192,15 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             A list of config files for actors.
 
         """
-
-        self.actor_configs = actor_configs
+        tmp = iter(configs.values())
+        self.env_config = next(tmp)
+        self.actor_configs = next(tmp)
 
         # Set attributes as in gym's specs
         self.reward_range = (-float('inf'), float('inf'))
         self.metadata = {'render.modes': 'human'}
 
-        # Get the first item in the actor_configs dict for common env properties
-        # TODO: Separate out env & actor configs
-        self.env_config = next(iter(self.actor_configs.values()))
+        # Belongs to env_config.
         self.server_map = self.env_config["server_map"]
         self.city = self.server_map.split("/")[-1]
         self.render = self.env_config["render"]
@@ -572,8 +587,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
             # Spawn cameras
             pygame.font.init()  # for HUD
-            hud = HUD(actor_config["render_x_res"],
-                      actor_config["render_y_res"])
+            hud = HUD(self.env_config["render_x_res"],
+                      self.env_config["render_y_res"])
             camera_manager = CameraManager(self.actors[actor_id], hud)
             if actor_config["log_images"]:
                 # TODO: The recording option should be part of config
@@ -694,11 +709,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                              "Got {}".format(type(action_dict)))
         # Make sure the action_dict contains actions only for actors that
         # exist in the environment
-        if not set(action_dict).issubset(set(self.actors)):
-            raise ValueError("Cannot execute actions for non-existent actors."
-                             " Received unexpected actor ids:{}".format(
-                                 set(action_dict).difference(set(
-                                     self.actors))))
+        #if not set(action_dict).issubset(set(self.actors)):
+        #    raise ValueError("Cannot execute actions for non-existent actors."
+        #                     " Received unexpected actor ids:{}".format(
+        #                         set(action_dict).difference(set(
+        #                             self.actors))))
 
         try:
             obs_dict = {}
@@ -1079,7 +1094,11 @@ if __name__ == "__main__":
 
         total_reward_dict = {}
         action_dict = {}
-        for actor_id in multi_env_config.keys():
+
+        tmp = iter(multi_env_config.values())
+        env_config = next(tmp)
+        actor_configs = next(tmp)
+        for actor_id in actor_configs.keys():
             total_reward_dict[actor_id] = 0
 
             #  Initialize all vehicles' action to be 3
