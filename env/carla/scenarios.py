@@ -27,10 +27,6 @@ def build_scenario(city, start, end, vehicles, pedestrians, max_steps,
     }
 
 
-# To implement possible locations for multiple cars, we may create a nested arrays based on e.g., POSES_TOWN_1_STRAIGHT
-#POSES_TOWN1_STRAIGHT = [
-#    [MULTI_START_POS, MULTI_END_POS], [[39,40], [35,36]]...]
-
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_scenario(
     city="Town01",
@@ -110,7 +106,7 @@ CURVE_TOWN2 = build_scenario(
 POSES_TOWN1_STRAIGHT = [[[9, 8], [1, 0]], [[142, 148], [141, 147]],
                         [[114, 115], [110, 111]], [[7, 6], [3, 2]],
                         [[4, 5], [149, 150]]]
-#POSES_TOWN1_STRAIGHT = [
+# POSES_TOWN1_STRAIGHT = [
 #    [36, 40], [39, 35], [110, 114], [7, 3], [0, 4],
 #    [68, 50], [61, 59], [47, 64], [147, 90], [33, 87],
 #    [26, 19], [80, 76], [45, 49], [55, 44], [29, 107],
@@ -204,9 +200,6 @@ local_map = locals()
 
 
 def update_scenarios_parameter(config_map):
-    try:
-        if "scenarios" in config_map:
-            config_map["scenarios"] = local_map[config_map["scenarios"]]
-    except:
-        pass
+    if "scenarios" in config_map:
+        config_map["scenarios"] = local_map[config_map["scenarios"]]
     return config_map

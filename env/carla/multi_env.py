@@ -151,9 +151,6 @@ DISCRETE_ACTIONS = {
     8: [-0.5, 0.5],
 }
 
-# The cam for pygame
-# GLOBAL_CAM_POS = carla.Transform(carla.Location(x=256, y=199, z=40))
-
 live_carla_processes = set()
 
 
@@ -519,7 +516,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             vehicle_manager.set_config(config)
             vehicle_manager.set_vehicle(transform)
             # maybe do not need list
-            self.vehicle_manager_list.append(vehicle_manager) 
+            self.vehicle_manager_list.append(vehicle_manager)
             self.vehicle_manager_list[i].set_scenario(scenario)
 
         print('Environment initialized with requested actors.')
@@ -709,7 +706,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                              "Got {}".format(type(action_dict)))
         # Make sure the action_dict contains actions only for actors that
         # exist in the environment
-        #if not set(action_dict).issubset(set(self.actors)):
+        # if not set(action_dict).issubset(set(self.actors)):
         #    raise ValueError("Cannot execute actions for non-existent actors."
         #                     " Received unexpected actor ids:{}".format(
         #                         set(action_dict).difference(set(
@@ -734,7 +731,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         except Exception as xception:
             print("Error during step, terminating episode early",
                   xception)  # traceback.format_exc())
-        
+
             self.clear_server_state()
             return self.last_obs, 0.0, True, {}
 
@@ -789,7 +786,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         py_measurements = {
             "episode_id": self.episode_id,
             "step": self.num_steps,
-            "weather": self.weather,  
+            "weather": self.weather,
             # random.choice(self.scenario["weather_distribution"]),
             "start_coord": self.start_coord[i],
             "end_coord": self.end_coord[i],
@@ -891,7 +888,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 if done:
                     self.measurements_file.close()
                     self.measurements_file = None
-                    # if self.config["convert_images_to_video"] 
+                    # if self.config["convert_images_to_video"]
                     and (not self.video):
                     #    self.images_to_video()
                     #    self.video = Trueseg_city_space
@@ -1024,6 +1021,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         }
         return py_measurements
         # >>>>>>> 69d1768af7e906ea7e9eadb6f0d690ab4b24f99b
+
 
 def sigmoid(x):
     x = float(x)

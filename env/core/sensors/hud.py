@@ -1,16 +1,24 @@
 import pygame
+import datetime
+import math
+
+
+def get_actor_display_name(actor, truncate=250):
+    name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
+    return (name[:truncate - 1] + u'\u2026') if len(name) > truncate else name
 
 
 class HUD(object):
     def __init__(self, width, height):
         self.dim = (width, height)
-        font = pygame.font.Font(pygame.font.get_default_font(), 20)
+        # font = pygame.font.Font(pygame.font.get_default_font(), 20)
         fonts = [x for x in pygame.font.get_fonts() if 'mono' in x]
         default_font = 'ubuntumono'
         mono = default_font if default_font in fonts else fonts[0]
         mono = pygame.font.match_font(mono)
         self._font_mono = pygame.font.Font(mono, 14)
-        #  the _notifications and help are not needed for multi_env, they depends on other classes.
+        #  the _notifications and help are not needed for multi_env,
+        #   they depends on other classes.
         # self._notifications = FadingText(font, (width, 40), (0, height - 40))
         # self.help = HelpText(pygame.font.Font(mono, 24), width, height)
         self.server_fps = 0
@@ -65,15 +73,21 @@ class HUD(object):
         ]
         if len(vehicles) > 1:
             self._info_text += ['Nearby vehicles:']
-            distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
-            vehicles = [(distance(x.get_location()), x) for x in vehicles
-                        if x.id != world.vehicle.id]
+            # distance = lambda l: math.sqrt((l.x - t.location.x)**2 +
+            #                               (l.y - t.location.y)**2 +
+            #                               (l.z - t.location.z)**2)
+            vehicles = [(self.distance(x.get_location(), t), x)
+                        for x in vehicles if x.id != world.vehicle.id]
             for d, vehicle in sorted(vehicles):
                 if d > 200.0:
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
         self._notifications.tick(world, clock)
+
+    def distance(self, l, t):
+        return math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 +
+                         (l.z - t.location.z)**2)
 
     def toggle_info(self):
         self._show_info = not self._show_info

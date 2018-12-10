@@ -59,7 +59,6 @@ class VehicleManager(object):
         self._config = None
         self._planner = None  # needed?
 
-
         # Vehicle related attributes:
         self._vehicle = None
         self._camera_manager = None
@@ -77,7 +76,6 @@ class VehicleManager(object):
         self.last_reward = None
         self._start_coord = None
         self._end_coord = None
-
 
         # Others
         self._prev_image = None
@@ -195,10 +193,15 @@ class VehicleManager(object):
         else:
             # TODO: Planner based on waypoints.
             # cur_location = self._vehicle.get_location()
-            # dst_location = carla.Location(x = self.end_pos[i][0], y = self.end_pos[i][1], z = self.end_pos[i][2])
+            # dst_location = carla.Location(
+            #   x = self.end_pos[i][0],
+            #   y = self.end_pos[i][1],
+            #   z = self.end_pos[i][2])
             # cur_map = self.world.get_map()
-            # next_point_transform = get_transform_from_nearest_way_point(cur_map, cur_location, dst_location)
-            # next_point_transform.location.z = 40 # the point with z = 0, and the default z of cars are 40
+            # next_point_transform =
+            #   get_transform_from_nearest_way_point(
+            #       cur_map, cur_location, dst_location)
+            # next_point_transform.location.z = 40
             # self.actor_list[i].set_transform(next_point_transform)
             self._vehicle.apply_control(
                 carla.VehicleControl(
@@ -237,7 +240,7 @@ class VehicleManager(object):
                      cur.get_transform().rotation.pitch,
                      cur.get_transform().rotation.yaw, GROUND_Z
                  ], [end_loc.x, end_loc.y, GROUND_Z],
-                [end_rot.pitch, end_rot.yaw, GROUND_Z])]  # [0.0, 90.0, GROUND_Z])]
+                [end_rot.pitch, end_rot.yaw, GROUND_Z])]
         else:
             next_command = "LANE_FOLLOW"
 
@@ -313,14 +316,19 @@ class VehicleManager(object):
             image = np.concatenate([prev_image, image])
         if not self._config["send_measurements"]:
             return image
-        obs = (image,  # 'Vehicle number: ', vehicle_number,
-               COMMAND_ORDINAL[py_measurements["next_command"]], [
-                   py_measurements["forward_speed"],
-                   py_measurements["distance_to_goal"]
-               ])
+        obs = (
+            image,  # 'Vehicle number: ', vehicle_number,
+            COMMAND_ORDINAL[py_measurements["next_command"]],
+            [
+                py_measurements["forward_speed"],
+                py_measurements["distance_to_goal"]
+            ])
         return obs
 
     def __del__(self):
-        for actor in [self._collision_sensor.sensor, self._lane_invasion_sensor.sensor]:
+        for actor in [
+                self._collision_sensor.sensor,
+                self._lane_invasion_sensor.sensor
+        ]:
             if actor is not None:
                 actor.destroy()

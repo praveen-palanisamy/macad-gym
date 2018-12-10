@@ -26,4 +26,4 @@ class CameraList(object):
                 image_dir = os.path.join(
                     self.out,
                     'images/{}/%04d.png'.format(actor_id) % image.frame_number)
-                image.save_to_disk(image_dir)  #, env.cc
+                image.save_to_disk(image_dir)  # , env.cc

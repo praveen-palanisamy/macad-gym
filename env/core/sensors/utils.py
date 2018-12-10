@@ -1,5 +1,4 @@
 import numpy as np
-import pygame
 import cv2
 import sys
 
@@ -29,16 +28,14 @@ def preprocess_image(image, config):
         data = np.reshape(data, (render_y_res, render_x_res, 4))
         data = data[:, :, :1]
         data = data[:, :, ::-1]
-        data = cv2.resize(
-            data, (x_res, y_res), interpolation=cv2.INTER_AREA)
+        data = cv2.resize(data, (x_res, y_res), interpolation=cv2.INTER_AREA)
         data = np.expand_dims(data, 2)
     else:
         data = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
         data = np.reshape(data, (render_y_res, render_x_res, 4))
         data = data[:, :, :3]
         data = data[:, :, ::-1]
-        data = cv2.resize(
-            data, (x_res, y_res), interpolation=cv2.INTER_AREA)
+        data = cv2.resize(data, (x_res, y_res), interpolation=cv2.INTER_AREA)
         data = (data.astype(np.float32) - 128) / 128
 
     return data
@@ -78,7 +75,9 @@ def get_transform_from_nearest_way_point(cur_map, cur_location, dst_location):
     print(text % (next_point.road_id, next_point.lane_id))
 
     # debugger = self.client.get_world().debug
-    # debugger.draw_point(next_point.transform.location, size=0.1, color=carla.Color(), life_time=-1.0, persistent_lines=True)
+    # debugger.draw_point(next_point.transform.location,
+    #   size=0.1, color=carla.Color(), life_time=-1.0,
+    #   persistent_lines=True)
 
     return next_point.transform
 
@@ -93,7 +92,8 @@ def print_measurements(measurements):
     message += "{other_lane:.0f}% other lane, {offroad:.0f}% off-road, "
     message += "({agents_num:d} non-player agents in the scene)"
     message = message.format(
-        pos_x=player_measurements.transform.location.x / 100,  # cm -> m
+        # cm -> m
+        pos_x=player_measurements.transform.location.x / 100,
         pos_y=player_measurements.transform.location.y / 100,
         speed=player_measurements.forward_speed,
         col_cars=player_measurements.collision_vehicles,
