@@ -12,6 +12,7 @@ import argparse
 import atexit
 from datetime import datetime
 import glob
+import logging
 
 import json
 import os
@@ -135,7 +136,7 @@ DISCRETE_ACTIONS = {
 }
 
 # The cam for pygame
-GLOBAL_CAM_POS = carla.Transform(carla.Location(x=278, y=198, z=40))
+# GLOBAL_CAM_POS = carla.Transform(carla.Location(x=256, y=199, z=40))
 
 live_carla_processes = set()
 
@@ -346,7 +347,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         """
         #  <<<<<<< HEAD
-        #for v_m in env.vehicle_manager_list:
+        # for v_m in env.vehicle_manager_list:
         #    if v_m._config["camera"] == "on":
         #        v_m._camera_manager.sensor.destroy()
         #    if v_m._config["collision_sensor"] == "on":
@@ -502,7 +503,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             vehicle_manager.set_world(self.world)
             vehicle_manager.set_config(config)
             vehicle_manager.set_vehicle(transform)
-            self.vehicle_manager_list.append(vehicle_manager) # maybe do not need list
+            # maybe do not need list
+            self.vehicle_manager_list.append(vehicle_manager) 
             self.vehicle_manager_list[i].set_scenario(scenario)
 
         print('Environment initialized with requested actors.')
@@ -570,7 +572,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
             # Spawn cameras
             pygame.font.init()  # for HUD
-            hud = HUD(actor_config["render_x_res"], actor_config["render_y_res"])
+            hud = HUD(actor_config["render_x_res"],
+                      actor_config["render_y_res"])
             camera_manager = CameraManager(self.actors[actor_id], hud)
             if actor_config["log_images"]:
                 # TODO: The recording option should be part of config
@@ -696,22 +699,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                              " Received unexpected actor ids:{}".format(
                                  set(action_dict).difference(set(
                                      self.actors))))
-        obs_dict = {}
-        reward_dict = {}
-        done_dict = {}
-        info_dict = {}
 
-        done_dict["__all__"] = False
-        for actor_id, action in action_dict.items():
-            obs, reward, done, info = self._step(actor_id, action)
-            obs_dict[actor_id] = obs
-            reward_dict[actor_id] = reward
-            done_dict[actor_id] = done
-            if sum(list(done_dict.values())) == len(action_dict):
-                done_dict["__all__"] = True
-            info_dict[actor_id] = info
-        return obs_dict, reward_dict, done_dict, info_dict
-        '''
         try:
             obs_dict = {}
             reward_dict = {}
@@ -727,8 +715,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 if sum(list(done_dict.values())) == len(action_dict):
                     done_dict["__all__"] = True
                 info_dict[actor_id] = info
-            print("++++++>>>", reward_dict)
-            time.sleep(100)
             return obs_dict, reward_dict, done_dict, info_dict
         except Exception as xception:
             print("Error during step, terminating episode early",
@@ -736,7 +722,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         
             self.clear_server_state()
             return self.last_obs, 0.0, True, {}
-        '''
+
     def _step(self, actor_id, action):
         """Perform the actual step in the CARLA environment
 
@@ -788,7 +774,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         py_measurements = {
             "episode_id": self.episode_id,
             "step": self.num_steps,
-            "weather": self.weather,  # random.choice(self.scenario["weather_distribution"]),
+            "weather": self.weather,  
+            # random.choice(self.scenario["weather_distribution"]),
             "start_coord": self.start_coord[i],
             "end_coord": self.end_coord[i],
             "x_res": self.x_res,
@@ -889,7 +876,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 if done:
                     self.measurements_file.close()
                     self.measurements_file = None
-                    # if self.config["convert_images_to_video"] and (not self.video):
+                    # if self.config["convert_images_to_video"] 
+                    and (not self.video):
                     #    self.images_to_video()
                     #    self.video = Trueseg_city_space
 
@@ -1021,8 +1009,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         }
         return py_measurements
         # >>>>>>> 69d1768af7e906ea7e9eadb6f0d690ab4b24f99b
-
-
 
 def sigmoid(x):
     x = float(x)

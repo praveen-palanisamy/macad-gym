@@ -40,7 +40,7 @@ def transform_points(transform, points):
     points = points.transpose()
     # Add 1s row: [[X0..,Xn],[Y0..,Yn],[Z0..,Zn],[1,..1]]
     points = np.append(points, np.ones((1, points.shape[1])), axis=0)
-    #get transform matrix
+    # get transform matrix
     matrix = _transform_matrix(transform)
     # Point transformation
     points = matrix * points
