@@ -142,7 +142,7 @@ def cleanup():
         os.killpg(pgid, signal.SIGKILL)
 
 
-def termination_cleanup():
+def termination_cleanup(ig, nore):
     cleanup()
     sys.exit(0)
 
