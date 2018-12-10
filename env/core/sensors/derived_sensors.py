@@ -7,6 +7,7 @@ import collections
 class LaneInvasionSensor(object):
     """Lane Invasion class from carla manual_control.py
     """
+
     def __init__(self, parent_actor, hud):
         self.sensor = None
         self._history = []
@@ -36,7 +37,8 @@ class LaneInvasionSensor(object):
         if not self:
             return
 
-        # text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
+        # text = ['%r' % str(x).split()[-1]
+        #  for x in set(event.crossed_lane_markings)]
         # self._hud.notification('Crossed line %s' % ' and '.join(text))
         text = [
             '%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)
@@ -60,6 +62,7 @@ class LaneInvasionSensor(object):
 class CollisionSensor(object):
     """Collision sensor class from carla manual_control.py
     """
+
     def __init__(self, parent_actor, hud):
         self.sensor = None
         self._history = []

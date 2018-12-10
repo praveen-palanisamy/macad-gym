@@ -4,8 +4,9 @@ import os
 class CameraList(object):
     """Maintains a camera list and functions on it.
     """
+
     def __init__(self, output_address):
-        self.cam_list = []
+        self.cam_list = {}
         self.out = output_address
 
     def save_images_to_disk(self):
@@ -17,7 +18,7 @@ class CameraList(object):
         """
 
         # Save images from actors from their corresponding camera manager.
-        for cam_manager in self.cam_list:
+        for cam_manager in self.cam_list.values():
             if not cam_manager._memory_record:
                 continue
             actor_id = cam_manager._parent.id

@@ -13,6 +13,7 @@ if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
 class CameraManager(object):
     """This class from carla, manual_control.py
     """
+
     def __init__(self, parent_actor, hud):
         self.image = None  # need image to encode obs.
         self.image_list = []  # for save images later.
@@ -67,6 +68,8 @@ class CameraManager(object):
         Returns:
             N/A.
         """
+
+        # TODO: The options should be more verbose. Strings instead of ints
         if option == 1:
             self._recording = True
         elif option == 2:
@@ -141,7 +144,7 @@ class CameraManager(object):
             image_dir = os.path.join(
                 CARLA_OUT_PATH, 'images/{}/%04d.png'.format(self._parent.id) %
                 image.frame_number)
-            image.save_to_disk(image_dir)  #, env.cc
+            image.save_to_disk(image_dir)  # , env.cc
             # image.save_to_disk('_out/%08d' % image.frame_number)
         elif self._memory_record:
             self.image_list.append(image)
