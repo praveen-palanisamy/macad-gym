@@ -25,10 +25,10 @@ This branch will soon replace the master branch and will become the mainstream.
 
     `mkdir ~/software && cd ~/software`
 
-    Example: Download the 0.9.0 release version from: [Here](https://drive.google.com/open?id=1JprRbFf6UlvpqX98hQiUG9U4W_E-keiv)
+    Example: Download the 0.9.1 release version from: [Here](https://drive.google.com/open?id=1FNZ9js4NBw1faZTts-dpGa1sRAKh0G0j)
     Extract it into `~/software`
 
-    `export CARLA_SERVER=~/software/CARLA_0.9.0/CarlaUE4.sh`
+    `export CARLA_SERVER=~/software/CARLA_0.9.1/CarlaUE4.sh`
     
 4. Clone this repository into your workspace (assuming the path is $workspace on your laptop)
 
