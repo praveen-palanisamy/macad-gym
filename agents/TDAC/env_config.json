@@ -17,7 +17,7 @@
         "discrete_actions": false,
         "squash_action_logits": false,
         "manual_control": false,
-        "auto_control": true,
+        "auto_control": false,
         "camera_type": "rgb",
         "collision_sensor": "on",
         "lane_sensor": "on",
