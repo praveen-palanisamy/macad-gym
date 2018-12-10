@@ -1,6 +1,5 @@
 {
-    "0": {
-        "log_images": false,
+    "vehicle1": {
         "enable_planner": true,
         "render": true,
         "framestack": 1,
@@ -22,6 +21,8 @@
         "camera_type": "rgb",
         "collision_sensor": "on",
         "lane_sensor": "on",
-        "send_measurements": true
+        "send_measurements": true,
+        "log_images": false,
+        "log_measurements": false
     }
 }

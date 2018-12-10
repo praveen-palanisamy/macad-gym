@@ -8,28 +8,28 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import torch.multiprocessing as mp
 from .shared_adam import SharedAdam
-import gym
 import math
 import numpy as np
 
-## Env related
-import sys
+# Env related
 import os
-#sys.path.append(os.path.join(os.getcwd(),"../../"))
+# sys.path.append(os.path.join(os.getcwd(),"../../"))
 
 import glob
 import datetime
 import time
 from tensorboardX import SummaryWriter
 
-from env.carla.multi_env import MultiCarlaEnv, ENV_CONFIG_LIST
+from env.carla.multi_env import MultiCarlaEnv, DEFAULT_MULTIENV_CONFIG
 from env.carla.scenarios import update_scenarios_parameter
 
 import json
 
-env_config = ENV_CONFIG_LIST
+env_config = DEFAULT_MULTIENV_CONFIG
 config_update = update_scenarios_parameter(json.load(open("agents/TDAC/env_config.json")))
 env_config.update(config_update)
+
+vehicle_name = next(iter(env_config.keys()))
 
 env = MultiCarlaEnv(env_config)
 N_S = env.observation_space
@@ -37,15 +37,16 @@ N_A = env.action_space
 
 UPDATE_GLOBAL_ITER = 5
 GAMMA = 0.9
-MAX_EP = 10000000 #10M
+MAX_EP = 10000000  # 10M
 MAX_EP_STEP = 2000
-SAVE_STEP = 2000000  #Every 1000 episodes at the minimum
+SAVE_STEP = 2000000  # Every 1000 episodes at the minimum
 
 save_model_dir = os.path.expanduser("~/saved_models/tdac/continuous_A3C/")
-if not os.path.exists(save_model_dir+"global/"):
-    os.makedirs(save_model_dir+"global/")
-if not os.path.exists(save_model_dir+"local/"):
-    os.makedirs(save_model_dir+"local/")
+if not os.path.exists(save_model_dir + "global/"):
+    os.makedirs(save_model_dir + "global/")
+if not os.path.exists(save_model_dir + "local/"):
+    os.makedirs(save_model_dir + "local/")
+
 
 # Works only with Carla env with continous action space
 class Net(nn.Module):
@@ -54,26 +55,26 @@ class Net(nn.Module):
 
         self.action_space = action_space.shape[0]
         # Observation space for CarlaEnv is gym.spaces.Tuple(Box(84,84,6), Discrete(5), Box(2,))
-        self.input_image_shape = state_space.spaces[0].shape #84x84x6
+        self.input_image_shape = state_space.spaces[0].shape  # 84x84x6
         self.input_image_size = np.product(self.input_image_shape)
         # 1 is for the discrete space in state_space.spaces[1]
-        self.input_measurements_shape = 1  + state_space.spaces[2].shape[0]
-        self.conv1 = nn.Conv2d(np.int(self.input_image_shape[2]), 32, 4 , stride=2, padding=1)
+        self.input_measurements_shape = 1 + state_space.spaces[2].shape[0]
+        self.conv1 = nn.Conv2d(np.int(self.input_image_shape[2]), 32, 4, stride=2, padding=1)
         self.conv2 = nn.Conv2d(32, 32, 4, stride=2, padding=1)
-        self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding =1)
-        self.conv4 = nn.Conv2d(32, 32, 2, stride=1, padding =1)
-        
-        self.linear = nn.Linear( 32 * 12 * 12, 256)
+        self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
+        self.conv4 = nn.Conv2d(32, 32, 2, stride=1, padding=1)
 
+        self.linear = nn.Linear(32 * 12 * 12, 256)
 
         # Measurements will be concatenated with the input_image
         self.critic_linear = nn.Linear(256 + self.input_measurements_shape, 1)
         self.actor_mu = nn.Linear(256 + self.input_measurements_shape, self.action_space)
         self.actor_sigma = nn.Linear(256 + self.input_measurements_shape, self.action_space)
-        
+
         # Init weights
-        #self.apply(weights_init)
-        set_init([self.conv1, self.conv2, self.conv3, self.conv4, self.linear, self.critic_linear, self.actor_mu, self.actor_sigma])
+        # self.apply(weights_init)
+        set_init([self.conv1, self.conv2, self.conv3, self.conv4, self.linear, self.critic_linear, self.actor_mu,
+                  self.actor_sigma])
 
         self.actor_mu.weight.data = normalized_columns_initializer(self.actor_mu.weight.data, 0.01)
         self.actor_mu.bias.data.fill_(0)
@@ -87,28 +88,27 @@ class Net(nn.Module):
         self.distribution = torch.distributions.Normal
         self.train()
 
-
     def forward(self, inputs):
         obs = inputs
-        if len(inputs.shape) < 2: # Single input; batch_size == 1
+        if len(inputs.shape) < 2:  # Single input; batch_size == 1
             obs = obs.unsqueeze(0)
-        input_image = obs[:,:self.input_image_size].contiguous().view(-1, self.input_image_shape[2], self.input_image_shape[0], self.input_image_shape[1])
-        input_measurements = obs[:,self.input_image_size:]
+        input_image = obs[:, :self.input_image_size].contiguous().view(-1, self.input_image_shape[2],
+                                                                       self.input_image_shape[0],
+                                                                       self.input_image_shape[1])
+        input_measurements = obs[:, self.input_image_size:]
 
         x = F.relu(self.conv1(input_image))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = F.relu(self.conv4(x))
-        x = F.relu(self.linear(x.view(-1,32 * 12 *12)))
+        x = F.relu(self.linear(x.view(-1, 32 * 12 * 12)))
         x = torch.cat((x, input_measurements), 1)
 
-        actor_mu = F.tanh(self.actor_mu(x)) # Or clip to -1 & +1?
+        actor_mu = F.tanh(self.actor_mu(x))  # Or clip to -1 & +1?
         actor_sigma = F.softplus(self.actor_sigma(x)) + 1e5
         critic_value = self.critic_linear(x)
 
         return actor_mu, actor_sigma, critic_value
-
-
 
     def choose_action(self, s):
         self.training = False
@@ -137,14 +137,14 @@ class Worker(mp.Process):
         self.name = 'w%i' % name
         self.g_ep, self.g_ep_r, self.res_queue = global_ep, global_ep_r, res_queue
         self.gnet, self.opt = gnet, opt
-        self.lnet = Net(N_S, N_A)           # local network
+        self.lnet = Net(N_S, N_A)  # local network
         self.env = MultiCarlaEnv(env_config)
 
     def run(self):
         try:
-            last_checkpoint = max(glob.glob(save_model_dir+"local/*"), key=os.path.getctime)
+            last_checkpoint = max(glob.glob(save_model_dir + "local/*"), key=os.path.getctime)
             self.lnet.load_state_dict(torch.load(last_checkpoint))
-            print("Loaded saved local model:",last_checkpoint)
+            print("Loaded saved local model:", last_checkpoint)
         except:
             pass
 
@@ -153,75 +153,87 @@ class Worker(mp.Process):
         total_step = 1
         now = datetime.datetime.now()
         summary_writer = SummaryWriter(os.path.expanduser("~/tensorboard_log/continuous_a3c/{}_{}_{}_{}_{}_{}_{}".
-format(now.year,now.month,now.day,now.hour,now.minute,now.second,self.name)))
+                                                          format(now.year, now.month, now.day, now.hour, now.minute,
+                                                                 now.second, self.name)))
         while self.g_ep.value < MAX_EP:
-            s = self.env.reset()['Vehicle0']
-            s = torch.from_numpy(np.concatenate((s[0].flatten(), np.array([s[1]]), np.array(s[2]).flatten())))
+            state = self.env.reset()[vehicle_name]
+            state = torch.from_numpy(np.concatenate((state[0].flatten(), np.array([state[1]]), np.array(state[2]).flatten())))
             buffer_s, buffer_a, buffer_r = [], [], []
             ep_r = 0.
             times_sum = 0.0
             for t in range(MAX_EP_STEP):
                 start_time = time.time()
-                a = self.lnet.choose_action(Variable(s).float())
-                s_, r, done, py_measurements = self.env.step(a.squeeze().clip(-1, 1))
-                times_sum += time.time()-start_time
-                summary_writer.add_scalar("Current Reward",torch.DoubleTensor([r]),total_step)
-                summary_writer.add_scalar("Distance to Goal",torch.DoubleTensor([py_measurements["distance_to_goal_euclidean"]]),total_step)
-                s_= torch.from_numpy(np.concatenate((s_[0].flatten(), np.array([s_[1]]), np.array(s_[2]).flatten())))
+                action = self.lnet.choose_action(Variable(state).float())
+                next_state, reward, done, py_measurements = self.env.step({vehicle_name:action.squeeze().clip(-1, 1)})
+                reward = reward[vehicle_name]
+                next_state = next_state[vehicle_name]
+                done = done[vehicle_name]
+                py_measurements = py_measurements[vehicle_name]
+
+                times_sum += time.time() - start_time
+                summary_writer.add_scalar("Current Reward", torch.DoubleTensor([reward]), total_step)
+                summary_writer.add_scalar("Distance to Goal",
+                                          torch.DoubleTensor([py_measurements["distance_to_goal_euclidean"]]),
+                                          total_step)
+                next_state = torch.from_numpy(np.concatenate((next_state[0].flatten(), np.array([next_state[1]]), np.array(next_state[2]).flatten())))
                 if t == MAX_EP_STEP - 1:
                     done = True
-                ep_r += r
-                buffer_a.append(a)
-                buffer_s.append(s)
-                buffer_r.append((r+8.1)/8.1)    # normalize
+                ep_r += reward
+                buffer_a.append(action)
+                buffer_s.append(state)
+                buffer_r.append((reward + 8.1) / 8.1)  # normalize
 
                 if total_step % UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
                     # sync
-                    push_and_pull(self.opt, self.lnet, self.gnet, done, s_, buffer_s, buffer_a, buffer_r, GAMMA)
+                    push_and_pull(self.opt, self.lnet, self.gnet, done, next_state, buffer_s, buffer_a, buffer_r, GAMMA)
                     buffer_s, buffer_a, buffer_r = [], [], []
 
                     if done:  # done and print information
                         record(self.g_ep, self.g_ep_r, ep_r, self.res_queue, self.name)
                         episode_len = t
                         break
-                s = s_
+                state = next_state
                 if total_step % SAVE_STEP == 0:
                     current_time = int(round(time.time() * 1000))
-                    torch.save(self.lnet.state_dict(), "{}local/{}_{}.pt".format(save_model_dir,total_step,current_time))
-                    torch.save(self.gnet.state_dict(), "{}global/{}_{}.pt".format(save_model_dir,total_step,current_time))
+                    torch.save(self.lnet.state_dict(),
+                               "{}local/{}_{}.pt".format(save_model_dir, total_step, current_time))
+                    torch.save(self.gnet.state_dict(),
+                               "{}global/{}_{}.pt".format(save_model_dir, total_step, current_time))
                 total_step += 1
 
             if py_measurements["distance_to_goal_euclidean"] < 2.0:
                 successful_episodes += 1
 
-            summary_writer.add_scalar("Number of Successfully Completed Episodes",torch.DoubleTensor([successful_episodes/self.g_ep.value]),self.g_ep.value)
-            summary_writer.add_scalar("Mean Reward",torch.DoubleTensor([ep_r/(t+1)]),self.g_ep.value)
-            summary_writer.add_scalar("Mean Time Per Iteration in Seconds",torch.DoubleTensor([times_sum/(t+1)]),self.g_ep.value)
+            summary_writer.add_scalar("Number of Successfully Completed Episodes",
+                                      torch.DoubleTensor([successful_episodes / self.g_ep.value]), self.g_ep.value)
+            summary_writer.add_scalar("Mean Reward", torch.DoubleTensor([ep_r / (t + 1)]), self.g_ep.value)
+            summary_writer.add_scalar("Mean Time Per Iteration in Seconds", torch.DoubleTensor([times_sum / (t + 1)]),
+                                      self.g_ep.value)
 
             mean_episode_len += (episode_len - mean_episode_len) / self.g_ep.value
-            summary_writer.add_scalar("Mean Episode Length",torch.DoubleTensor([mean_episode_len]),total_step)
+            summary_writer.add_scalar("Mean Episode Length", torch.DoubleTensor([mean_episode_len]), total_step)
 
         self.res_queue.put(None)
         summary_writer.close()
 
 
 if __name__ == "__main__":
-    gnet = Net(N_S, N_A)        # global network
+    gnet = Net(N_S, N_A)  # global network
 
     try:
-        last_checkpoint = max(glob.glob(save_model_dir+"global/*"), key=os.path.getctime)
+        last_checkpoint = max(glob.glob(save_model_dir + "global/*"), key=os.path.getctime)
         gnet.load_state_dict(torch.load(last_checkpoint))
-        print("Loaded saved global model:",last_checkpoint)
+        print("Loaded saved global model:", last_checkpoint)
     except:
         pass
-    gnet.share_memory()         # share the global parameters in multiprocessing
+    gnet.share_memory()  # share the global parameters in multiprocessing
     opt = SharedAdam(gnet.parameters(), lr=0.0002)  # global optimizer
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
 
     # parallel training
-    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(3)]#mp.cpu_count())]
+    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(3)]  # mp.cpu_count())]
     [w.start() for w in workers]
-    res = []                    # record episode reward to plot
+    res = []  # record episode reward to plot
     while True:
         r = res_queue.get()
         if r is not None:
@@ -231,6 +243,7 @@ if __name__ == "__main__":
     [w.join() for w in workers]
 
     import matplotlib.pyplot as plt
+
     plt.plot(res)
     plt.ylabel('Moving average ep reward')
     plt.xlabel('Step')
