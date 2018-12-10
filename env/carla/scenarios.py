@@ -30,7 +30,7 @@ def build_scenario(city, start, end, vehicles, pedestrians, max_steps,
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_scenario(
     city="Town01",
-    start=131,
+    start=130,
     end=150,
     vehicles=20,
     pedestrians=40,
