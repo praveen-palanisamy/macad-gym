@@ -569,7 +569,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.lane_invasions.update({actor_id: lane_sensor})
 
             # Spawn cameras
-            camera_manager = CameraManager(self.actors[actor_id], self.hud)
+            pygame.font.init()  # for HUD
+            hud = HUD(actor_config["render_x_res"], actor_config["render_y_res"])
+            camera_manager = CameraManager(self.actors[actor_id], hud)
             if actor_config["log_images"]:
                 # TODO: The recording option should be part of config
                 # 1: Save to disk during runtime
@@ -694,7 +696,22 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                              " Received unexpected actor ids:{}".format(
                                  set(action_dict).difference(set(
                                      self.actors))))
+        obs_dict = {}
+        reward_dict = {}
+        done_dict = {}
+        info_dict = {}
 
+        done_dict["__all__"] = False
+        for actor_id, action in action_dict.items():
+            obs, reward, done, info = self._step(actor_id, action)
+            obs_dict[actor_id] = obs
+            reward_dict[actor_id] = reward
+            done_dict[actor_id] = done
+            if sum(list(done_dict.values())) == len(action_dict):
+                done_dict["__all__"] = True
+            info_dict[actor_id] = info
+        return obs_dict, reward_dict, done_dict, info_dict
+        '''
         try:
             obs_dict = {}
             reward_dict = {}
@@ -710,14 +727,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 if sum(list(done_dict.values())) == len(action_dict):
                     done_dict["__all__"] = True
                 info_dict[actor_id] = info
+            print("++++++>>>", reward_dict)
+            time.sleep(100)
             return obs_dict, reward_dict, done_dict, info_dict
         except Exception as xception:
             print("Error during step, terminating episode early",
                   xception)  # traceback.format_exc())
-
+        
             self.clear_server_state()
             return self.last_obs, 0.0, True, {}
-
+        '''
     def _step(self, actor_id, action):
         """Perform the actual step in the CARLA environment
 
@@ -735,7 +754,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 set when all actors are done and the env terminates
             info (dict): Info for each actor.
         """
-        ctrl_args = []
+
         if self.discrete_actions:
             action = DISCRETE_ACTIONS[int(action)]
         assert len(action) == 2, "Invalid action {}".format(action)
@@ -756,6 +775,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         # <<<<<<< HEAD
         '''
+        ctrl_args = []
         ctrl_args.extend([throttle, steer, brake])
         ctrl_args.append(hand_brake)
         ctrl_args.append(reverse)
@@ -831,7 +851,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         }
 
         # Compute reward
-        config = self.actor_configs[str(i)]
+        config = self.actor_configs[actor_id]
         flag = config["reward_function"]
         cmpt_reward = Reward()
         reward = cmpt_reward.compute_reward(self.prev_measurement[actor_id],
@@ -997,8 +1017,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             },
             "previous_rewards": {
                 actor_id: self.previous_rewards[actor_id]
-            }
+            },
         }
+        return py_measurements
         # >>>>>>> 69d1768af7e906ea7e9eadb6f0d690ab4b24f99b
 
 
@@ -1091,7 +1112,6 @@ if __name__ == "__main__":
             i += 1
             obs, reward, done, info = env.step(action_dict)
             action_dict = get_next_actions(info, env.discrete_actions)
-
             for actor_id in total_reward_dict.keys():
                 total_reward_dict[actor_id] += reward[actor_id]
             print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
