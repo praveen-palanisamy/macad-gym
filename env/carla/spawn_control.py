@@ -518,6 +518,7 @@ class CarlaMap(object):
 
         return offRoad
 """
+
 # ===============================================================================
 # -- Spawn Initial Location Detecter -------------------------------------------
 # ===============================================================================
@@ -611,24 +612,21 @@ class Detecter(object):
                 self._location.z += ext.z
                 if p1 >= min1 and p1 <= max1:
                     self._location.x += self._vel_update(vel.x)
-                    print(
-                        'collision happens in x direction,  '
-                        'adding spwan x-location by %4.2f'
-                        % self._vel_update(vel.x))
+                    print('collision happens in x direction,  '
+                          'adding spwan x-location by %4.2f' %
+                          self._vel_update(vel.x))
                     continue
                 elif p2 >= min2 and p2 <= max2:
                     self._location.y += self._vel_update(vel.y)
-                    print(
-                        "collision happens in y direction, "
-                        "adding spwan y-location by %4.2f"
-                        % self._vel_update(vel.y))
+                    print("collision happens in y direction, "
+                          "adding spwan y-location by %4.2f" %
+                          self._vel_update(vel.y))
                     continue
                 elif p3 >= min3 and p3 <= max3:
                     self._location.z += self._vel_update(vel.z)
-                    print(
-                        "collision happens in z direction, "
-                        "adding spwan z-location by %4.2f"
-                        % self._vel_update(vel.z))
+                    print("collision happens in z direction, "
+                          "adding spwan z-location by %4.2f" %
+                          self._vel_update(vel.z))
                     continue
                 else:
                     break
@@ -647,7 +645,7 @@ class Detecter(object):
 
 def find_weather_presets():
     rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
-    name = lambda x: ' '.join(m.group(0) for m in rgx.finditer(x))
+    name = lambda x: ' '.join(m.group(0) for m in rgx.finditer(x))  # noqa: E731
     presets = [
         x for x in dir(carla.WeatherParameters) if re.match('[A-Z].+', x)
     ]
@@ -793,8 +791,8 @@ class World(object):
                 actor.destroy()
         #  tmp never used
         # while len(self.vehicle_manager_list) != 0:
-            # tmp = self.vehicle_manager_list.pop()
-            # del tmp
+        # tmp = self.vehicle_manager_list.pop()
+        # del tmp
 
     def _get_random_blueprint(self):
         bp = random.choice(
@@ -1105,6 +1103,7 @@ class TrafficLight(object):
         for actor in actors:
             if actor.type_id == 'traffic.traffic_light':
                 self.lights.append(actor)
+
     # https://github.com/carla-simulator/driving-benchmarks/
     #   blob/master/version084/benchmark_tools/benchmark_runner.py
 
@@ -1214,7 +1213,7 @@ class TrafficLight(object):
         for light in self.lights:
             if light is not None:
                 if not self._map.is_point_on_intersection(
-                        [player_x, player_y, 38]):
+                    [player_x, player_y, 38]):  # noqa: E125 yapf bug
                     #  light_x and light_y never used
                     # light_x = light.transform.location.x
                     # light_y = light.transform.location.y
@@ -1224,10 +1223,9 @@ class TrafficLight(object):
                     #                                 player_x, player_y)
                     if self._is_traffic_light_active(
                             light, vehicle.transform.orientation):
-                        if is_on_burning_point(
-                                self._map):
-                                #  t1_dist never defined
-                                # vehicle.transform.location) and t1_dist < 6.0:
+                        if is_on_burning_point(self._map):
+                            #  t1_dist never defined
+                            # vehicle.transform.location) and t1_dist < 6.0:
                             if light.state != 0:  # not green
                                 return 'red'
                             else:
@@ -1267,8 +1265,9 @@ class LaneInvasionSensor(object):
         self = weak_self()
         if not self:
             return
+
     # text = ['%r' % str(x).split()[-1]
-        #        for x in set(event.crossed_lane_markings)]
+    #        for x in set(event.crossed_lane_markings)]
     #   self._hud.notification('Crossed line %s' % ' and '.join(text))
         text = [
             '%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)
