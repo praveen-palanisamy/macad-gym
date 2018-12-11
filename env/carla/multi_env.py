@@ -277,6 +277,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.lane_invasions = {}
         self.scenario_map = {}
 
+        logging.basicConfig(filename='carla_server.log', level=logging.DEBUG)
+
     def get_scenarios(self, choice):
         if choice == "DEFAULT_SCENARIO_TOWN1":
             from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1
@@ -983,7 +985,7 @@ if __name__ == "__main__":
         start = time.time()
         i = 0
         # while not done["__all__"]:
-        while i < 10:  # TEST
+        while i < 20:  # TEST
             i += 1
             obs, reward, done, info = env.step(action_dict)
             action_dict = get_next_actions(info, env.discrete_actions)

@@ -2,6 +2,7 @@ import carla
 import weakref
 import math
 import collections
+import logging
 
 
 class LaneInvasionSensor(object):
@@ -44,15 +45,26 @@ class LaneInvasionSensor(object):
             '%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)
         ]
         self.offlane += 1
-        print('VEHICLE %s' % self._parent.id +
-              ' crossed line %s' % ' and '.join(text))
+        # logging.basicConfig(filename='sensors.log', level=logging.DEBUG)
+        infor = (
+            'VEHICLE %s' % self._parent.id +
+            ' crossed line %s' % ' and '.join(text)
+        )
+        logging.info(infor)
+        # print('VEHICLE %s' % self._parent.id +
+        #      ' crossed line %s' % ' and '.join(text))
 
         #  One lane id printed means not cross two lanes,
         #   i.e., means cross to off road.
         if len(set(event.crossed_lane_markings)) == 1:
             self.offroad += 1
-            print('VEHICLE %s' % self._parent.id +
-                  ' crossed road %s' % ' and '.join(text))
+            infor = (
+                    'VEHICLE %s' % self._parent.id +
+                    ' crossed road %s' % ' and '.join(text)
+            )
+            logging.info(infor)
+            # print('VEHICLE %s' % self._parent.id +
+            #      ' crossed road %s' % ' and '.join(text))
 
         self._history.append((event.frame_number, text))
         if len(self._history) > 4000:
@@ -102,9 +114,16 @@ class CollisionSensor(object):
         self._history.append((event.frame_number, intensity))
         if len(self._history) > 4000:
             self._history.pop(0)
-        print('vehicle %s ' % self._parent.id +
-              ' collision with %2d vehicles, %2d people, %2d others' %
-              self.dynamic_collided())
+        infor = (
+                'vehicle %s ' % self._parent.id +
+                ' collision with %2d vehicles, %2d people, %2d others' %
+                self.dynamic_collided()
+        )
+        logging.info(infor)
+
+        # print('vehicle %s ' % self._parent.id +
+        #      ' collision with %2d vehicles, %2d people, %2d others' %
+        #      self.dynamic_collided())
         _cur = event.other_actor
         if _cur.id == 0:  # the static world objects
             if _cur.type_id in self.collision_type_id_set:
