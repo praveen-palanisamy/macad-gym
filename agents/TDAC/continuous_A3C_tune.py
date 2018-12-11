@@ -29,7 +29,8 @@ if gpu_info is not None and len(gpu_info) > 0:
 
 env_name = "carla_env"
 env_config = DEFAULT_MULTIENV_CONFIG
-config_update = update_scenarios_parameter(json.load(open("agents/TDAC/env_config.json")))
+config_update = update_scenarios_parameter(
+    json.load(open("agents/TDAC/env_config.json")))
 env_config.update(config_update)
 
 register_env(env_name, lambda env_config: MultiCarlaEnv(env_config))
@@ -47,7 +48,8 @@ if not os.path.exists(save_model_dir+"local/"):
 
 last_checkpoint = None
 # try:
-#    last_checkpoint = max(glob.glob(save_model_dir+"local/*"), key=os.path.getctime)
+#    last_checkpoint = max(glob.glob(save_model_dir+"local/*"),
+#  key=os.path.getctime)
 #    self.lnet.load_state_dict(torch.load(last_checkpoint))
 #    print("Loaded saved local model:",last_checkpoint)
 # except:

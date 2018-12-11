@@ -96,7 +96,8 @@ def register_carla_model():
     print(ModelCatalog)
     print("type:", type(ModelCatalog))
     print(dir(ModelCatalog))
-    import inspect
-    #print(inspect.getfile(ModelCatalog.__class__))
+    # import inspect
+    # [:w
+    # gprint(inspect.getfile(ModelCatalog.__class__))
 
     ModelCatalog.register_custom_model("carla", CarlaModel)

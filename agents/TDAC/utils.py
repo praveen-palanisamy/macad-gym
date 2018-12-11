@@ -6,6 +6,7 @@ import torch
 import numpy as np
 from torch.autograd import Variable
 
+
 def normalized_columns_initializer(weights, std=1.0):
     out = torch.randn(weights.size())
     out *= std / torch.sqrt(out.pow(2).sum(1, keepdim=True))
@@ -38,8 +39,8 @@ def push_and_pull(opt, lnet, gnet, done, s_, bs, ba, br, gamma):
 
     loss = lnet.loss_func(
         v_wrap(np.vstack(bs)),
-        v_wrap(np.array(ba), dtype=np.int64) if ba[0].dtype == np.int64 else v_wrap(np.vstack(ba)),
-        v_wrap(np.array(buffer_v_target)[:, None]))
+        v_wrap(np.array(ba), dtype=np.int64) if ba[0].dtype == np.int64 else
+        v_wrap(np.vstack(ba)), v_wrap(np.array(buffer_v_target)[:, None]))
 
     # calculate local gradients and push local parameters to global
     opt.zero_grad()
