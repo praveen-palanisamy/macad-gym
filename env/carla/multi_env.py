@@ -55,6 +55,8 @@ SERVER_BINARY = os.environ.get(
 
 assert os.path.exists(SERVER_BINARY)
 
+# TODO: Cleanup env & actor configs to have appropriate keys based on the nature
+# of env
 DEFAULT_MULTIENV_CONFIG = {
     "env": {
         "server_map": "/Game/Carla/Maps/Town01",
@@ -64,7 +66,7 @@ DEFAULT_MULTIENV_CONFIG = {
         "x_res": 80,
         "y_res": 80,
         "framestack": 1,
-        "discrete_actions": True,
+        "discrete_actions": False,
         "squash_action_logits": False,
         "verbose": False,
         "use_depth_camera": False,
@@ -86,7 +88,6 @@ DEFAULT_MULTIENV_CONFIG = {
             "server_map": "/Game/Carla/Maps/Town01",
             "scenarios": "DEFAULT_SCENARIO_TOWN1",  # # no scenarios
             "use_depth_camera": False,
-            "discrete_actions": False,
             "squash_action_logits": False,
             "manual_control": False,
             "auto_control": False,
@@ -181,12 +182,17 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         Actors in the simulation that can be controlled are configured through
         the actor_configs (TODO: Separate env & actor configs).
         Args:
-            A list of config files for actors.
+            configs (dict): Configuration for environment specified under the
+            `env` key and configurations for each actor specified as dict under
+            `actor`.
+            Example:
+                >>> configs = { "env": {"server_map": "/Game/Carla/Maps/Town02",
+                "render": True,}, "actor": {"actor_id1": {"enable_planner": True
+                }, "actor_id2": {"enable_planner": False)}}}
 
         """
-        tmp = iter(configs.values())
-        self.env_config = next(tmp)
-        self.actor_configs = next(tmp)
+        self.env_config = configs["env"]
+        self.actor_configs = configs["actors"]
 
         # Set attributes as in gym's specs
         self.reward_range = (-float('inf'), float('inf'))
