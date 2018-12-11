@@ -464,6 +464,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             self.end_pos[actor_id] = self.pos_coor_map[e_id]
 
             blueprints = world.get_blueprint_library().filter('vehicle')
+            # Further filter down to 4-wheeled vehicles
+            blueprints = [
+                b for b in blueprints
+                if b.get_attribute('number_of_wheels') == 4
+            ]
             blueprint = random.choice(blueprints)
             transform = carla.Transform(
                 carla.Location(
