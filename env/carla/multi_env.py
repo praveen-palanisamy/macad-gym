@@ -467,7 +467,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             # Further filter down to 4-wheeled vehicles
             blueprints = [
                 b for b in blueprints
-                if b.get_attribute('number_of_wheels') == 4
+                if int(b.get_attribute('number_of_wheels')) == 4
             ]
             blueprint = random.choice(blueprints)
             transform = carla.Transform(
