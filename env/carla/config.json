@@ -27,7 +27,13 @@
             "collision_sensor": "on",
             "lane_sensor": "on",
             "log_images": false,
-            "log_measurements": false
+            "log_measurements": false,
+            "render_x_res": 800,
+            "render_y_res": 600,
+            "x_res": 80,
+            "y_res": 80,
+            "use_depth_camera": false,
+            "send_measurements": false
         },
         "vehicle2": {
             "enable_planner": true,
@@ -41,7 +47,13 @@
             "collision_sensor": "on",
             "lane_sensor": "on",
             "log_images": false,
-            "log_measurements": false
+            "log_measurements": false,
+            "render_x_res": 800,
+            "render_y_res": 600,
+            "x_res": 80,
+            "y_res": 80,
+            "use_depth_camera": false,
+            "send_measurements": false
         }
     }
 }

@@ -27,20 +27,22 @@ import GPUtil
 from gym.spaces import Box, Discrete, Tuple
 import pygame
 
-from ..multi_actor_env import MultiActorEnv
-from ..core.sensors.utils import preprocess_image
+from env.multi_actor_env import MultiActorEnv
+from env.core.sensors.utils import preprocess_image
 # from env.core.sensors.utils import get_transform_from_nearest_way_point
-from ..carla.reward import Reward
-from ..carla.carla.planner.planner import Planner
-from ..core.sensors.hud import HUD
+from env.carla.reward import Reward
+from env.carla.carla.planner.planner import Planner
+from env.core.sensors.camera_list import CameraList
+from env.core.sensors.hud import HUD
 sys.path.append(
     glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
               f'{sys.version_info.minor}-linux-x86_64.egg')[0])
 import carla  # noqa: E402
 # The following import depend on carla. TODO: Can it be made better?
-from ..core.sensors.derived_sensors import LaneInvasionSensor, CollisionSensor
-from ..core.sensors.camera_manager import CameraManager  # noqa: E402
-from ..core.controllers.keyboard_control import KeyboardControl  # noqa: E402
+from env.core.sensors.camera_manager import CameraManager  # noqa: E402
+from env.core.sensors.derived_sensors import LaneInvasionSensor  # noqa: E402
+from env.core.sensors.derived_sensors import CollisionSensor  # noqa: E402
+from env.core.controllers.keyboard_control import KeyboardControl  # noqa: E402
 
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
@@ -64,7 +66,7 @@ DEFAULT_MULTIENV_CONFIG = {
         "x_res": 80,
         "y_res": 80,
         "framestack": 1,
-        "discrete_actions": True,
+        "discrete_actions": False,
         "squash_action_logits": False,
         "verbose": False,
         "use_depth_camera": False,
@@ -73,15 +75,27 @@ DEFAULT_MULTIENV_CONFIG = {
     "actors": {
         "vehicle1": {
             "enable_planner": True,
+            "render": True,  # Whether to render to screen or send to VFB
+            "framestack": 1,  # note: only [1, 2] currently supported
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
+            "verbose": False,
             "reward_function": "corl2017",
-            "scenarios": "DEFAULT_SCENARIO_TOWN1",
+            "render_x_res": 800,
+            "render_y_res": 600,
+            "x_res": 84,
+            "y_res": 84,
+            "server_map": "/Game/Carla/Maps/Town01",
+            "scenarios": "DEFAULT_SCENARIO_TOWN1",  # # no scenarios
+            "use_depth_camera": False,
+            "squash_action_logits": False,
             "manual_control": False,
-            "auto_control": True,
+            "auto_control": False,
             "camera_type": "rgb",
-            "collision_sensor": "on",
-            "lane_sensor": "on",
+            "collision_sensor": "on",  # off
+            "lane_sensor": "on",  # off
+            "server_process": False,
+            "send_measurements": False,
             "log_images": False,
             "log_measurements": False
         }
@@ -166,7 +180,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         The environment settings and scenarios are configure using env_config.
         Actors in the simulation that can be controlled are configured through
-        the actor_configs.
+        the actor_configs (TODO: Separate env & actor configs).
         Args:
             configs (dict): Configuration for environment specified under the
             `env` key and configurations for each actor specified as dict under
@@ -197,6 +211,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.x_res = self.env_config["x_res"]
         self.y_res = self.env_config["y_res"]
         self.use_depth_camera = False  # !!test
+        self.camera_list = CameraList(CARLA_OUT_PATH)
         self.planner = Planner(self.city)  # A* based navigation planner
 
         # self.config["server_map"] = "/Game/Carla/Maps/" + args.map
@@ -267,31 +282,30 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.collisions = {}
         self.lane_invasions = {}
         self.scenario_map = {}
-        self.cameras = {}
 
         logging.basicConfig(filename='carla_server.log', level=logging.DEBUG)
 
     def get_scenarios(self, choice):
         if choice == "DEFAULT_SCENARIO_TOWN1":
-            from ..carla.scenarios import DEFAULT_SCENARIO_TOWN1
+            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1
             return DEFAULT_SCENARIO_TOWN1
         elif choice == "DEFAULT_SCENARIO_TOWN1_2":
-            from ..carla.scenarios import DEFAULT_SCENARIO_TOWN1_2
+            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1_2
             return DEFAULT_SCENARIO_TOWN1_2
         elif choice == "DEFAULT_SCENARIO_TOWN2":
-            from ..carla.scenarios import DEFAULT_SCENARIO_TOWN2
+            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN2
             return DEFAULT_SCENARIO_TOWN2
         elif choice == "TOWN1_STRAIGHT":
-            from ..carla.scenarios import TOWN1_STRAIGHT
+            from env.carla.scenarios import TOWN1_STRAIGHT
             return TOWN1_STRAIGHT
         elif choice == "CURVE_TOWN1":
-            from ..carla.scenarios import CURVE_TOWN1
+            from env.carla.scenarios import CURVE_TOWN1
             return CURVE_TOWN1
         elif choice == "CURVE_TOWN2":
-            from ..carla.scenarios import CURVE_TOWN2
+            from env.carla.scenarios import CURVE_TOWN2
             return CURVE_TOWN2
         elif choice == "DEFAULT_CURVE_TOWN1":
-            from ..carla.scenarios import DEFAULT_CURVE_TOWN1
+            from env.carla.scenarios import DEFAULT_CURVE_TOWN1
             return DEFAULT_CURVE_TOWN1
 
     def init_server(self):
@@ -310,7 +324,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             for i, gpu in enumerate(gpus):
                 if gpu.load < gpus[min_index].load:
                     min_index = i
-
+            # TODO: Use env_config values for setting ResX, ResY params
             self.server_process = subprocess.Popen(
                 ("DISPLAY=:8 vglrun -d :7.{} {} " + self.server_map +
                  "-windowed -ResX={} -ResY={} -carla-server"
@@ -344,7 +358,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         """
 
-        for cam in self.cameras.values():
+        for cam in self.camera_list.cam_list.values():
             cam.sensor.destroy()
         for actor in self.actors.values():
             actor.destroy()
@@ -390,7 +404,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 error = e
         raise error
 
-    def _on_render(self):
+    def _on_render(self, i=0):
         """Render the pygame window.
 
         Args:
@@ -399,11 +413,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         Returns:
             N/A
         """
-        for cam in self.cameras.values():
-            surface = cam._surface
-            if surface is not None:
-                self._display.blit(surface, (0, 0))
-            pygame.display.flip()
+        # 0 instead of i, easy test
+        i = 0
+        surface = self.camera_list.cam_list[i]._surface
+        if surface is not None:
+            self._display.blit(surface, (0, 0))
+        pygame.display.flip()
 
     def _reset(self):
         """Initialize actors.
@@ -501,7 +516,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
             # TODO: Fix the hard-corded 0 id
             camera_manager.set_sensor(0, notify=False)
-            self.cameras.update({actor_id: camera_manager})
+            self.camera_list.cam_list.update({actor_id: camera_manager})
 
             self.start_coord.update({
                 actor_id: [
@@ -524,8 +539,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         time.sleep(0.5)  # Small wait for the server to spawn all the actors
         print('Environment initialized with requested actors.')
-
-        for actor_id, cam in self.cameras.items():
+        # TODO: CameraList class looks unnecessary. Cleanup.
+        for actor_id, cam in self.camera_list.cam_list.items():
             # TODO: Move the initialization value setting to appropriate place
             # Set appropriate initial values
             self.last_reward[actor_id] = None
@@ -536,7 +551,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             self.prev_measurement[actor_id] = py_mt
 
             actor_config = self.actor_configs[actor_id]
-            image = preprocess_image(cam.image, self.env_config)
+            image = preprocess_image(cam.image, actor_config)
             obs = self.encode_obs(actor_id, image,
                                   self.py_measurement[actor_id])
             self.obs_dict[actor_id] = obs
@@ -562,7 +577,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         if self.framestack == 2:
             # image = np.concatenate([prev_image, image], axis=2)
             image = np.concatenate([prev_image, image])
-        if not self.env_config["send_measurements"]:
+        if not self.actor_configs[actor_id]["send_measurements"]:
             return image
         obs = (image, COMMAND_ORDINAL[py_measurements["next_command"]], [
             py_measurements["forward_speed"],
@@ -765,9 +780,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 #    self.images_to_video()
                 #    self.video = Trueseg_city_space
 
-        original_image = self.cameras[actor_id].image
+        original_image = self.camera_list.cam_list[actor_id].image
         config = self.actor_configs[actor_id]
-        image = preprocess_image(original_image, self.env_config)
+        image = preprocess_image(original_image, config)
 
         return (self.encode_obs(actor_id, image, py_measurements), reward,
                 done, py_measurements)
@@ -963,7 +978,6 @@ if __name__ == "__main__":
         actor_configs = next(tmp)
         for actor_id in actor_configs.keys():
             total_reward_dict[actor_id] = 0
-
 
             #  Initialize all vehicles' action to be 3
             if env.discrete_actions:
