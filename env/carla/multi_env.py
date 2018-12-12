@@ -324,15 +324,18 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             for i, gpu in enumerate(gpus):
                 if gpu.load < gpus[min_index].load:
                     min_index = i
-            # TODO: Use env_config values for setting ResX, ResY params
+            # TODO: SDL doesn't seem to honor *CUDA_DEVICE. Find ways to
+            # distribute server loads across GPUs
             self.server_process = subprocess.Popen(
-                ("DISPLAY=:8 vglrun -d :7.{} {} " + self.server_map +
-                 "-windowed -ResX={} -ResY={} -carla-server"
-                 "-carla-world-port={}").format(min_index, SERVER_BINARY, 800,
-                                                600, self.server_port),
+                ("SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE={} {} {} "
+                 "-carla-server -carla-world-port={}").format(
+                     min_index, SERVER_BINARY, self.server_map,
+                     self.server_port),
                 shell=True,
                 preexec_fn=os.setsid,
                 stdout=subprocess.PIPE)
+
+        # TODO: Use env_config values for setting ResX, ResY params
         else:
             self.server_process = subprocess.Popen([
                 SERVER_BINARY, self.server_map, "-windowed", "-ResX=800",
