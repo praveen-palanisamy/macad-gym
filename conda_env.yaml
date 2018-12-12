@@ -85,6 +85,7 @@ dependencies:
     - rllab==0.0.1.dev0
     - scipy==1.1.0
     - six==1.11.0
+    - tensorboardx==1.5
     - tensorflow-gpu==1.4.1
     - tensorflow-tensorboard==0.4.0
     - torch==0.4.1.post2

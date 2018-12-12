@@ -24,7 +24,8 @@ from env.carla.scenarios import update_scenarios_parameter
 
 # TODO: Move to actor config or argps
 LOG_DIR = os.path.expanduser("~/tensorboard_logs")
-MODEL_DIR = "saved_models"
+MODEL_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "saved_models")
 
 env_config = DEFAULT_MULTIENV_CONFIG
 config_update = update_scenarios_parameter(

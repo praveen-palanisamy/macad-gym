@@ -2,8 +2,8 @@
     "env": {
         "server_map": "/Game/Carla/Maps/Town01",
         "render": true,
-        "render_x_res": 800,
-        "render_y_res": 600,
+        "render_x_res": 320,
+        "render_y_res": 240,
         "x_res": 84,
         "y_res": 84,
         "framestack": 1,
