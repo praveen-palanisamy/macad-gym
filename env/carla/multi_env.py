@@ -449,14 +449,14 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         ]
 
         for actor_id, actor_config in self.actor_configs.items():
-            if self.done_dict.get(actor_id,None) is None:
+            if self.done_dict.get(actor_id, None) is None:
                 self.done_dict[actor_id] = True
 
-            if self.done_dict.get(actor_id,False) is True:
-                cam = self.cameras.get(actor_id,None)
-                actor = self.actors.get(actor_id,None)
-                collision = self.collisions.get(actor_id,None)
-                lane = self.lane_invasions.get(actor_id,None)
+            if self.done_dict.get(actor_id, False) is True:
+                cam = self.cameras.get(actor_id, None)
+                actor = self.actors.get(actor_id, None)
+                collision = self.collisions.get(actor_id, None)
+                lane = self.lane_invasions.get(actor_id, None)
                 if cam is not None:
                     cam.sensor.destroy()
                 if actor is not None:
@@ -467,7 +467,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     lane.sensor.destroy()
 
                 self.measurements_file_dict[actor_id] = None
-                self.episode_id_dict[actor_id] = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
+                self.episode_id_dict[actor_id] = datetime.today().\
+                    strftime("%Y-%m-%d_%H-%M-%S_%f")
                 actor_config = self.actor_configs[actor_id]
                 scenario = self.get_scenarios(actor_config["scenarios"])
                 # If config contains a single scenario, then use it,
@@ -475,7 +476,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 if isinstance(scenario, dict):
                     self.scenario_map.update({actor_id: scenario})
                 else:  # instance array of dict
-                    self.scenario_map.update({actor_id: random.choice(scenario)})
+                    self.scenario_map.\
+                        update({actor_id: random.choice(scenario)})
 
                 self.scenario = self.scenario_map[actor_id]
                 # str(start_id).decode("utf-8") # for py2
@@ -498,7 +500,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         z=self.start_pos[actor_id][2]),
                     carla.Rotation(pitch=0, yaw=0, roll=0))
                 print('spawning vehicle %r with %d wheels' %
-                      (blueprint.id, blueprint.get_attribute('number_of_wheels')))
+                      (blueprint.id,
+                       blueprint.get_attribute('number_of_wheels')))
 
                 # Spawn actors
                 vehicle = world.try_spawn_actor(blueprint, transform)
@@ -527,7 +530,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     camera_manager.set_recording_option(1)
 
                 # TODO: Fix the hard-corded 0 id use sensor_type-> "camera"
-                # TODO: Make this consistent with keys in CameraManger's._sensors
+                # TODO: Make this consistent with keys
+                # in CameraManger's._sensors
                 camera_manager.set_sensor(0, notify=False)
                 self.cameras.update({actor_id: camera_manager})
 
@@ -545,7 +549,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 })
 
                 print(
-                    "Actor: {} start_pos(coord): {} ({}), end_pos(coord) {} ({})".
+                    "Actor: {} start_pos(coord): {} ({}), "
+                    "end_pos(coord) {} ({})".
                     format(actor_id, self.start_pos[actor_id],
                            self.start_coord[actor_id], self.end_pos[actor_id],
                            self.end_coord[actor_id]))
@@ -553,8 +558,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         time.sleep(0.5)  # Small wait for the server to spawn all the actors
         print('Environment initialized with requested actors.')
         for actor_id, cam in self.cameras.items():
-            if self.done_dict.get(actor_id,False) is True:
-                # TODO: Move the initialization value setting to appropriate place
+            if self.done_dict.get(actor_id, False) is True:
+                # TODO: Move the initialization value setting
+                # to appropriate place
                 # Set appropriate initial values
                 self.last_reward[actor_id] = None
                 self.total_reward[actor_id] = None
@@ -650,15 +656,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             reward_dict = {}
             info_dict = {}
 
-
             for actor_id, action in action_dict.items():
                 obs, reward, done, info = self._step(actor_id, action)
                 obs_dict[actor_id] = obs
                 reward_dict[actor_id] = reward
                 self.done_dict[actor_id] = done
-                # What is the purpose of the next two lines? Aren't they already set by the line above?
-                # if sum(list(self.done_dict.values())) == len(action_dict):
-                #    self.done_dict["__all__"] = True
                 info_dict[actor_id] = info
             return obs_dict, reward_dict, self.done_dict, info_dict
         except Exception as xception:
@@ -783,8 +785,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.measurements_file_dict[actor_id] = open(
                     os.path.join(
                         CARLA_OUT_PATH,
-                        "measurements_{}.json".format(self.episode_id_dict[actor_id])), "w")
-            self.measurements_file_dict[actor_id].write(json.dumps(py_measurements))
+                        "measurements_{}.json".
+                            format(self.episode_id_dict[actor_id])), "w")
+            self.measurements_file_dict[actor_id].\
+                                    write(json.dumps(py_measurements))
             self.measurements_file_dict[actor_id].write("\n")
             if done:
                 self.measurements_file_dict[actor_id].close()
