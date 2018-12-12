@@ -1,34 +1,34 @@
 """
+TDAC agent for Carla cont.
 """
-
-import torch
-import torch.nn as nn
-from .utils import normalized_columns_initializer, set_init, push_and_pull, \
-    record
-import torch.nn.functional as F
-from torch.autograd import Variable
-import torch.multiprocessing as mp
-from .shared_adam import SharedAdam
-import math
-import numpy as np
-
-# Env related
 import os
-# sys.path.append(os.path.join(os.getcwd(),"../../"))
-
 import glob
 import datetime
 import time
+import math
+import json
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.autograd import Variable
+import torch.multiprocessing as mp
 from tensorboardX import SummaryWriter
 
+from .utils import normalized_columns_initializer, set_init, push_and_pull, \
+    record
+from .shared_adam import SharedAdam
 from env.carla.multi_env import MultiCarlaEnv, DEFAULT_MULTIENV_CONFIG
 from env.carla.scenarios import update_scenarios_parameter
 
-import json
+# TODO: Move to actor config or argps
+LOG_DIR = os.path.expanduser("~/tensorboard_logs")
+MODEL_DIR = "saved_models"
 
 env_config = DEFAULT_MULTIENV_CONFIG
-config_update = update_scenarios_parameter(json.load(
-    open("agents/TDAC/env_config.json")))
+config_update = update_scenarios_parameter(
+    json.load(open("agents/TDAC/env_config.json")))
 env_config.update(config_update)
 
 vehicle_name = next(iter(env_config['actors'].keys()))
@@ -43,11 +43,11 @@ MAX_EP = 10000000  # 10M
 MAX_EP_STEP = 2000
 SAVE_STEP = 2000000  # Every 1000 episodes at the minimum
 
-save_model_dir = os.path.expanduser("~/saved_models/tdac/continuous_A3C/")
-if not os.path.exists(save_model_dir + "global/"):
-    os.makedirs(save_model_dir + "global/")
-if not os.path.exists(save_model_dir + "local/"):
-    os.makedirs(save_model_dir + "local/")
+save_model_dir = os.path.expanduser(MODEL_DIR)
+if not os.path.exists(os.path.join(save_model_dir, "global")):
+    os.makedirs(os.path.join(save_model_dir, "global"))
+if not os.path.exists(os.path.join(save_model_dir, "local")):
+    os.makedirs(os.path.join(save_model_dir, "local"))
 
 
 # Works only with Carla env with continous action space
@@ -62,8 +62,8 @@ class Net(nn.Module):
         self.input_image_size = np.product(self.input_image_shape)
         # 1 is for the discrete space in state_space.spaces[1]
         self.input_measurements_shape = 1 + state_space.spaces[2].shape[0]
-        self.conv1 = nn.Conv2d(np.int(self.input_image_shape[2]), 32, 4,
-                               stride=2, padding=1)
+        self.conv1 = nn.Conv2d(
+            np.int(self.input_image_shape[2]), 32, 4, stride=2, padding=1)
         self.conv2 = nn.Conv2d(32, 32, 4, stride=2, padding=1)
         self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
         self.conv4 = nn.Conv2d(32, 32, 2, stride=1, padding=1)
@@ -79,8 +79,10 @@ class Net(nn.Module):
 
         # Init weights
         # self.apply(weights_init)
-        set_init([self.conv1, self.conv2, self.conv3, self.conv4, self.linear,
-                  self.critic_linear, self.actor_mu, self.actor_sigma])
+        set_init([
+            self.conv1, self.conv2, self.conv3, self.conv4, self.linear,
+            self.critic_linear, self.actor_mu, self.actor_sigma
+        ])
 
         self.actor_mu.weight.data = normalized_columns_initializer(
             self.actor_mu.weight.data, 0.01)
@@ -122,7 +124,7 @@ class Net(nn.Module):
     def choose_action(self, s):
         self.training = False
         mu, sigma, _ = self.forward(s)
-        m = self.distribution(mean=mu.data, std=sigma.data)
+        m = self.distribution(mu.data, sigma.data)
         return m.sample().numpy()
 
     def loss_func(self, s, a, v_t):
@@ -131,9 +133,9 @@ class Net(nn.Module):
         td = v_t - values
         c_loss = td.pow(2)
 
-        m = self.distribution(mean=mu, std=sigma)
+        m = self.distribution(mu, sigma)
         log_prob = m.log_prob(a)
-        entropy = 0.5 + 0.5 * math.log(2 * math.pi) + torch.log(m.std)
+        entropy = 0.5 + 0.5 * math.log(2 * math.pi) + torch.log(m.scale)
         exp_v = log_prob * td.detach() + 0.005 * entropy
         a_loss = -exp_v
         total_loss = (a_loss + c_loss).mean()
@@ -151,8 +153,10 @@ class Worker(mp.Process):
         self.env = MultiCarlaEnv(env_config)
 
     def run(self):
-        last_checkpoint = max(glob.glob(save_model_dir + "local/*"),
-                              key=os.path.getctime, default=None)
+        last_checkpoint = max(
+            glob.glob(save_model_dir + "local/*"),
+            key=os.path.getctime,
+            default=None)
         if last_checkpoint:
             self.lnet.load_state_dict(torch.load(last_checkpoint))
             print("Loaded saved local model:", last_checkpoint)
@@ -161,37 +165,44 @@ class Worker(mp.Process):
         mean_episode_len = 0
         total_step = 1
         now = datetime.datetime.now()
-        summary_writer = SummaryWriter(os.path.expanduser(
-            "~/tensorboard_log/continuous_a3c/{}_{}_{}_{}_{}_{}_{}".format(
-                now.year, now.month, now.day, now.hour, now.minute,
-                now.second, self.name)))
+        summary_writer = SummaryWriter(
+            os.path.join(
+                LOG_DIR, "continuous_a3c/{}_{}_{}_{}_{}_{}_{}".format(
+                    now.year, now.month, now.day, now.hour, now.minute,
+                    now.second, self.name)))
         while self.g_ep.value < MAX_EP:
             state = self.env.reset()[vehicle_name]
-            state = torch.from_numpy(np.concatenate((
-                state[0].flatten(), np.array([state[1]]),
-                np.array(state[2]).flatten())))
+            state = torch.from_numpy(
+                np.concatenate((state[0].flatten(), np.array([state[1]]),
+                                np.array(state[2]).flatten())))
             buffer_s, buffer_a, buffer_r = [], [], []
             ep_r = 0.
             times_sum = 0.0
             for t in range(MAX_EP_STEP):
                 start_time = time.time()
                 action = self.lnet.choose_action(Variable(state).float())
-                next_state, reward, done, py_measurements = self.env.step(
-                    {vehicle_name: action.squeeze().clip(-1, 1)})
+                next_state, reward, done, py_measurements = self.env.step({
+                    vehicle_name:
+                    action.squeeze().clip(-1, 1)
+                })
                 reward = reward[vehicle_name]
                 next_state = next_state[vehicle_name]
                 done = done[vehicle_name]
                 py_measurements = py_measurements[vehicle_name]
 
                 times_sum += time.time() - start_time
-                summary_writer.add_scalar("Cur Rew", torch.DoubleTensor(
-                    [reward]), total_step)
-                summary_writer.add_scalar("Dist to Goal", torch.DoubleTensor(
-                    [py_measurements["distance_to_goal_euclidean"]]),
+                summary_writer.add_scalar("Cur Rew",
+                                          torch.DoubleTensor([reward]),
                                           total_step)
-                next_state = torch.from_numpy(np.concatenate(
-                    (next_state[0].flatten(), np.array([next_state[1]]),
-                     np.array(next_state[2]).flatten())))
+                summary_writer.add_scalar(
+                    "Dist to Goal",
+                    torch.DoubleTensor(
+                        [py_measurements["distance_to_goal_euclidean"]]),
+                    total_step)
+                next_state = torch.from_numpy(
+                    np.concatenate((next_state[0].flatten(),
+                                    np.array([next_state[1]]),
+                                    np.array(next_state[2]).flatten())))
                 if t == MAX_EP_STEP - 1:
                     done = True
                 ep_r += reward
@@ -215,32 +226,30 @@ class Worker(mp.Process):
                 state = next_state
                 if total_step % SAVE_STEP == 0:
                     current_time = int(round(time.time() * 1000))
-                    torch.save(self.lnet.state_dict(),
-                               "{}local/{}_{}.pt".format(save_model_dir,
-                                                         total_step,
-                                                         current_time))
-                    torch.save(self.gnet.state_dict(),
-                               "{}global/{}_{}.pt".format(save_model_dir,
-                                                          total_step,
-                                                          current_time))
+                    torch.save(
+                        self.lnet.state_dict(), "{}local/{}_{}.pt".format(
+                            save_model_dir, total_step, current_time))
+                    torch.save(
+                        self.gnet.state_dict(), "{}global/{}_{}.pt".format(
+                            save_model_dir, total_step, current_time))
                 total_step += 1
 
             if py_measurements["distance_to_goal_euclidean"] < 2.0:
                 successful_episodes += 1
 
-            summary_writer.add_scalar("Numof Successfully Completed Episodes",
-                                      torch.DoubleTensor([successful_episodes
-                                                          / self.g_ep.value]),
+            summary_writer.add_scalar(
+                "Numof Successfully Completed Episodes",
+                torch.DoubleTensor([successful_episodes / self.g_ep.value]),
+                self.g_ep.value)
+            summary_writer.add_scalar("Mean Reward",
+                                      torch.DoubleTensor([ep_r / (t + 1)]),
                                       self.g_ep.value)
-            summary_writer.add_scalar("Mean Reward", torch.DoubleTensor(
-                [ep_r / (t + 1)]), self.g_ep.value)
-            summary_writer.add_scalar("Mean Time Per Iteration in Seconds",
-                                      torch.DoubleTensor(
-                                          [times_sum / (t + 1)]),
-                                      self.g_ep.value)
+            summary_writer.add_scalar(
+                "Mean Time Per Iteration in Seconds",
+                torch.DoubleTensor([times_sum / (t + 1)]), self.g_ep.value)
 
-            mean_episode_len += ((episode_len - mean_episode_len)
-                                 / self.g_ep.value)
+            mean_episode_len += (
+                (episode_len - mean_episode_len) / self.g_ep.value)
             summary_writer.add_scalar("Mean Episode Length",
                                       torch.DoubleTensor([mean_episode_len]),
                                       total_step)
@@ -252,8 +261,10 @@ class Worker(mp.Process):
 if __name__ == "__main__":
     gnet = Net(N_S, N_A)  # global network
 
-    last_checkpoint = max(glob.glob(save_model_dir + "global/*"),
-                          key=os.path.getctime, default=None)
+    last_checkpoint = max(
+        glob.glob(save_model_dir + "global/*"),
+        key=os.path.getctime,
+        default=None)
     if last_checkpoint:
         gnet.load_state_dict(torch.load(last_checkpoint))
         print("Loaded saved global model:", last_checkpoint)
@@ -263,8 +274,10 @@ if __name__ == "__main__":
                                          mp.Queue())
 
     # parallel training
-    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i
-               in range(3)]  # mp.cpu_count())]
+    workers = [
+        Worker(gnet, opt, global_ep, global_ep_r, res_queue, i)
+        for i in range(3)
+    ]  # mp.cpu_count())]
     [w.start() for w in workers]
     res = []  # record episode reward to plo8
     while True:
