@@ -3,7 +3,7 @@
 
 import torch
 import torch.nn as nn
-from .utils import normalized_columns_initializer, set_init, push_and_pull,\
+from .utils import normalized_columns_initializer, set_init, push_and_pull, \
     record
 import torch.nn.functional as F
 from torch.autograd import Variable
@@ -31,7 +31,7 @@ config_update = update_scenarios_parameter(json.load(
     open("agents/TDAC/env_config.json")))
 env_config.update(config_update)
 
-vehicle_name = next(iter(env_config.keys()))
+vehicle_name = next(iter(env_config['actors'].keys()))
 
 env = MultiCarlaEnv(env_config)
 N_S = env.observation_space
@@ -152,7 +152,7 @@ class Worker(mp.Process):
 
     def run(self):
         last_checkpoint = max(glob.glob(save_model_dir + "local/*"),
-                              key=os.path.getctime)
+                              key=os.path.getctime, default=None)
         if last_checkpoint:
             self.lnet.load_state_dict(torch.load(last_checkpoint))
             print("Loaded saved local model:", last_checkpoint)
@@ -163,8 +163,8 @@ class Worker(mp.Process):
         now = datetime.datetime.now()
         summary_writer = SummaryWriter(os.path.expanduser(
             "~/tensorboard_log/continuous_a3c/{}_{}_{}_{}_{}_{}_{}".format(
-                now.year, now.month, now.day, now.hour, now.minute, now.second,
-                self.name)))
+                now.year, now.month, now.day, now.hour, now.minute,
+                now.second, self.name)))
         while self.g_ep.value < MAX_EP:
             state = self.env.reset()[vehicle_name]
             state = torch.from_numpy(np.concatenate((
@@ -235,7 +235,8 @@ class Worker(mp.Process):
             summary_writer.add_scalar("Mean Reward", torch.DoubleTensor(
                 [ep_r / (t + 1)]), self.g_ep.value)
             summary_writer.add_scalar("Mean Time Per Iteration in Seconds",
-                                      torch.DoubleTensor([times_sum / (t + 1)]),
+                                      torch.DoubleTensor(
+                                          [times_sum / (t + 1)]),
                                       self.g_ep.value)
 
             mean_episode_len += ((episode_len - mean_episode_len)
@@ -252,7 +253,7 @@ if __name__ == "__main__":
     gnet = Net(N_S, N_A)  # global network
 
     last_checkpoint = max(glob.glob(save_model_dir + "global/*"),
-                          key=os.path.getctime)
+                          key=os.path.getctime, default=None)
     if last_checkpoint:
         gnet.load_state_dict(torch.load(last_checkpoint))
         print("Loaded saved global model:", last_checkpoint)
