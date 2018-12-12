@@ -32,7 +32,6 @@ from env.core.sensors.utils import preprocess_image
 # from env.core.sensors.utils import get_transform_from_nearest_way_point
 from env.carla.reward import Reward
 from env.carla.carla.planner.planner import Planner
-from env.core.sensors.camera_list import CameraList
 from env.core.sensors.hud import HUD
 sys.path.append(
     glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
@@ -211,7 +210,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.x_res = self.env_config["x_res"]
         self.y_res = self.env_config["y_res"]
         self.use_depth_camera = False  # !!test
-        self.camera_list = CameraList(CARLA_OUT_PATH)
+        self.cameras = {}
         self.planner = Planner(self.city)  # A* based navigation planner
 
         # self.config["server_map"] = "/Game/Carla/Maps/" + args.map
@@ -361,7 +360,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         """
 
-        for cam in self.camera_list.cam_list.values():
+        for cam in self.cameras.values():
             cam.sensor.destroy()
         for actor in self.actors.values():
             actor.destroy()
@@ -407,21 +406,22 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 error = e
         raise error
 
-    def _on_render(self, i=0):
+    # TODO: Is this function required?
+    # TODO: Thought: Run server in headless mode always. Use pygame win on
+    # client when render=True
+    def _on_render(self):
         """Render the pygame window.
 
         Args:
-            i (int): the index of list self.actor_list.
 
         Returns:
             N/A
         """
-        # 0 instead of i, easy test
-        i = 0
-        surface = self.camera_list.cam_list[i]._surface
-        if surface is not None:
-            self._display.blit(surface, (0, 0))
-        pygame.display.flip()
+        for cam in self.cameras.values():
+            surface = cam._surface
+            if surface is not None:
+                self._display.blit(surface, (0, 0))
+            pygame.display.flip()
 
     def _reset(self):
         """Initialize actors.
@@ -519,7 +519,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
             # TODO: Fix the hard-corded 0 id
             camera_manager.set_sensor(0, notify=False)
-            self.camera_list.cam_list.update({actor_id: camera_manager})
+            self.cameras.update({actor_id: camera_manager})
 
             self.start_coord.update({
                 actor_id: [
@@ -542,8 +542,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         time.sleep(0.5)  # Small wait for the server to spawn all the actors
         print('Environment initialized with requested actors.')
-        # TODO: CameraList class looks unnecessary. Cleanup.
-        for actor_id, cam in self.camera_list.cam_list.items():
+        for actor_id, cam in self.cameras.items():
             # TODO: Move the initialization value setting to appropriate place
             # Set appropriate initial values
             self.last_reward[actor_id] = None
@@ -783,7 +782,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 #    self.images_to_video()
                 #    self.video = Trueseg_city_space
 
-        original_image = self.camera_list.cam_list[actor_id].image
+        original_image = self.cameras[actor_id].image
         config = self.actor_configs[actor_id]
         image = preprocess_image(original_image, config)
 
