@@ -786,9 +786,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     os.path.join(
                         CARLA_OUT_PATH,
                         "measurements_{}.json".
-                            format(self.episode_id_dict[actor_id])), "w")
+                        format(self.episode_id_dict[actor_id])), "w")
             self.measurements_file_dict[actor_id].\
-                                    write(json.dumps(py_measurements))
+                write(json.dumps(py_measurements))
             self.measurements_file_dict[actor_id].write("\n")
             if done:
                 self.measurements_file_dict[actor_id].close()
