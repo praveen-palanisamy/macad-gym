@@ -81,8 +81,11 @@ class CameraManager(object):
         self.sensor.set_transform(
             self._camera_transforms[self._transform_index])
 
+    # TODO: Remove the hardcoded int index and make it sensor_type
     def set_sensor(self, index, notify=True):
         index = index % len(self._sensors)
+        # TODO: Remove the hardcoded 0 ad use camera_type
+        # TODO: Use same keys as used in self._sensors
         needs_respawn = True if self._index is None \
             else self._sensors[index][0] != self._sensors[self._index][0]
         if needs_respawn:

@@ -15,24 +15,21 @@ def preprocess_image(image, config):
     """
 
     # Retrieve data from config
-    render_x_res = config["render_x_res"]
-    render_y_res = config["render_y_res"]
     x_res = config["x_res"]
     y_res = config["y_res"]
     use_depth_camera = config["use_depth_camera"]
 
     # Process image based on config data
     if use_depth_camera:
-        assert use_depth_camera
         data = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-        data = np.reshape(data, (render_y_res, render_x_res, 4))
+        data = np.reshape(data, (image.height, image.width, 4))
         data = data[:, :, :1]
         data = data[:, :, ::-1]
         data = cv2.resize(data, (x_res, y_res), interpolation=cv2.INTER_AREA)
         data = np.expand_dims(data, 2)
     else:
         data = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-        data = np.reshape(data, (render_y_res, render_x_res, 4))
+        data = np.reshape(data, (image.height, image.width, 4))
         data = data[:, :, :3]
         data = data[:, :, ::-1]
         data = cv2.resize(data, (x_res, y_res), interpolation=cv2.INTER_AREA)

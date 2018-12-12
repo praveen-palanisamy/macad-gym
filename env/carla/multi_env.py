@@ -62,8 +62,8 @@ DEFAULT_MULTIENV_CONFIG = {
         "render": True,
         "render_x_res": 800,
         "render_y_res": 600,
-        "x_res": 80,
-        "y_res": 80,
+        "x_res": 84,
+        "y_res": 84,
         "framestack": 1,
         "discrete_actions": False,
         "squash_action_logits": False,
@@ -337,8 +337,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # TODO: Use env_config values for setting ResX, ResY params
         else:
             self.server_process = subprocess.Popen([
-                SERVER_BINARY, self.server_map, "-windowed", "-ResX=800",
-                "-ResY=600", "-benchmark -fps=10"
+                SERVER_BINARY, self.server_map, "-windowed", "-ResX=",
+                str(self.env_config["render_x_res"]), "-ResY=",
+                str(self.env_config["render_y_res"]), "-benchmark -fps=10"
                 "-carla-server", "-carla-world-port={}".format(
                     self.server_port)
             ],
@@ -508,8 +509,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
             # Spawn cameras
             pygame.font.init()  # for HUD
-            hud = HUD(self.env_config["render_x_res"],
-                      self.env_config["render_y_res"])
+            hud = HUD(self.env_config["x_res"], self.env_config["x_res"])
             camera_manager = CameraManager(self.actors[actor_id], hud)
             if actor_config["log_images"]:
                 # TODO: The recording option should be part of config
@@ -517,7 +517,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 # 2: save to memory first, dump to disk on exit
                 camera_manager.set_recording_option(1)
 
-            # TODO: Fix the hard-corded 0 id
+            # TODO: Fix the hard-corded 0 id use sensor_type-> "camera"
+            # TODO: Make this consistent with keys in CameraManger's._sensors
             camera_manager.set_sensor(0, notify=False)
             self.cameras.update({actor_id: camera_manager})
 
