@@ -282,6 +282,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.lane_invasions = {}
         self.scenario_map = {}
         self.done_dict = {}
+        self.dones = set()  # Set of all done actor IDs
 
         logging.basicConfig(filename='carla_server.log', level=logging.DEBUG)
 
@@ -499,9 +500,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         y=self.start_pos[actor_id][1],
                         z=self.start_pos[actor_id][2]),
                     carla.Rotation(pitch=0, yaw=0, roll=0))
-                print('spawning vehicle %r with %d wheels' %
-                      (blueprint.id,
-                       blueprint.get_attribute('number_of_wheels')))
+                print('spawning vehicle %r with %d wheels' % (
+                    blueprint.id, blueprint.get_attribute('number_of_wheels')))
 
                 # Spawn actors
                 vehicle = world.try_spawn_actor(blueprint, transform)
@@ -548,12 +548,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     ]
                 })
 
-                print(
-                    "Actor: {} start_pos(coord): {} ({}), "
-                    "end_pos(coord) {} ({})".
-                    format(actor_id, self.start_pos[actor_id],
-                           self.start_coord[actor_id], self.end_pos[actor_id],
-                           self.end_coord[actor_id]))
+                print("Actor: {} start_pos(coord): {} ({}), "
+                      "end_pos(coord) {} ({})".format(
+                          actor_id, self.start_pos[actor_id],
+                          self.start_coord[actor_id], self.end_pos[actor_id],
+                          self.end_coord[actor_id]))
 
         time.sleep(0.5)  # Small wait for the server to spawn all the actors
         print('Environment initialized with requested actors.')
@@ -571,8 +570,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
                 actor_config = self.actor_configs[actor_id]
                 image = preprocess_image(cam.image, actor_config)
-                obs = self.encode_obs(actor_id, image,
-                                      py_measurement)
+                obs = self.encode_obs(actor_id, image, py_measurement)
                 self.obs_dict[actor_id] = obs
 
         return self.obs_dict
@@ -661,7 +659,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 obs_dict[actor_id] = obs
                 reward_dict[actor_id] = reward
                 self.done_dict[actor_id] = done
+                if done:
+                    self.dones.add(actor_id)
                 info_dict[actor_id] = info
+            self.done_dict["__all__"] = len(self.dones) == len(self.actors)
             return obs_dict, reward_dict, self.done_dict, info_dict
         except Exception as xception:
             print("Error during step, terminating episode early",
@@ -784,9 +785,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             if not self.measurements_file_dict[actor_id]:
                 self.measurements_file_dict[actor_id] = open(
                     os.path.join(
-                        CARLA_OUT_PATH,
-                        "measurements_{}.json".
-                        format(self.episode_id_dict[actor_id])), "w")
+                        CARLA_OUT_PATH, "measurements_{}.json".format(
+                            self.episode_id_dict[actor_id])), "w")
             self.measurements_file_dict[actor_id].\
                 write(json.dumps(py_measurements))
             self.measurements_file_dict[actor_id].write("\n")
