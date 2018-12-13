@@ -54,7 +54,7 @@ SERVER_BINARY = os.environ.get(
 
 assert os.path.exists(SERVER_BINARY)
 
-# TODO: Cleanup env & actor configs to have appropriate keys based on the nature
+# TODO: Clean env & actor configs to have appropriate keys based on the nature
 # of env
 DEFAULT_MULTIENV_CONFIG = {
     "env": {
@@ -185,9 +185,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             `env` key and configurations for each actor specified as dict under
             `actor`.
             Example:
-                >>> configs = { "env": {"server_map": "/Game/Carla/Maps/Town02",
-                "render": True,}, "actor": {"actor_id1": {"enable_planner": True
-                }, "actor_id2": {"enable_planner": False)}}}
+                >>> configs = {
+                "env": {"server_map": "/Game/Carla/Maps/Town02",
+                "render": True,}, "actor": {"actor_id1":
+                {"enable_planner": True},
+                "actor_id2": {"enable_planner": False)}}}
 
         """
         self.env_config = configs["env"]
@@ -350,10 +352,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         live_carla_processes.add(os.getpgid(self.server_process.pid))
 
-        time.sleep(10)  # Wait for CARLA server to initialize
-
         # Start client
-        self.client = carla.Client("localhost", self.server_port)
+        self.client = None
+        while self.client is None:
+            self.client = carla.Client("localhost", self.server_port)
+            self.client.set_timeout(1.0)
+            try:
+                self.client.get_server_version()
+            except RuntimeError:
+                self.client = None
+        self.client.set_timeout(999999.0)
 
     def clean_world(self):
         """Destroy all actors cleanly before exiting
@@ -504,7 +512,21 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     blueprint.id, blueprint.get_attribute('number_of_wheels')))
 
                 # Spawn actors
-                vehicle = world.try_spawn_actor(blueprint, transform)
+                vehicle = None
+                spawn_tries = 5
+                while vehicle is None:
+                    vehicle = world.try_spawn_actor(blueprint, transform)
+                    if vehicle is None:
+                        spawn_tries -= 1
+                        if spawn_tries == 0:
+                            break
+                        time.sleep(1.0)
+                if vehicle is None:
+                    print('unable to spawn vehicle %r with %d wheels' %
+                          (blueprint.id,
+                           blueprint.get_attribute('number_of_wheels')))
+                    continue
+
                 print('vehicle at ',
                       vehicle.get_location().x,
                       vehicle.get_location().y,
@@ -627,7 +649,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         Raises
             RuntimeError: If `step(...)` is called before calling `reset()`
             ValueError: If `action_dict` is not a dictionary of actions
-            ValueError: If `action_dict` contains actions for non-existent actor
+            ValueError: If `action_dict` contains actions for nonexistent actor
         """
 
         if (not self.server_process) or (not self.client):
@@ -635,8 +657,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         assert len(self.actors), "No actors exist in the environment. Either" \
                                  " the environment was not properly " \
-                                 "initialized using`reset()` or all the" \
-                                 " actors have exited. Cannot execute `step()`."
+                                 "initialized using`reset()` or all the " \
+                                 "actors have exited. Cannot execute `step()`."
 
         if not isinstance(action_dict, dict):
             raise ValueError("`step(action_dict)` expected dict of actions. "
@@ -793,7 +815,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             if done:
                 self.measurements_file_dict[actor_id].close()
                 self.measurements_file_dict[actor_id] = None
-                # if self.config["convert_images_to_video"] and (not self.video)
+                # if self.config["convert_images_to_video"] and\
+                #  (not self.video):
                 #    self.images_to_video()
                 #    self.video = Trueseg_city_space
 
