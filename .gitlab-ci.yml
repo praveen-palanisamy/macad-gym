@@ -15,10 +15,10 @@ cache:
     - .cache/pip
 
 before_script:
-  #- apt-get update -q -y
-  #- apt-get install -y build-essential
-  - conda env create -f conda_env.yaml -n test_env
-  - source activate test_env 
+  - apt-get update -q -y
+  - apt-get install -y build-essential
+  #- conda env create -f conda_env.yaml
+  #- source activate carla_gym
   - python -V               # Print out python version for debugging
 
 code_standard:
@@ -29,10 +29,7 @@ code_standard:
   # - bash .ci/format_code.sh --all
   - flake8  --max-line-length 80 --exclude=./env/carla/PythonAPI/*,./env/carla/carla/*,.git,__pycache__
 
-tests:
-  script:
-  - pip install pytest
-  - python -m pytest tests/
+
 #run:
   #script:
   
