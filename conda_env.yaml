@@ -17,7 +17,7 @@ dependencies:
   - ncurses=6.1
   - numpy=1.15.4
   - numpy-base=1.15.4
-  - openssl=1.1.1
+  - openssl=1.1.1a
   - pip=10.0.1
   - python=3.6.7
   - readline=7.0
@@ -42,6 +42,7 @@ dependencies:
     - cython==0.27.3
     - decorator==4.3.0
     - dill==0.2.8.2
+    - enum34==1.1.6
     - flake8==3.6.0
     - flatbuffers==1.10
     - funcsigs==1.0.2
@@ -87,13 +88,13 @@ dependencies:
     - ray==0.6.0
     - redis==2.10.6
     - requests==2.19.1
-    - rllab==0.0.1.dev0
     - scipy==1.1.0
+    - setproctitle==1.1.10
     - six==1.11.0
     - tensorboardx==1.5
     - tensorflow-gpu==1.4.1
     - tensorflow-tensorboard==0.4.0
-    - torch==0.4.1.post2
+    - torch==0.4.1
     - tqdm==4.26.0
     - traitlets==4.3.2
     - urllib3==1.23
