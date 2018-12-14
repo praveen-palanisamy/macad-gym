@@ -15,6 +15,7 @@ class CameraManager(object):
     """
 
     def __init__(self, parent_actor, hud):
+        self.display = None
         self.image = None  # need image to encode obs.
         self.image_list = []  # for save images later.
         self.sensor = None
@@ -28,7 +29,7 @@ class CameraManager(object):
             carla.Transform(
                 carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15))
         ]
-        self._transform_index = 1
+        self._transform_index = 0
         self._sensors = [
             ['sensor.camera.rgb', cc.Raw, 'Camera RGB'],
             ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)'],
@@ -113,9 +114,12 @@ class CameraManager(object):
         self._hud.notification(
             'Recording %s' % ('On' if self._recording else 'Off'))
 
-    def render(self, display):
+    def render(self, display, x, y):
+        if self._surface is None:
+            print("is not receiving surface.")
         if self._surface is not None:
-            display.blit(self._surface, (0, 0))
+            display.blit(self._surface, (x, y))
+            pygame.display.flip()
 
     @staticmethod
     def _parse_image(weak_self, image):

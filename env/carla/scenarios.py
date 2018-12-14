@@ -46,6 +46,24 @@ DEFAULT_SCENARIO_TOWN1_2 = build_scenario(
     max_steps=200,
     weathers=[0])
 
+DEFAULT_SCENARIO_TOWN1_3 = build_scenario(
+    city="Town01",
+    start=126,
+    end=65,
+    vehicles=20,
+    pedestrians=40,
+    max_steps=200,
+    weathers=[0])
+
+DEFAULT_SCENARIO_TOWN1_4 = build_scenario(
+    city="Town01",
+    start=124,
+    end=65,
+    vehicles=20,
+    pedestrians=40,
+    max_steps=200,
+    weathers=[0])
+
 DEFAULT_SCENARIO_TOWN2 = build_scenario(
     city="Town01",
     start=[47],
