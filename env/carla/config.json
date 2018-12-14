@@ -1,7 +1,7 @@
 {
     "env": {
         "server_map": "/Game/Carla/Maps/Town01",
-        "render": false,
+        "render": true,
         "render_x_res": 800,
         "render_y_res": 600,
         "x_res": 84,
@@ -33,8 +33,7 @@
             "x_res": 80,
             "y_res": 80,
             "use_depth_camera": false,
-            "send_measurements": false,
-            "render": true
+            "send_measurements": false
         },
         "vehicle2": {
             "enable_planner": true,
@@ -54,52 +53,7 @@
             "x_res": 80,
             "y_res": 80,
             "use_depth_camera": false,
-            "send_measurements": false,
-            "render": true
-        },
-
-        "vehicle3": {
-            "enable_planner": true,
-            "convert_images_to_video": false,
-            "early_terminate_on_collision": true,
-            "reward_function": "corl2017",
-            "scenarios": "DEFAULT_SCENARIO_TOWN1_3",
-            "manual_control": false,
-            "auto_control": true,
-            "camera_type": "rgb",
-            "collision_sensor": "on",
-            "lane_sensor": "on",
-            "log_images": false,
-            "log_measurements": false,
-            "render_x_res": 800,
-            "render_y_res": 600,
-            "x_res": 80,
-            "y_res": 80,
-            "use_depth_camera": false,
-            "send_measurements": false,
-            "render": true
-        },
-
-        "vehicle4": {
-            "enable_planner": true,
-            "convert_images_to_video": false,
-            "early_terminate_on_collision": true,
-            "reward_function": "corl2017",
-            "scenarios": "DEFAULT_SCENARIO_TOWN1_4",
-            "manual_control": false,
-            "auto_control": true,
-            "camera_type": "rgb",
-            "collision_sensor": "on",
-            "lane_sensor": "on",
-            "log_images": false,
-            "log_measurements": false,
-            "render_x_res": 800,
-            "render_y_res": 600,
-            "x_res": 80,
-            "y_res": 80,
-            "use_depth_camera": false,
-            "send_measurements": false,
-            "render": true
+            "send_measurements": false
         }
     }
 }

@@ -25,6 +25,7 @@ import traceback
 import numpy as np  # linalg.norm is used
 import GPUtil
 from gym.spaces import Box, Discrete, Tuple
+import pygame
 
 from env.multi_actor_env import MultiActorEnv
 from env.core.sensors.utils import preprocess_image
@@ -32,17 +33,15 @@ from env.core.sensors.utils import preprocess_image
 from env.carla.reward import Reward
 from env.carla.carla.planner.planner import Planner
 from env.core.sensors.hud import HUD
-from env.core.sensors.render import render
-
 sys.path.append(
     glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
               f'{sys.version_info.minor}-linux-x86_64.egg')[0])
 import carla  # noqa: E402
-
 # The following import depend on carla. TODO: Can it be made better?
 from env.core.sensors.camera_manager import CameraManager  # noqa: E402
 from env.core.sensors.derived_sensors import LaneInvasionSensor  # noqa: E402
 from env.core.sensors.derived_sensors import CollisionSensor  # noqa: E402
+from env.core.controllers.keyboard_control import KeyboardControl  # noqa: E402
 
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
@@ -218,6 +217,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         # self.config["server_map"] = "/Game/Carla/Maps/" + args.map
 
+        # Initialize to be compatible with cam_manager to set HUD.
+        pygame.font.init()  # for HUD
+        self.hud = HUD(self.render_x_res, self.render_y_res)
+
         # Needed by agents
         if self.discrete_actions:
             self.action_space = Discrete(len(DISCRETE_ACTIONS))
@@ -292,12 +295,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         elif choice == "DEFAULT_SCENARIO_TOWN1_2":
             from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1_2
             return DEFAULT_SCENARIO_TOWN1_2
-        elif choice == "DEFAULT_SCENARIO_TOWN1_3":
-            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1_3
-            return DEFAULT_SCENARIO_TOWN1_3
-        elif choice == "DEFAULT_SCENARIO_TOWN1_4":
-            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1_4
-            return DEFAULT_SCENARIO_TOWN1_4
         elif choice == "DEFAULT_SCENARIO_TOWN2":
             from env.carla.scenarios import DEFAULT_SCENARIO_TOWN2
             return DEFAULT_SCENARIO_TOWN2
@@ -420,6 +417,23 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 error = e
         raise error
 
+    # TODO: Is this function required?
+    # TODO: Thought: Run server in headless mode always. Use pygame win on
+    # client when render=True
+    def _on_render(self):
+        """Render the pygame window.
+
+        Args:
+
+        Returns:
+            N/A
+        """
+        for cam in self.cameras.values():
+            surface = cam._surface
+            if surface is not None:
+                self._display.blit(surface, (0, 0))
+            pygame.display.flip()
+
     def _reset(self):
         """Initialize actors.
 
@@ -528,7 +542,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     self.lane_invasions.update({actor_id: lane_sensor})
 
                 # Spawn cameras
-                hud = HUD(self.render_x_res, self.render_y_res)
+                pygame.font.init()  # for HUD
+                hud = HUD(self.env_config["x_res"], self.env_config["x_res"])
                 camera_manager = CameraManager(self.actors[actor_id], hud)
                 if actor_config["log_images"]:
                     # TODO: The recording option should be part of config
@@ -579,6 +594,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 image = preprocess_image(cam.image, actor_config)
                 obs = self.encode_obs(actor_id, image, py_measurement)
                 self.obs_dict[actor_id] = obs
+
         return self.obs_dict
 
     def encode_obs(self, actor_id, image, py_measurements):
@@ -669,10 +685,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     self.dones.add(actor_id)
                 info_dict[actor_id] = info
             self.done_dict["__all__"] = len(self.dones) == len(self.actors)
-
-            render(obs_dict, [self.render_x_res, self.render_y_res],
-                   self.actor_configs)
-
             return obs_dict, reward_dict, self.done_dict, info_dict
         except Exception as xception:
             print("Error during step, terminating episode early",
@@ -719,16 +731,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         config = self.actor_configs[actor_id]
         if config['manual_control']:
-            pass
-            # TODO: Rewrite this part to use new render function.
-            # clock = pygame.time.Clock()
+            clock = pygame.time.Clock()
             # pygame
-            # self._display = pygame.display.set_mode(
-            #     (800, 600), pygame.HWSURFACE | pygame.DOUBLEBUF)
-            # logging.debug('pygame started')
-            # controller = KeyboardControl(self, False)
-            # controller.actor_id = actor_id
-            # controller.parse_events(self, clock)
+            self._display = pygame.display.set_mode(
+                (800, 600), pygame.HWSURFACE | pygame.DOUBLEBUF)
+            logging.debug('pygame started')
+            controller = KeyboardControl(self, False)
+            controller.actor_id = actor_id
+            controller.parse_events(self, clock)
+            # TODO: Is this _on_render() method necessary? why?
+            self._on_render()
         elif config["auto_control"]:
             self.actors[actor_id].set_autopilot()
         else:
@@ -1019,7 +1031,7 @@ if __name__ == "__main__":
         start = time.time()
         i = 0
         # while not done["__all__"]:
-        while i < 50:  # TEST
+        while i < 20:  # TEST
             i += 1
             obs, reward, done, info = env.step(action_dict)
             action_dict = get_next_actions(info, env.discrete_actions)
@@ -1033,7 +1045,7 @@ if __name__ == "__main__":
             for d in done:
                 done_temp = done_temp and done[d]
             done["__all__"] = done_temp
-            # time.sleep(2)
+            time.sleep(0.1)
 
         print("{} fps".format(i / (time.time() - start)))
 
