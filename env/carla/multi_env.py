@@ -169,7 +169,7 @@ try:
     from ray.rllib.env import MultiAgentEnv
     MultiAgentEnvBases.append(MultiAgentEnv)
 except ImportError as err:
-    logging.WARN(err, "\n Disabling RLlib support.")
+    logging.warning(err, "\n Disabling RLlib support.")
     pass
 
 

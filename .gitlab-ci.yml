@@ -15,24 +15,29 @@ cache:
     - .cache/pip
 
 before_script:
-  - apt-get update -q -y >> log.txt
-  - apt-get install -y build-essential cmake zlib1g-dev >> log.txt
-  - conda env create -f conda_env.yaml -n test_env
-  - source activate test_env 
-  - python -V               # Print out python version for debugging
+  #- apt-get update -q -y >> log.txt
+  #- apt-get install -y build-essential cmake zlib1g-dev libglib2.0-0 >> log.txt
+  #- conda env create -f conda_env.yaml -n test_env
+  #- source activate test_env
+  - python3 -V               # Print out python version for debugging
 
 code_standard:
   script:
   #- python setup.py test
-  - pip install flake8
+  - pip3 install flake8
   #- tox -e py36,flake8
   # - bash .ci/format_code.sh --all
   - flake8  --max-line-length 80 --exclude=./env/carla/PythonAPI/*,./env/carla/carla/*,.git,__pycache__
 
 tests:
   script:
+  - apt-get update -q -y >> log.txt
+  - apt-get install -y build-essential python3-dev cmake zlib1g-dev libglib2.0-0 libjpeg-dev libpng-dev libtiff5-dev >> log.txt
+  - conda env create -f conda_env.yaml -n test_env
+  - source activate test_env
   - pip install pytest
   - python -m pytest tests/
+
 #run:
   #script:
   
