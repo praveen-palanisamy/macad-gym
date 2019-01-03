@@ -50,7 +50,7 @@ if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
 
 # Set this to the path of your Carla binary
 SERVER_BINARY = os.environ.get(
-    "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.1/CarlaUE4.sh"))
+    "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.2/CarlaUE4.sh"))
 
 assert os.path.exists(SERVER_BINARY)
 
