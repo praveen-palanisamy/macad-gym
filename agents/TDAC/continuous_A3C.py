@@ -192,11 +192,11 @@ class Worker(mp.Process):
                 py_measurements = py_measurements[vehicle_name]
 
                 times_sum += time.time() - start_time
-                summary_writer.add_scalar("Cur Rew",
+                summary_writer.add_scalar("Current_Reward",
                                           torch.DoubleTensor([reward]),
                                           total_step)
                 summary_writer.add_scalar(
-                    "Dist to Goal",
+                    "Distance_to_Goal",
                     torch.DoubleTensor(
                         [py_measurements["distance_to_goal_euclidean"]]),
                     total_step)
@@ -239,19 +239,19 @@ class Worker(mp.Process):
                 successful_episodes += 1
 
             summary_writer.add_scalar(
-                "Numof Successfully Completed Episodes",
+                "Num_of_Successfully_Completed_Episodes",
                 torch.DoubleTensor([successful_episodes / self.g_ep.value]),
                 self.g_ep.value)
-            summary_writer.add_scalar("Mean Reward",
+            summary_writer.add_scalar("Mean_Reward",
                                       torch.DoubleTensor([ep_r / (t + 1)]),
                                       self.g_ep.value)
             summary_writer.add_scalar(
-                "Mean Time Per Iteration in Seconds",
+                "Mean_Time_Per_Iteration_in_Seconds",
                 torch.DoubleTensor([times_sum / (t + 1)]), self.g_ep.value)
 
             mean_episode_len += (
                 (episode_len - mean_episode_len) / self.g_ep.value)
-            summary_writer.add_scalar("Mean Episode Length",
+            summary_writer.add_scalar("Mean_Episode_Length",
                                       torch.DoubleTensor([mean_episode_len]),
                                       total_step)
 
