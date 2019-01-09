@@ -150,7 +150,7 @@ class Worker(mp.Process):
                                                   res_queue)
         self.gnet, self.opt = gnet, opt
         self.lnet = Net(N_S, N_A)  # local network
-        self.env = MultiCarlaEnv(env_config)
+        self.env = MultiCarlaEnv(env_config, name)
 
     def run(self):
         last_checkpoint = max(

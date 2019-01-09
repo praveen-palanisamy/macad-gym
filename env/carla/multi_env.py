@@ -174,7 +174,7 @@ except ImportError as err:
 
 
 class MultiCarlaEnv(*MultiAgentEnvBases):
-    def __init__(self, configs=DEFAULT_MULTIENV_CONFIG):
+    def __init__(self, configs=DEFAULT_MULTIENV_CONFIG, run_gpu=-1):
         """Carla environment implementation.
 
         The environment settings and scenarios are configure using env_config.
@@ -249,10 +249,15 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # Set pos_coor map for Town01 or Town02.
         if self.city == "Town01":
             self.pos_coor_map = json.load(
-                open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))
+                open("env/carla/POS_COOR/pos_cordi_map_town1.json"))
         else:
             self.pos_coor_map = json.load(
-                open("env/carla/POS_COOR/pos_cordi_map_town2.txt"))
+                open("env/carla/POS_COOR/pos_cordi_map_town2.json"))
+
+        if isinstance(run_gpu, int):
+            self.run_gpu = run_gpu
+        else:
+            self.run_gpu = -1
 
         self._spec = lambda: None
         self._spec.id = "Carla-v0"
@@ -321,25 +326,33 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # Create a new server process and start the client.
         self.server_port = random.randint(10000, 60000)
 
+        multigpu_success = False
         gpus = GPUtil.getGPUs()
         if not self.render and (gpus is not None and len(gpus)) > 0:
-            min_index = random.randint(0, len(gpus) - 1)
-            for i, gpu in enumerate(gpus):
-                if gpu.load < gpus[min_index].load:
-                    min_index = i
-            # TODO: SDL doesn't seem to honor *CUDA_DEVICE. Find ways to
-            # distribute server loads across GPUs
-            self.server_process = subprocess.Popen(
-                ("SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE={} {} {} "
-                 "-carla-server -carla-world-port={}").format(
-                     min_index, SERVER_BINARY, self.server_map,
-                     self.server_port),
-                shell=True,
-                preexec_fn=os.setsid,
-                stdout=subprocess.PIPE)
+            try:
+                if self.run_gpu < 0:
+                    min_index = random.randint(0, len(gpus) - 1)
+                    for i, gpu in enumerate(gpus):
+                        if gpu.load < gpus[min_index].load:
+                            min_index = i
+                else:
+                    min_index = self.run_gpu % len(gpus)
+                self.server_process = subprocess.Popen(
+                    ("SDL_VIDEODRIVER=offscreen DISPLAY=:8 vglrun -d :7.{} {} {} "
+                     "-benchmark -fps=10 -carla-server -carla-world-port={}"
+                     ).format(min_index, SERVER_BINARY, self.server_map,
+                              self.server_port),
+                    shell=True,
+                    preexec_fn=os.setsid,
+                    stdout=subprocess.PIPE)
+                multigpu_success = True
+                print("Running simulation in multi-GPU mode")
+            except Exception as e:
+                print(e)
 
+        # Single GPU and also fallback if multi-GPU doesn't work
         # TODO: Use env_config values for setting ResX, ResY params
-        else:
+        if multigpu_success is False:
             self.server_process = subprocess.Popen([
                 SERVER_BINARY, self.server_map, "-windowed", "-ResX=",
                 str(self.env_config["render_x_res"]), "-ResY=",
@@ -349,6 +362,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             ],
                                                    preexec_fn=os.setsid,
                                                    stdout=subprocess.PIPE)
+            print("Running simulation in single-GPU mode")
 
         live_carla_processes.add(os.getpgid(self.server_process.pid))
 
