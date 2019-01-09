@@ -41,8 +41,7 @@ N_A = env.action_space
 UPDATE_GLOBAL_ITER = 5
 GAMMA = 0.9
 MAX_EP = 10000000  # 10M
-MAX_EP_STEP = 2000
-SAVE_STEP = 2000000  # Every 1000 episodes at the minimum
+SAVE_STEP = 100000
 
 save_model_dir = os.path.expanduser(MODEL_DIR)
 if not os.path.exists(os.path.join(save_model_dir, "global")):
@@ -155,7 +154,7 @@ class Worker(mp.Process):
 
     def run(self):
         last_checkpoint = max(
-            glob.glob(save_model_dir + "local/*"),
+            glob.glob(save_model_dir + "/local/*"),
             key=os.path.getctime,
             default=None)
         if last_checkpoint:
@@ -179,7 +178,11 @@ class Worker(mp.Process):
             buffer_s, buffer_a, buffer_r = [], [], []
             ep_r = 0.
             times_sum = 0.0
-            for t in range(MAX_EP_STEP):
+            done = False
+            t = 0
+            while not done:
+                # for t in range(MAX_EP_STEP):
+                t += 1  # Step num
                 start_time = time.time()
                 action = self.lnet.choose_action(Variable(state).float())
                 next_state, reward, done, py_measurements = self.env.step({
@@ -204,8 +207,8 @@ class Worker(mp.Process):
                     np.concatenate((next_state[0].flatten(),
                                     np.array([next_state[1]]),
                                     np.array(next_state[2]).flatten())))
-                if t == MAX_EP_STEP - 1:
-                    done = True
+                # if t == MAX_EP_STEP - 1:
+                #     done = True
                 ep_r += reward
                 buffer_a.append(action)
                 buffer_s.append(state)
@@ -228,10 +231,10 @@ class Worker(mp.Process):
                 if total_step % SAVE_STEP == 0:
                     current_time = int(round(time.time() * 1000))
                     torch.save(
-                        self.lnet.state_dict(), "{}local/{}_{}.pt".format(
+                        self.lnet.state_dict(), "{}/local/{}_{}.pt".format(
                             save_model_dir, total_step, current_time))
                     torch.save(
-                        self.gnet.state_dict(), "{}global/{}_{}.pt".format(
+                        self.gnet.state_dict(), "{}/global/{}_{}.pt".format(
                             save_model_dir, total_step, current_time))
                 total_step += 1
 
@@ -263,7 +266,7 @@ if __name__ == "__main__":
     gnet = Net(N_S, N_A)  # global network
 
     last_checkpoint = max(
-        glob.glob(save_model_dir + "global/*"),
+        glob.glob(save_model_dir + "/global/*"),
         key=os.path.getctime,
         default=None)
     if last_checkpoint:
