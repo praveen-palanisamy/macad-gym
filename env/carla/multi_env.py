@@ -338,8 +338,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 else:
                     min_index = self.run_gpu % len(gpus)
                 self.server_process = subprocess.Popen(
-                    ("SDL_VIDEODRIVER=offscreen DISPLAY=:8 "
-                     "vglrun -d :7.{} {} {} -benchmark -fps=10 "
+                    ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=10 "
                      "-carla-server -carla-world-port={}").format(
                          min_index, SERVER_BINARY, self.server_map,
                          self.server_port),
