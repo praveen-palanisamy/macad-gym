@@ -29,15 +29,23 @@ import pygame
 
 from env.multi_actor_env import MultiActorEnv
 from env.core.sensors.utils import preprocess_image
+from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
 # from env.core.sensors.utils import get_transform_from_nearest_way_point
 from env.carla.reward import Reward
 from env.carla.carla.planner.planner import Planner
 from env.core.sensors.hud import HUD
-sys.path.append(
-    glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
-              f'{sys.version_info.minor}-linux-x86_64.egg')[0])
-import carla  # noqa: E402
-# The following import depend on carla. TODO: Can it be made better?
+try:
+    import carla
+except ImportError:
+    try:
+        sys.path.append(
+            glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
+                      f'{sys.version_info.minor}-linux-x86_64.egg')[0])
+        import carla  # noqa: E402
+    except IndexError:
+        raise IndexError('CARLA PythonAPI egg file not found. Check the path')
+
+# The following imports depend on carla. TODO: Can it be made better?
 from env.core.sensors.camera_manager import CameraManager  # noqa: E402
 from env.core.sensors.derived_sensors import LaneInvasionSensor  # noqa: E402
 from env.core.sensors.derived_sensors import CollisionSensor  # noqa: E402
@@ -248,11 +256,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         # Set pos_coor map for Town01 or Town02.
         if self.city == "Town01":
-            self.pos_coor_map = json.load(
-                open("env/carla/POS_COOR/pos_cordi_map_town1.json"))
+            self.pos_coor_map = TOWN01
         else:
-            self.pos_coor_map = json.load(
-                open("env/carla/POS_COOR/pos_cordi_map_town2.json"))
+            self.pos_coor_map = TOWN02
 
         if isinstance(run_gpu, int):
             self.run_gpu = run_gpu
