@@ -73,7 +73,7 @@ DEFAULT_MULTIENV_CONFIG = {
         "x_res": 84,
         "y_res": 84,
         "framestack": 1,
-        "discrete_actions": False,
+        "discrete_actions": True,
         "squash_action_logits": False,
         "verbose": False,
         "use_depth_camera": False,
