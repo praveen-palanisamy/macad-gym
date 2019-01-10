@@ -182,7 +182,7 @@ except ImportError as err:
 
 
 class MultiCarlaEnv(*MultiAgentEnvBases):
-    def __init__(self, configs=DEFAULT_MULTIENV_CONFIG, run_gpu=-1):
+    def __init__(self, configs=DEFAULT_MULTIENV_CONFIG):
         """Carla environment implementation.
 
         The environment settings and scenarios are configure using env_config.
@@ -260,11 +260,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         else:
             self.pos_coor_map = TOWN02
 
-        if isinstance(run_gpu, int):
-            self.run_gpu = run_gpu
-        else:
-            self.run_gpu = -1
-
         self._spec = lambda: None
         self._spec.id = "Carla-v0"
         self.server_port = None
@@ -336,13 +331,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         gpus = GPUtil.getGPUs()
         if not self.render and (gpus is not None and len(gpus)) > 0:
             try:
-                if self.run_gpu < 0:
-                    min_index = random.randint(0, len(gpus) - 1)
-                    for i, gpu in enumerate(gpus):
-                        if gpu.load < gpus[min_index].load:
-                            min_index = i
-                else:
-                    min_index = self.run_gpu % len(gpus)
+                min_index = random.randint(0, len(gpus) - 1)
+                for i, gpu in enumerate(gpus):
+                    if gpu.load < gpus[min_index].load:
+                        min_index = i
                 self.server_process = subprocess.Popen(
                     ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=10 "
                      "-carla-server -carla-world-port={}").format(
