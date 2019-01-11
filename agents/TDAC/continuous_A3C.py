@@ -171,7 +171,14 @@ class Worker(mp.Process):
                     now.year, now.month, now.day, now.hour, now.minute,
                     now.second, self.name)))
         while self.g_ep.value < MAX_EP:
-            state = self.env.reset()[vehicle_name]
+            state = None
+            try:
+                state = self.env.reset()[vehicle_name]
+            except RuntimeError as re:
+                print("RuntimeError during reset:", re)
+                self.env = MultiCarlaEnv(env_config)
+                continue
+
             state = torch.from_numpy(
                 np.concatenate((state[0].flatten(), np.array([state[1]]),
                                 np.array(state[2]).flatten())))
@@ -185,10 +192,15 @@ class Worker(mp.Process):
                 t += 1  # Step num
                 start_time = time.time()
                 action = self.lnet.choose_action(Variable(state).float())
-                next_state, reward, done, py_measurements = self.env.step({
-                    vehicle_name:
-                    action.squeeze().clip(-1, 1)
-                })
+                try:
+                    next_state, reward, done, py_measurements = self.env.step({
+                        vehicle_name:
+                        action.squeeze().clip(-1, 1)
+                    })
+                except RuntimeError as re:
+                    print("RuntimeError during step:", re)
+                    self.env = MultiCarlaEnv(env_config)
+                    break
                 reward = reward[vehicle_name]
                 next_state = next_state[vehicle_name]
                 done = done[vehicle_name]
