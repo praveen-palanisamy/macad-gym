@@ -34,6 +34,9 @@ from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
 from env.carla.reward import Reward
 from env.carla.carla.planner.planner import Planner
 from env.core.sensors.hud import HUD
+
+logging.basicConfig(filename='multi_env.log', level=logging.DEBUG)
+
 try:
     import carla
 except ImportError:
@@ -292,8 +295,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.done_dict = {}
         self.dones = set()  # Set of all done actor IDs
 
-        logging.basicConfig(filename='carla_server.log', level=logging.DEBUG)
-
     def get_scenarios(self, choice):
         if choice == "DEFAULT_SCENARIO_TOWN1":
             from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1
@@ -373,7 +374,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.client.get_server_version()
             except RuntimeError:
                 self.client = None
-        self.client.set_timeout(999999.0)
+        self.client.set_timeout(60.0)
 
     def clean_world(self):
         """Destroy all actors cleanly before exiting
@@ -384,13 +385,22 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         """
 
         for cam in self.cameras.values():
-            cam.sensor.destroy()
+            if cam.sensor.is_alive:
+                cam.sensor.destroy()
         for actor in self.actors.values():
-            actor.destroy()
+            if actor.is_alive:
+                actor.destroy()
         for colli in self.collisions.values():
-            colli.sensor.destroy()
+            if colli.sensor.is_alive:
+                colli.sensor.destroy()
         for lane in self.lane_invasions.values():
-            lane.sensor.destroy()
+            if lane.sensor.is_alive:
+                lane.sensor.destroy()
+
+        self.cameras = {}
+        self.actors = {}
+        self.collisions = {}
+        self.lane_invasions = {}
 
     def clear_server_state(self):
         """Clear server process"""
@@ -478,13 +488,13 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 actor = self.actors.get(actor_id, None)
                 collision = self.collisions.get(actor_id, None)
                 lane = self.lane_invasions.get(actor_id, None)
-                if cam is not None:
+                if cam is not None and cam.sensor.is_alive:
                     cam.sensor.destroy()
-                if actor is not None:
+                if actor is not None and actor.is_alive:
                     actor.destroy()
-                if collision is not None:
+                if collision is not None and collision.sensor.is_alive:
                     collision.sensor.destroy()
-                if lane is not None:
+                if lane is not None and lane.sensor.is_alive:
                     lane.sensor.destroy()
 
                 self.measurements_file_dict[actor_id] = None
