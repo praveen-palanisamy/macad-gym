@@ -34,6 +34,9 @@ from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
 from env.carla.reward import Reward
 from env.carla.carla.planner.planner import Planner
 from env.core.sensors.hud import HUD
+
+logging.basicConfig(filename='multi_env.log', level=logging.DEBUG)
+
 try:
     import carla
 except ImportError:
@@ -291,8 +294,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.scenario_map = {}
         self.done_dict = {}
         self.dones = set()  # Set of all done actor IDs
-
-        logging.basicConfig(filename='carla_server.log', level=logging.DEBUG)
 
     def get_scenarios(self, choice):
         if choice == "DEFAULT_SCENARIO_TOWN1":
