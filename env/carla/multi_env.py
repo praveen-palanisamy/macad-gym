@@ -687,11 +687,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                              "Got {}".format(type(action_dict)))
         # Make sure the action_dict contains actions only for actors that
         # exist in the environment
-        # if not set(action_dict).issubset(set(self.actors)):
-        #    raise ValueError("Cannot execute actions for non-existent actors."
-        #                     " Received unexpected actor ids:{}".format(
-        #                         set(action_dict).difference(set(
-        #                             self.actors))))
+        if not set(action_dict).issubset(set(self.actors)):
+            raise ValueError("Cannot execute actions for non-existent actors."
+                             " Received unexpected actor ids:{}".format(
+                                 set(action_dict).difference(set(
+                                     self.actors))))
 
         try:
             obs_dict = {}
@@ -708,9 +708,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 info_dict[actor_id] = info
             self.done_dict["__all__"] = len(self.dones) == len(self.actors)
             return obs_dict, reward_dict, self.done_dict, info_dict
-        except Exception as xception:
-            print("Error during step, terminating episode early",
-                  xception)  # traceback.format_exc())
+        except Exception:
+            print("Error during step, terminating episode early.",
+                  traceback.format_exc())
 
             self.clear_server_state()
             return self.last_obs, 0.0, True, {}
@@ -726,11 +726,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             action: Actions to be executed for the actor.
 
         Returns
-            obs (dict): Observations for each actor.
-            rewards (dict): Reward values for each actor. None for first step
-            dones (dict): Done values for each actor. Special key "__all__" is
-                set when all actors are done and the env terminates
-            info (dict): Info for each actor.
+            obs (obs_space): Observation for the actor whose id is actor_id.
+            reward (float): Reward for actor. None for first step
+            done (bool): Done value for actor.
+            info (dict): Info for actor.
         """
 
         if self.discrete_actions:
@@ -788,6 +787,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         py_measurements = self._read_observation(actor_id)
         if self.verbose:
             print("Next command", py_measurements["next_command"])
+        # Store previous action
+        self.previous_actions[actor_id] = action
         if type(action) is np.ndarray:
             py_measurements["action"] = [float(a) for a in action]
         else:
@@ -807,7 +808,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         reward = cmpt_reward.compute_reward(self.prev_measurement[actor_id],
                                             py_measurements, flag)
 
-        self.last_reward[actor_id] = reward
+        self.previous_rewards[actor_id] = reward
         if self.total_reward[actor_id] is None:
             self.total_reward[actor_id] = reward
         else:
@@ -881,9 +882,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         intersection_otherlane = self.lane_invasions[actor_id].offlane
         intersection_offroad = self.lane_invasions[actor_id].offroad
 
-        self.previous_actions[actor_id] = next_command
-        self.previous_rewards[actor_id] = self.last_reward[actor_id]
-
         if next_command == "REACH_GOAL":
             distance_to_goal = 0.0  # avoids crash in planner
         elif planner_enabled:
@@ -934,12 +932,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             "num_pedestrians": self.scenario_map[actor_id]["num_pedestrians"],
             "max_steps": self.scenario["max_steps"],
             "next_command": next_command,
-            "previous_actions": {
-                actor_id: self.previous_actions[actor_id]
-            },
-            "previous_rewards": {
-                actor_id: self.previous_rewards[actor_id]
-            },
+            "previous_action": self.previous_actions.get(actor_id, None),
+            "previous_reward": self.previous_rewards.get(actor_id, None)
         }
 
         return py_measurements
