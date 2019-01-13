@@ -12,6 +12,7 @@ EPISODE_HORIZON = 10
 # TODO: Add test to make sure DEFAULT_MULTIENV_CONFIG is valid
 configs = DEFAULT_MULTIENV_CONFIG
 configs["env"]["render"] = False
+configs["env"]["discrete_actions"] = False
 
 
 def test_rllib_policy_eval():
