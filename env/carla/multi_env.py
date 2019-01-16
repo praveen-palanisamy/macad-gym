@@ -342,6 +342,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         multigpu_success = False
         gpus = GPUtil.getGPUs()
+        # TODO: Make the try-except style handling work with Popen
         if not self.render and (gpus is not None and len(gpus)) > 0:
             try:
                 min_index = random.randint(0, len(gpus) - 1)
@@ -364,25 +365,29 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # Single GPU and also fallback if multi-GPU doesn't work
         # TODO: Use env_config values for setting ResX, ResY params
         if multigpu_success is False:
-            self.server_process = subprocess.Popen([
-                SERVER_BINARY, self.server_map, "-windowed", "-ResX=",
-                str(self.env_config["render_x_res"]), "-ResY=",
-                str(self.env_config["render_y_res"]), "-benchmark -fps=10"
-                "-carla-server", "-carla-world-port={}".format(
-                    self.server_port)
-            ],
-                                                   preexec_fn=os.setsid,
-                                                   stdout=subprocess.PIPE)
-            print("Running simulation in single-GPU mode")
+            try:
+                self.server_process = subprocess.Popen([
+                    SERVER_BINARY, self.server_map, "-windowed", "-ResX=",
+                    str(self.env_config["render_x_res"]), "-ResY=",
+                    str(self.env_config["render_y_res"]), "-benchmark -fps=10"
+                    "-carla-server", "-carla-world-port={}".format(
+                        self.server_port)
+                ],
+                                                       preexec_fn=os.setsid,
+                                                       stdout=subprocess.PIPE)
+                print("Running simulation in single-GPU mode")
+            except Exception as e:
+                logging.debug(e)
+                print("FATAL ERROR while launching server:", sys.exc_info()[0])
 
         live_carla_processes.add(os.getpgid(self.server_process.pid))
 
         # Start client
         self.client = None
         while self.client is None:
-            self.client = carla.Client("localhost", self.server_port)
-            self.client.set_timeout(1.0)
             try:
+                self.client = carla.Client("localhost", self.server_port)
+                self.client.set_timeout(1.0)
                 self.client.get_server_version()
             except RuntimeError:
                 self.client = None
