@@ -530,7 +530,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         """
 
         self.done_dict["__all__"] = False
-        self.dones.clear()
         # TODO: num_actors not equal num_vehicle. Fix it when other actors are
         # like pedestrians are added
         self.num_vehicle = len(self.actor_configs)
@@ -564,6 +563,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                             brake=0.0,
                         ))
                     self.actors[actor_id].set_transform(transform)
+                    self.dones.remove(actor_id)
+                    if self.collisions.get(actor_id):
+                        self.collisions[actor_id]._reset()
+                    if self.lane_invasions.get(actor_id):
+                        self.lane_invasions[actor_id]._reset()
+                    print("Soft spawning {}", actor_id)
                     # Wait until the actor is fully initialized. Otherwise,
                     # The control may be applied as the actor is being dropped
                     # into the scene
@@ -679,7 +684,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 image = preprocess_image(cam.image, actor_config)
                 obs = self.encode_obs(actor_id, image, py_measurement)
                 self.obs_dict[actor_id] = obs
-                self.done_dict[actor_id] = False
 
         return self.obs_dict
 
@@ -777,7 +781,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                   traceback.format_exc())
 
             self.clear_server_state()
-            return self.last_obs, 0.0, True, {}
 
     def _step(self, actor_id, action):
         """Perform the actual step in the CARLA environment
@@ -1031,10 +1034,11 @@ def sigmoid(x):
 
 
 def collided_done(py_measurements):
+    """Define the main episode termination criteria"""
     m = py_measurements
     collided = (m["collision_vehicles"] > 0 or m["collision_pedestrians"] > 0
                 or m["collision_other"] > 0)
-    return bool(collided or m["total_reward"] < -100)
+    return bool(collided)  # or m["total_reward"] < -100)
 
 
 def get_next_actions(measurements, is_discrete_actions):
