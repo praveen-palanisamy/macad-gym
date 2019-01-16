@@ -289,6 +289,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.previous_actions = {}
         self.previous_rewards = {}
         self.last_reward = {}
+        self.agents = {}  # Dictionary of agents with agent_id as key
         self.actors = {}  # Dictionary of actors with actor_id as key
         self.collisions = {}
         self.lane_invasions = {}
@@ -325,7 +326,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         s.bind(("", 0))  # Request the sys to provide a free port dynamically
         server_port = s.getsockname()[1]
         s.close()
-        time.sleep(0.5)
         return server_port
 
     def init_server(self):
@@ -418,7 +418,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         for v in self.world.get_actors().filter("vehicle*"):
             v.destroy()
             assert (v not in self.world.get_actors())
-        time.sleep(0.4)
+        time.sleep(0.2)
         print("Cleaned-up the world...")
 
         self.cameras = {}
@@ -509,12 +509,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         vehicle = None
         for retry in range(RETRIES_ON_ERROR):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
-            time.sleep(0.4)
+            time.sleep(0.8)
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 break
             # Wait to see if spawn area gets cleared before retrying
+            # time.sleep(0.5)
             # self.clean_world()
-            time.sleep(0.5)
             print("spawn_actor: Retry#:{}/{}".format(retry + 1,
                                                      RETRIES_ON_ERROR))
         return vehicle
@@ -529,6 +529,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             dict: observation dictionaries for actors.
         """
 
+        self.done_dict["__all__"] = False
+        self.dones.clear()
         # TODO: num_actors not equal num_vehicle. Fix it when other actors are
         # like pedestrians are added
         self.num_vehicle = len(self.actor_configs)
@@ -555,11 +557,17 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                             y=self.start_pos[actor_id][1],
                             z=self.start_pos[actor_id][2]),
                         carla.Rotation(pitch=0, yaw=0, roll=0))
+                    self.actors[actor_id].apply_control(
+                        carla.VehicleControl(
+                            throttle=0.0,
+                            steer=0.0,
+                            brake=0.0,
+                        ))
                     self.actors[actor_id].set_transform(transform)
                     # Wait until the actor is fully initialized. Otherwise,
                     # The control may be applied as the actor is being dropped
                     # into the scene
-                    time.sleep(0.3)
+                    time.sleep(0.4)
 
                 else:
                     # TODO: Move the following comments to method docstring
@@ -606,49 +614,52 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                           self.actors[actor_id].get_location().y,
                           self.actors[actor_id].get_location().z)
 
-                # Spawn collision and lane sensors if necessary
-                if actor_config["collision_sensor"] == "on":
-                    collision_sensor = CollisionSensor(self.actors[actor_id],
-                                                       0)
-                    self.collisions.update({actor_id: collision_sensor})
-                if actor_config["lane_sensor"] == "on":
-                    lane_sensor = LaneInvasionSensor(self.actors[actor_id], 0)
-                    self.lane_invasions.update({actor_id: lane_sensor})
+                    # Spawn collision and lane sensors if necessary
+                    if actor_config["collision_sensor"] == "on":
+                        collision_sensor = CollisionSensor(
+                            self.actors[actor_id], 0)
+                        self.collisions.update({actor_id: collision_sensor})
+                    if actor_config["lane_sensor"] == "on":
+                        lane_sensor = LaneInvasionSensor(
+                            self.actors[actor_id], 0)
+                        self.lane_invasions.update({actor_id: lane_sensor})
 
-                # Spawn cameras
-                pygame.font.init()  # for HUD
-                hud = HUD(self.env_config["x_res"], self.env_config["x_res"])
-                camera_manager = CameraManager(self.actors[actor_id], hud)
-                if actor_config["log_images"]:
-                    # TODO: The recording option should be part of config
-                    # 1: Save to disk during runtime
-                    # 2: save to memory first, dump to disk on exit
-                    camera_manager.set_recording_option(1)
+                    # Spawn cameras
+                    pygame.font.init()  # for HUD
+                    hud = HUD(self.env_config["x_res"],
+                              self.env_config["x_res"])
+                    camera_manager = CameraManager(self.actors[actor_id], hud)
+                    if actor_config["log_images"]:
+                        # TODO: The recording option should be part of config
+                        # 1: Save to disk during runtime
+                        # 2: save to memory first, dump to disk on exit
+                        camera_manager.set_recording_option(1)
 
-                # TODO: Fix the hard-corded 0 id use sensor_type-> "camera"
-                # TODO: Make this consistent with keys
-                # in CameraManger's._sensors
-                camera_manager.set_sensor(0, notify=False)
-                self.cameras.update({actor_id: camera_manager})
+                    # TODO: Fix the hard-corded 0 id use sensor_type-> "camera"
+                    # TODO: Make this consistent with keys
+                    # in CameraManger's._sensors
+                    camera_manager.set_sensor(0, notify=False)
+                    self.cameras.update({actor_id: camera_manager})
 
-                self.start_coord.update({
-                    actor_id: [
-                        self.start_pos[actor_id][0] // 100,
-                        self.start_pos[actor_id][1] // 100
-                    ]
-                })
-                self.end_coord.update({
-                    actor_id: [
-                        self.end_pos[actor_id][0] // 100,
-                        self.end_pos[actor_id][1] // 100
-                    ]
-                })
+                    self.start_coord.update({
+                        actor_id: [
+                            self.start_pos[actor_id][0] // 100,
+                            self.start_pos[actor_id][1] // 100
+                        ]
+                    })
+                    self.end_coord.update({
+                        actor_id: [
+                            self.end_pos[actor_id][0] // 100,
+                            self.end_pos[actor_id][1] // 100
+                        ]
+                    })
 
-                print("Actor: {} start_pos(coord): {} ({}), "
-                      "end_pos(coord) {} ({})".format(
-                          actor_id, self.start_pos[actor_id],
-                          self.start_coord[actor_id], self.end_pos[actor_id],
-                          self.end_coord[actor_id]))
+                    print(
+                        "Actor: {} start_pos(coord): {} ({}), "
+                        "end_pos(coord) {} ({})".format(
+                            actor_id, self.start_pos[actor_id],
+                            self.start_coord[actor_id], self.end_pos[actor_id],
+                            self.end_coord[actor_id]))
 
         print('New episode initialized with actors:{}'.format(
             self.actors.keys()))
@@ -668,6 +679,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 image = preprocess_image(cam.image, actor_config)
                 obs = self.encode_obs(actor_id, image, py_measurement)
                 self.obs_dict[actor_id] = obs
+                self.done_dict[actor_id] = False
 
         return self.obs_dict
 
@@ -1071,35 +1083,30 @@ if __name__ == "__main__":
 
     args = argparser.parse_args()
 
-    for _ in range(1):
-        multi_env_config = json.load(open(args.config))
+    multi_env_config = json.load(open(args.config))
+    env = MultiCarlaEnv(multi_env_config)
 
-        env = MultiCarlaEnv(multi_env_config)
+    for _ in range(2):
         obs = env.reset()
         total_vehicle = env.num_vehicle
 
         total_reward_dict = {}
         action_dict = {}
 
-        tmp = iter(multi_env_config.values())
-        env_config = next(tmp)
-        actor_configs = next(tmp)
+        env_config = multi_env_config["env"]
+        actor_configs = multi_env_config["actors"]
         for actor_id in actor_configs.keys():
             total_reward_dict[actor_id] = 0
-
-            #  Initialize all vehicles' action to be 3
             if env.discrete_actions:
-                action_dict[actor_id] = 3
+                action_dict[actor_id] = 3  # Forward
             else:
-                action_dict[actor_id] = [1, 0]  # test number
-
-        # server_clock = pygame.time.Clock()
-        # print(server_clock.get_fps())
+                action_dict[actor_id] = [1, 0]  # test values
 
         start = time.time()
         i = 0
-        # while not done["__all__"]:
-        while i < 20:  # TEST
+        done = {"__all__": False}
+        while not done["__all__"]:
+            # while i < 20:  # TEST
             i += 1
             obs, reward, done, info = env.step(action_dict)
             action_dict = get_next_actions(info, env.discrete_actions)
@@ -1108,16 +1115,11 @@ if __name__ == "__main__":
             print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
                 i, reward, total_reward_dict, done))
 
-            # Set done[__all__] for env termination when all agents are done
-            done_temp = True
-            for d in done:
-                done_temp = done_temp and done[d]
-            done["__all__"] = done_temp
             time.sleep(0.1)
 
         print("{} fps".format(i / (time.time() - start)))
 
-        # Clean actors in world
-        env.clean_world()
+    # Clean actors in world
+    env.clean_world()
 
-        # env.camera_list.save_images_to_disk()
+    # env.camera_list.save_images_to_disk()
