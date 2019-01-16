@@ -404,15 +404,22 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         for cam in self.cameras.values():
             if cam.sensor.is_alive:
                 cam.sensor.destroy()
-        for actor in self.actors.values():
-            if actor.is_alive:
-                actor.destroy()
+
         for colli in self.collisions.values():
             if colli.sensor.is_alive:
                 colli.sensor.destroy()
         for lane in self.lane_invasions.values():
             if lane.sensor.is_alive:
                 lane.sensor.destroy()
+        for actor in self.actors.values():
+            if actor.is_alive:
+                actor.destroy()
+        # Clean-up any remaining vehicle in the world
+        for v in self.world.get_actors().filter("vehicle*"):
+            v.destroy()
+            assert (v not in self.world.get_actors())
+        time.sleep(0.4)
+        print("Cleaned-up the world...")
 
         self.cameras = {}
         self.actors = {}
