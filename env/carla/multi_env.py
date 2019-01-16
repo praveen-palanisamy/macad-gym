@@ -21,6 +21,7 @@ import subprocess
 import sys
 import time
 import traceback
+import socket
 
 import numpy as np  # linalg.norm is used
 import GPUtil
@@ -318,6 +319,15 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             from env.carla.scenarios import DEFAULT_CURVE_TOWN1
             return DEFAULT_CURVE_TOWN1
 
+    @staticmethod
+    def get_free_tcp_port():
+        s = socket.socket()
+        s.bind(("", 0))  # Request the sys to provide a free port dynamically
+        server_port = s.getsockname()[1]
+        s.close()
+        time.sleep(0.5)
+        return server_port
+
     def init_server(self):
         """Initialize carla server and client
 
@@ -326,7 +336,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         """
         print("Initializing new Carla server...")
         # Create a new server process and start the client.
-        self.server_port = random.randint(10000, 60000)
+        # First find a port that is free and then use it in order to avoid
+        # crashes due to:"...bind:Address already in use"
+        self.server_port = MultiCarlaEnv.get_free_tcp_port()
 
         multigpu_success = False
         gpus = GPUtil.getGPUs()
