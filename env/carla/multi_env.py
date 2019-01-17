@@ -563,12 +563,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                             brake=0.0,
                         ))
                     self.actors[actor_id].set_transform(transform)
-                    self.dones.remove(actor_id)
-                    if self.collisions.get(actor_id):
+                    if actor_id in self.dones:
+                        self.dones.remove(actor_id)
+                    if actor_id in self.collisions:
                         self.collisions[actor_id]._reset()
-                    if self.lane_invasions.get(actor_id):
+                    if actor_id in self.lane_invasions:
                         self.lane_invasions[actor_id]._reset()
-                    print("Soft spawning {}", actor_id)
                     # Wait until the actor is fully initialized. Otherwise,
                     # The control may be applied as the actor is being dropped
                     # into the scene
