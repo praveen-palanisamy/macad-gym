@@ -1,6 +1,7 @@
 from gym.spaces import Box
 from env.carla.multi_env import MultiCarlaEnv
 from env.carla.multi_env import DEFAULT_MULTIENV_CONFIG
+import ray
 from ray.rllib.evaluation.policy_evaluator import PolicyEvaluator
 from ray.rllib.agents.pg.pg_policy_graph import PGPolicyGraph
 
@@ -15,7 +16,13 @@ configs["env"]["render"] = False
 configs["env"]["discrete_actions"] = False
 
 
-def test_rllib_policy_eval():
+def init():
+    ray.init(num_cpus=16, num_gpus=2)
+
+
+def test_rllib_policy_eval(init_done=False):
+    if not init_done:
+        init()
     assert (
         not configs["env"]["render"]), "Tests should be run with render=False"
     evaluator = PolicyEvaluator(
@@ -30,10 +37,11 @@ def test_rllib_policy_eval():
         policy_mapping_fn=lambda agent_id: "def_policy",
         batch_steps=BATCH_COUNT,
         episode_horizon=EPISODE_HORIZON)
-
     samples, count = evaluator.sample_with_count()
+    print("Collected {} samples".format(count))
     assert count == BATCH_COUNT
 
 
 if __name__ == "__main__":
-    test_rllib_policy_eval()
+    init()
+    test_rllib_policy_eval(init_done=True)

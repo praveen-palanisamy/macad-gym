@@ -18,7 +18,13 @@ configs["env"]["render"] = False
 configs["env"]["discrete_actions"] = False
 
 
-def test_rllib_batch_policy_eval():
+def init():
+    ray.init(num_cpus=16, num_gpus=2)
+
+
+def test_rllib_batch_policy_eval(init_done=False):
+    if not init_done:
+        init()
     evaluator = PolicyEvaluator(
         env_creator=lambda _: MultiCarlaEnv(configs),
         # TODO: Remove the hardcoded spaces
@@ -52,5 +58,5 @@ def test_rllib_batch_policy_eval():
 
 
 if __name__ == "__main__":
-    ray.init(num_cpus=16, num_gpus=2)
-    test_rllib_batch_policy_eval()
+    init()
+    test_rllib_batch_policy_eval(init_done=True)
