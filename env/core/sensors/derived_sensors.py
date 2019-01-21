@@ -59,6 +59,12 @@ class LaneInvasionSensor(object):
         if len(self._history) > 4000:
             self._history.pop(0)
 
+    def _reset(self):
+        """Reset off-lane and off-road counts"""
+        self.offlane = 0
+        self.offroad = 0
+        self._history = []
+
 
 class CollisionSensor(object):
     """Collision sensor class from carla manual_control.py
