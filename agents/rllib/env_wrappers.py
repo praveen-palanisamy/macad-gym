@@ -289,7 +289,7 @@ def wrap_deepmind(env, dim=84, num_framestack=4):
 
     # env = ScaledFloatFrame(env)  # TODO: use for dqn?
     # env = ClipRewardEnv(env)  # reward clipping is handled by policy eval
-    if num_framestack:
-        env = FrameStack(env, num_framestack)
     """
+    # if num_framestack:
+    #    env = FrameStack(env, num_framestack)
     return env

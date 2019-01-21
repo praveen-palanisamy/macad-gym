@@ -1,6 +1,5 @@
 import argparse
 import tensorflow as tf
-import gym
 import ray
 from ray.rllib.agents.impala import impala
 from ray.rllib.models.preprocessors import Preprocessor
@@ -38,7 +37,7 @@ parser.add_argument(
     help="Number of samples in a batch per worker. Default=50")
 parser.add_argument(
     "--train-bs",
-    default=5,
+    default=4,
     type=int,
     help="Train batch size. Use as per available GPU mem. Default=500")
 parser.add_argument(
@@ -106,11 +105,11 @@ register_env("dm-" + env_name, env_creator)
 
 # Placeholder to enable use of a custom pre-processor
 class ImagePreproc(Preprocessor):
-    def _init(self):
-        self.shape = (84, 84,
-                      num_framestack)  # third dim is due to frame-stacking (4)
-        self.observation_space = gym.spaces.Box(
-            low=0.0, high=1.0, shape=self.shape)
+    def _init_shape(self, obs_space, options):
+        shape = (84, 84, 3)  # Adjust third dim if stacking frames
+        return shape
+        # return gym.spaces.Box(
+        #    low=0.0, high=1.0, shape=self.shape)
 
     def transform(self, observation):
         return observation
@@ -137,7 +136,7 @@ config = {
         # "conv_filters": [[16, [4, 4], 2], [32, [3, 3], 2], [16, [3, 3], 2]]
     },
     # preproc_pref is ignored if custom_preproc is specified
-    "preprocessor_pref": "deepmind",
+    # "preprocessor_pref": "deepmind",
 
     # env_config to be passed to env_creator
     "env_config": {}
@@ -156,6 +155,7 @@ config.update({
     "observation_filter": "NoFilter",
     # Whether to LZ4 compress observations
     "compress_observations": False,
+    "num_gpus": 2
 })
 # Impala specific config
 # From Appendix G in https://arxiv.org/pdf/1802.01561.pdf
@@ -176,8 +176,6 @@ config.update({
     args.train_bs,
     "min_iter_time_s":
     10,
-    "gpu":
-    True,
     "num_workers":
     args.num_workers,
     # Number of environments to evaluate vectorwise per worker.
@@ -186,7 +184,7 @@ config.update({
     "num_cpus_per_worker":
     1,
     "num_gpus_per_worker":
-    0,
+    1,
 
     # Learning params.
     "grad_clip":

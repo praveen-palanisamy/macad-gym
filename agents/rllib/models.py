@@ -118,14 +118,16 @@ class Mnih15(Model):
     Network definition as per Mnih15, Nature paper Methods section
     """
 
-    def _build_layers(self, inputs, num_outputs, options):
-        convs = options.get("conv_filters", filters_mnih15)
+    def _build_layers_v2(self, input_dict, num_outputs, options):
+        convs = options.get("conv_filters")
+        if convs is None:
+            convs = filters_mnih15
         activation = tf.nn.relu
-        conv_output = inputs
+        conv_output = input_dict["obs"]
         with tf.name_scope("mnih15_convs"):
             for i, (out_size, kernel, stride) in enumerate(convs[:-1], 1):
                 conv_output = slim.conv2d(
-                    inputs,
+                    input_dict["obs"],
                     out_size,
                     kernel,
                     stride,
