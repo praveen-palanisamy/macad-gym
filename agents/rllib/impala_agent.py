@@ -1,5 +1,5 @@
 import argparse
-import tensorflow as tf
+from gym.spaces import Box, Discrete
 import ray
 from ray.rllib.agents.impala import impala
 from ray.rllib.models.preprocessors import Preprocessor
@@ -9,6 +9,7 @@ from ray.tune import register_env
 from env.carla.multi_env import MultiCarlaEnv
 from agents.rllib.models import register_mnih15_net
 from agents.rllib.env_wrappers import wrap_deepmind
+from ray.rllib.agents.impala.vtrace_policy_graph import VTracePolicyGraph
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -55,7 +56,7 @@ parser.add_argument(
     help="Model architecture to use. Default=mnih15")
 parser.add_argument(
     "--num-steps",
-    default=20000000,
+    default=200000,
     type=int,
     help="Number of steps to train. Default=20M")
 parser.add_argument(
@@ -155,7 +156,7 @@ config.update({
     "observation_filter": "NoFilter",
     # Whether to LZ4 compress observations
     "compress_observations": False,
-    "num_gpus": 2
+    "num_gpus": args.num_gpus
 })
 # Impala specific config
 # From Appendix G in https://arxiv.org/pdf/1802.01561.pdf
@@ -229,24 +230,50 @@ if args.debug:
     from tqdm import tqdm
     from pprint import pprint
     num_episodes = 10
-    agent = impala.ImpalaAgent(config, env="dm-" + env_name)
-    # agent = impala.ImpalaAgent(config, env=env_name)
-    policy_graph = agent.local_evaluator.policy_map["default"].sess.graph
-    writer = tf.summary.FileWriter(agent._result_logger.logdir, policy_graph)
-    writer.close()
-    print("Agent policy graph written to:", agent._result_logger.logdir)
-    for iter in tqdm(range(num_episodes), desc="Iteration"):
-        results = agent.train()
+    trainer = impala.ImpalaAgent(
+        env="dm-" + env_name,
+        config={
+            "multiagent": {
+                "policy_graphs": {
+                    "def_policy": (VTracePolicyGraph,
+                                   Box(0.0, 255.0, shape=(84, 84, 3)),
+                                   Discrete(9), {
+                                       "gamma": 0.99
+                                   })
+                },
+                "policy_mapping_fn": lambda agent_id: "def_policy",
+            },
+        })
+    for iter in tqdm(range(num_episodes), desc="Iters"):
+        results = trainer.train()
         pprint(results)
-    exit(0)
+else:
+    config.update({
+        "env": "dm-" + env_name,
+        "log_level": "DEBUG",
+        "multiagent": {
+            "policy_graphs": {
+                "def_policy": (VTracePolicyGraph,
+                               Box(0.0, 255.0, shape=(84, 84, 3)), Discrete(9),
+                               {
+                                   "gamma": 0.99
+                               })
+            },
+            "policy_mapping_fn": tune.function(lambda agent_id: "def_policy"),
+        }
+    })
 
-experiment_spec = tune.Experiment(
-    "nips18/" + args.model_arch,
-    "IMPALA",
-    # timesteps_total is init with None (not 0) which causes issue
-    # stop={"timesteps_total": args.num_steps},
-    stop={"timesteps_since_restore": args.num_steps},
-    config=config,
-    checkpoint_freq=2000,
-    checkpoint_at_end=True)
-tune.run_experiments(experiment_spec)
+    experiment_spec = tune.Experiment(
+        "multi-carla/" + args.model_arch,
+        "IMPALA",
+        # timesteps_total is init with None (not 0) which causes issue
+        # stop={"timesteps_total": args.num_steps},
+        stop={"timesteps_since_restore": args.num_steps},
+        config=config,
+        checkpoint_freq=1000,
+        checkpoint_at_end=True,
+        resources_per_trial={
+            "cpu": 4,
+            "gpu": 1
+        })
+    tune.run_experiments(experiment_spec)
