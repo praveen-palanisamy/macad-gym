@@ -56,7 +56,7 @@ parser.add_argument(
     help="Model architecture to use. Default=mnih15")
 parser.add_argument(
     "--num-steps",
-    default=200000,
+    default=2000000,
     type=int,
     help="Number of steps to train. Default=20M")
 parser.add_argument(
@@ -229,7 +229,6 @@ else:
 if args.debug:
     from tqdm import tqdm
     from pprint import pprint
-    num_episodes = 10
     trainer = impala.ImpalaAgent(
         env="dm-" + env_name,
         config={
@@ -244,8 +243,10 @@ if args.debug:
                 "policy_mapping_fn": lambda agent_id: "def_policy",
             },
         })
-    for iter in tqdm(range(num_episodes), desc="Iters"):
+    for iter in tqdm(range(args.num_steps), desc="Iters"):
         results = trainer.train()
+        if iter % 500 == 0:
+            trainer.save("saved_models/multi-carla/" + args.model_arch)
         pprint(results)
 else:
     config.update({
