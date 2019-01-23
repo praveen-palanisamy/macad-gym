@@ -109,14 +109,13 @@ class CollisionSensor(object):
         self._history.append((event.frame_number, intensity))
         if len(self._history) > 4000:
             self._history.pop(0)
+        """
         info_str = ('vehicle %s ' % self._parent.id +
                     ' collision with %2d vehicles, %2d people, %2d others' %
                     self.dynamic_collided())
         logging.info(info_str)
+        """
 
-        # print('vehicle %s ' % self._parent.id +
-        #      ' collision with %2d vehicles, %2d people, %2d others' %
-        #      self.dynamic_collided())
         _cur = event.other_actor
         if _cur.id == 0:  # the static world objects
             if _cur.type_id in self.collision_type_id_set:
