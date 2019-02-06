@@ -2,7 +2,6 @@ import carla
 import weakref
 import math
 import collections
-import logging
 
 
 class LaneInvasionSensor(object):
@@ -45,15 +44,19 @@ class LaneInvasionSensor(object):
             '%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)
         ]
         self.offlane += 1
+        """
         info_str = ('VEHICLE %s' % self._parent.id +
                     ' crossed line %s' % ' and '.join(text))
         logging.info(info_str)
+        """
 
         if len(set(event.crossed_lane_markings)) == 1:
             self.offroad += 1
+            """
             info_str = ('VEHICLE %s' % self._parent.id +
                         ' crossed road %s' % ' and '.join(text))
             logging.info(info_str)
+            """
 
         self._history.append((event.frame_number, text))
         if len(self._history) > 4000:
