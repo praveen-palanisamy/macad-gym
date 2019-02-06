@@ -1,11 +1,3 @@
-# Copyright (c) 2017 Computer Vision Center (CVC) at the Universitat Autonoma de
-# Barcelona (UAB).
-#
-# This work is licensed under the terms of the MIT license.
-# For a copy, see <https://opensource.org/licenses/MIT>.
-
-# Allows controlling a vehicle with a keyboard. For a simpler and more
-# documented example, please take a look at tutorial.py.
 """
 Welcome to CARLA manual control.
 
@@ -64,16 +56,16 @@ import random
 import time
 import re
 import weakref
-import json
 import math
 import collections
 import py_trees
-from .carla.ScenarioManager import atomic_scenario_behavior
-from .carla.ScenarioManager import scenario_manager
-from .carla.ScenarioManager import atomic_scenario_criteria
+from env.carla.carla.ScenarioManager import atomic_scenario_behavior
+from env.carla.carla.ScenarioManager import scenario_manager
+from env.carla.carla.ScenarioManager import atomic_scenario_criteria
 from env.carla.carla.planner.map import CarlaMap
-from .Transform import transform_points
-from .scenarios import DEFAULT_SCENARIO_TOWN1
+from Transform import transform_points
+from scenarios import DEFAULT_SCENARIO_TOWN1
+from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
 
 try:
     import pygame
@@ -354,13 +346,16 @@ class VehicleManager(object):
         pass
 
     def _pos_coord(self, scenario):
-        POS_COOR_MAP = json.load(
-            open("env/carla/POS_COOR/pos_cordi_map_town1.txt"))
+        city = ENV_CONFIG["server_map"].split("/")[-1]
+        if city == "Town01":
+            POS_COOR_MAP = TOWN01
+        elif city == "Town02":
+            POS_COOR_MAP = TOWN02
         # TODO: failure due to start_id type maybe list or int
         start_id = scenario["start_pos_id"]
         end_id = scenario["end_pos_id"]
-        self._start_pos = POS_COOR_MAP[str(start_id[0])]
-        self._end_pos = POS_COOR_MAP[str(end_id[0])]
+        self._start_pos = POS_COOR_MAP[str(start_id)]
+        self._end_pos = POS_COOR_MAP[str(end_id)]
         self._start_coord = [
             self._start_pos[0] // 100, self._start_pos[1] // 100
         ]
@@ -1221,7 +1216,7 @@ class TrafficLight(object):
                     #  unknow func get_vec_dist
                     # t1_vector, t1_dist = get_vec_dist(light_x, light_y,
                     #                                 player_x, player_y)
-                    if self._is_traffic_light_active(
+                    if self.is_traffic_light_active(
                             light, vehicle.transform.orientation):
                         if is_on_burning_point(self._map):
                             #  t1_dist never defined
@@ -1497,9 +1492,9 @@ def game_loop(args):
 
         hud = HUD(args.width, args.height)
         world = World(client.get_world(), hud)
-        lights = TrafficLight(world._vehicle)
-        traffic_light_state = lights._test_for_traffic_light(world._vehicle)
-        print(traffic_light_state)
+        # lights = TrafficLight(world._vehicle)
+        # traffic_light_state = lights._test_for_traffic_light(world._vehicle)
+        # print(traffic_light_state)
         controller = KeyboardControl(world, args.autopilot)
 
         #        fast_scenario =  FastScenario(world)
