@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import os
 import numpy as np
 import pygame
@@ -55,6 +56,7 @@ class CameraManager(object):
                 bp.set_attribute('image_size_y', str(hud.dim[1]))
             item.append(bp)
         self._index = None
+        self.callback_count = 0
 
     def set_recording_option(self, option):
         """Set class vars to select recording method.
@@ -121,6 +123,7 @@ class CameraManager(object):
     def _parse_image(weak_self, image):
         self = weak_self()
         self.image = image
+        self.callback_count += 1
         if not self:
             return
         if self._sensors[self._index][0].startswith('sensor.lidar'):
