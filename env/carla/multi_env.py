@@ -2,7 +2,7 @@
 multi_env.py: Multi-actor environment interface for CARLA-Gym
 Should support two modes of operation. See CARLA-Gym developer guide for
 more information
-__author__: PP, BP
+__author__: PP
 """
 
 from __future__ import absolute_import
@@ -36,7 +36,10 @@ from env.carla.reward import Reward
 from env.carla.carla.planner.planner import Planner
 from env.core.sensors.hud import HUD
 
-logging.basicConfig(filename='multi_env.log', level=logging.DEBUG)
+LOG_DIR = "logs"
+if not os.path.isdir(LOG_DIR):
+    os.mkdir(LOG_DIR)
+logging.basicConfig(filename=LOG_DIR + 'multi_env.log', level=logging.DEBUG)
 
 try:
     import carla
@@ -62,7 +65,7 @@ if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
 
 # Set this to the path of your Carla binary
 SERVER_BINARY = os.environ.get(
-    "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.2/CarlaUE4.sh"))
+    "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.3/CarlaUE4.sh"))
 
 assert os.path.exists(SERVER_BINARY)
 
@@ -342,6 +345,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         multigpu_success = False
         gpus = GPUtil.getGPUs()
+        log_file = os.path.join(LOG_DIR,
+                                "server_" + str(self.server_port) + ".log")
         # TODO: Make the try-except style handling work with Popen
         if not self.render and (gpus is not None and len(gpus)) > 0:
             try:
@@ -350,13 +355,13 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     if gpu.load < gpus[min_index].load:
                         min_index = i
                 self.server_process = subprocess.Popen(
-                    ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=10 "
-                     "-carla-server -carla-world-port={}").format(
+                    ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=10"
+                     " -carla-server -carla-world-port={}").format(
                          min_index, SERVER_BINARY, self.server_map,
                          self.server_port),
                     shell=True,
                     preexec_fn=os.setsid,
-                    stdout=subprocess.PIPE)
+                    stdout=open(log_file, 'w'))
                 multigpu_success = True
                 print("Running simulation in multi-GPU mode")
             except Exception as e:
@@ -374,7 +379,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         self.server_port)
                 ],
                                                        preexec_fn=os.setsid,
-                                                       stdout=subprocess.PIPE)
+                                                       stdout=open(
+                                                           log_file, 'w'))
                 print("Running simulation in single-GPU mode")
             except Exception as e:
                 logging.debug(e)
@@ -387,7 +393,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         while self.client is None:
             try:
                 self.client = carla.Client("localhost", self.server_port)
-                self.client.set_timeout(1.0)
+                self.client.set_timeout(2.0)
                 self.client.get_server_version()
             except RuntimeError:
                 self.client = None
@@ -572,7 +578,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     # Wait until the actor is fully initialized. Otherwise,
                     # The control may be applied as the actor is being dropped
                     # into the scene
-                    time.sleep(0.4)
+                    time.sleep(0.8)
 
                 else:
                     # TODO: Move the following comments to method docstring
@@ -644,6 +650,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     # TODO: Make this consistent with keys
                     # in CameraManger's._sensors
                     camera_manager.set_sensor(0, notify=False)
+                    assert (camera_manager.sensor.is_listening)
                     self.cameras.update({actor_id: camera_manager})
 
                     self.start_coord.update({
@@ -681,6 +688,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.prev_measurement[actor_id] = py_mt
 
                 actor_config = self.actor_configs[actor_id]
+                # Wait for the sensor (camera) actor to start streaming
+                # Shouldn't take too long
+                while cam.callback_count == 0:
+                    pass
+                if cam.image is None:
+                    print("callback_count:", actor_id, ":", cam.callback_count)
                 image = preprocess_image(cam.image, actor_config)
                 obs = self.encode_obs(actor_id, image, py_measurement)
                 self.obs_dict[actor_id] = obs
