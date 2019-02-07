@@ -2,7 +2,7 @@ import math
 import pygame
 
 
-def render(images, unit_dimension, actor_configs):
+def multi_view_render(images, unit_dimension, actor_configs):
     """Render images based on pygame > 1.9.4
 
     Args:
@@ -22,7 +22,7 @@ def render(images, unit_dimension, actor_configs):
     for actor_id, im in images.items():
         if not actor_configs[actor_id]["render"]:
             continue
-        surface = pygame.surfarray.make_surface(im.swapaxes(0, 1))
+        surface = pygame.surfarray.make_surface(im.swapaxes(0, 1) * 128 + 128)
         surface_seq += ((surface, (poses[actor_id][1], poses[actor_id][0])), )
 
     display = pygame.display.set_mode((window_dim[0], window_dim[1]),

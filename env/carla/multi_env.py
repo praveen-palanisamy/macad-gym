@@ -35,6 +35,7 @@ from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
 from env.carla.reward import Reward
 from env.carla.carla.planner.planner import Planner
 from env.core.sensors.hud import HUD
+from env.viz.render import multi_view_render
 
 LOG_DIR = "logs"
 if not os.path.isdir(LOG_DIR):
@@ -788,11 +789,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     self.dones.add(actor_id)
                 info_dict[actor_id] = info
             self.done_dict["__all__"] = len(self.dones) == len(self.actors)
+            multi_view_render(obs_dict, [self.x_res, self.y_res],
+                              self.actor_configs)
             return obs_dict, reward_dict, self.done_dict, info_dict
         except Exception:
             print("Error during step, terminating episode early.",
                   traceback.format_exc())
-
             self.clear_server_state()
 
     def _step(self, actor_id, action):
