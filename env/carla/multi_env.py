@@ -22,6 +22,7 @@ import sys
 import time
 import traceback
 import socket
+import math
 
 import numpy as np  # linalg.norm is used
 import GPUtil
@@ -40,7 +41,7 @@ from env.viz.render import multi_view_render
 LOG_DIR = "logs"
 if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
-logging.basicConfig(filename=LOG_DIR + 'multi_env.log', level=logging.DEBUG)
+logging.basicConfig(filename=LOG_DIR + '/multi_env.log', level=logging.DEBUG)
 
 try:
     import carla
@@ -136,7 +137,7 @@ COMMAND_ORDINAL = {
 }
 
 # Number of retries if the server doesn't respond
-RETRIES_ON_ERROR = 5
+RETRIES_ON_ERROR = 2
 
 # Dummy Z coordinate to use when we only care about (x, y)
 GROUND_Z = 22
@@ -229,7 +230,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.y_res = self.env_config["y_res"]
         self.use_depth_camera = False  # !!test
         self.cameras = {}
-        self.planner = Planner(self.city)  # A* based navigation planner
+        if self.env_config.get("enable_planner"):
+            self.planner = Planner(self.city)  # A* based navigation planner
 
         # self.config["server_map"] = "/Game/Carla/Maps/" + args.map
 
@@ -323,6 +325,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         elif choice == "DEFAULT_CURVE_TOWN1":
             from env.carla.scenarios import DEFAULT_CURVE_TOWN1
             return DEFAULT_CURVE_TOWN1
+        # TODO: Combine the following INTERSECTION_TOWN3_* into a single config
+        elif "INTERSECTION_TOWN3_CAR1" in choice:
+            from env.carla.scenarios import INTERSECTION_TOWN3_CAR1
+            return INTERSECTION_TOWN3_CAR1
+        elif "INTERSECTION_TOWN3_CAR2" in choice:
+            from env.carla.scenarios import INTERSECTION_TOWN3_CAR2
+            return INTERSECTION_TOWN3_CAR2
+        elif "INTERSECTION_TOWN3_PED1" in choice:
+            from env.carla.scenarios import INTERSECTION_TOWN3_PED1
+            return INTERSECTION_TOWN3_PED1
 
     @staticmethod
     def get_free_tcp_port():
@@ -399,6 +411,19 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             except RuntimeError:
                 self.client = None
         self.client.set_timeout(60.0)
+        self.world = self.client.get_world()
+        # Set the spectatator/server view if rendering is enabled
+        if self.render and self.env_config.get("spectator_loc"):
+            spectator = self.world.get_spectator()
+            spectator_loc = carla.Location(*self.env_config["spectator_loc"])
+            d = 6.4
+            angle = 160  # degrees
+            a = math.radians(angle)
+            location = carla.Location(d * math.cos(a), d * math.sin(a),
+                                      2.0) + spectator_loc
+            spectator.set_transform(
+                carla.Transform(location,
+                                carla.Rotation(yaw=180 + angle, pitch=-15)))
 
     def clean_world(self):
         """Destroy all actors cleanly before exiting
@@ -500,23 +525,32 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             of a Vehicle agent.
 
         """
-        blueprints = self.world.get_blueprint_library().filter('vehicle')
-        # Further filter down to 4-wheeled vehicles
-        blueprints = [
-            b for b in blueprints
-            if int(b.get_attribute('number_of_wheels')) == 4
-        ]
+        agent_type = self.actor_configs[actor_id].get("type", "vehicle")
+        if agent_type == "pedestrian":
+            blueprints = self.world.get_blueprint_library().filter('walker')
+
+        #  elif agent_type == "vehicle":
+        else:
+            blueprints = self.world.get_blueprint_library().filter('vehicle')
+            # Further filter down to 4-wheeled vehicles
+            blueprints = [
+                b for b in blueprints
+                if int(b.get_attribute('number_of_wheels')) == 4
+            ]
+
         blueprint = random.choice(blueprints)
-        transform = carla.Transform(
-            carla.Location(
-                x=self.start_pos[actor_id][0],
-                y=self.start_pos[actor_id][1],
-                z=self.start_pos[actor_id][2]),
-            carla.Rotation(pitch=0, yaw=0, roll=0))
+        loc = carla.Location(
+            x=self.start_pos[actor_id][0],
+            y=self.start_pos[actor_id][1],
+            z=self.start_pos[actor_id][2])
+        rot = self.world.get_map().get_waypoint(
+            loc, project_to_road=True).transform.rotation
+        transform = carla.Transform(loc, rot)
+        self.actor_configs[actor_id]["start_transform"] = transform
         vehicle = None
-        for retry in range(RETRIES_ON_ERROR):
+        for retry in range(RETRIES_ON_ERROR - 1):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
-            time.sleep(0.8)
+            time.sleep(0.4)
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 break
             # Wait to see if spawn area gets cleared before retrying
@@ -524,6 +558,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             # self.clean_world()
             print("spawn_actor: Retry#:{}/{}".format(retry + 1,
                                                      RETRIES_ON_ERROR))
+        if vehicle is None:
+            # Request a spawn one last time. Spit the error if it still fails
+            vehicle = self.world.spawn_actor(blueprint, transform)
         return vehicle
 
     def _reset(self):
@@ -540,8 +577,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # TODO: num_actors not equal num_vehicle. Fix it when other actors are
         # like pedestrians are added
         self.num_vehicle = len(self.actor_configs)
-
-        self.world = self.client.get_world()
         self.weather = [
             self.world.get_weather().cloudyness,
             self.world.get_weather().precipitation,
@@ -549,6 +584,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             self.world.get_weather().wind_intensity
         ]
 
+        # TODO: Setup env actors based on scenario description in env config
         for actor_id, actor_config in self.actor_configs.items():
             if self.done_dict.get(actor_id, None) is None:
                 self.done_dict[actor_id] = True
@@ -556,19 +592,21 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             if self.done_dict.get(actor_id, False) is True:
                 if actor_id in self.actors.keys():
                     # Actor is already in the simulation. Do a soft reset
-                    # TODO: Keep a copy of the transform for each agent & reuse
-                    transform = carla.Transform(
-                        carla.Location(
-                            x=self.start_pos[actor_id][0],
-                            y=self.start_pos[actor_id][1],
-                            z=self.start_pos[actor_id][2]),
-                        carla.Rotation(pitch=0, yaw=0, roll=0))
-                    self.actors[actor_id].apply_control(
-                        carla.VehicleControl(
-                            throttle=0.0,
-                            steer=0.0,
-                            brake=0.0,
-                        ))
+                    transform = actor_config["start_transform"]
+                    # TODO: Remove the default of using "vehicle" type once
+                    # legacy support for config json/dicts without "type" is
+                    # no more required
+                    agent_type = actor_config.get("type", "vehicle")
+                    if agent_type == "pedestrian":
+                        self.actors[actor_id].apply_control(
+                            carla.WalkerControl(speed=0.0))
+                    elif agent_type == "vehicle":
+                        self.actors[actor_id].apply_control(
+                            carla.VehicleControl(
+                                throttle=0.0,
+                                steer=0.0,
+                                brake=0.0,
+                            ))
                     self.actors[actor_id].set_transform(transform)
                     if actor_id in self.dones:
                         self.dones.remove(actor_id)
@@ -604,11 +642,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                             update({actor_id: random.choice(scenario)})
 
                     self.scenario = self.scenario_map[actor_id]
-                    # str(start_id).decode("utf-8") # for py2
-                    s_id = str(self.scenario["start_pos_id"])
-                    e_id = str(self.scenario["end_pos_id"])
-                    self.start_pos[actor_id] = self.pos_coor_map[s_id]
-                    self.end_pos[actor_id] = self.pos_coor_map[e_id]
+                    if self.scenario.get("start_pos_id"):
+                        # str(start_id).decode("utf-8") # for py2
+                        s_id = str(self.scenario["start_pos_id"])
+                        e_id = str(self.scenario["end_pos_id"])
+                        self.start_pos[actor_id] = self.pos_coor_map[s_id]
+                        self.end_pos[actor_id] = self.pos_coor_map[e_id]
+                    elif self.scenario.get("start_pos_loc"):
+                        self.start_pos[actor_id] = self.scenario[
+                            "start_pos_loc"]
+                        self.end_pos[actor_id] = self.scenario["end_pos_loc"]
 
                     self.actors[actor_id] = self.spawn_new_agent(actor_id)
 
@@ -857,13 +900,21 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             # the point with z = 0, and the default z of cars are 40
             # next_point_transform.location.z = 40
             # self.actor_list[i].set_transform(next_point_transform)
-            self.actors[actor_id].apply_control(
-                carla.VehicleControl(
-                    throttle=throttle,
-                    steer=steer,
-                    brake=brake,
-                    hand_brake=hand_brake,
-                    reverse=reverse))
+
+            agent_type = config.get("type", "vehicle")
+            # TODO: Add proper support for pedestrian actor according to action
+            # space of ped actors
+            if agent_type == "pedestrian":
+                self.actors[actor_id].apply_control(
+                    carla.WalkerControl(speed=throttle))
+            elif agent_type == "vehicle":
+                self.actors[actor_id].apply_control(
+                    carla.VehicleControl(
+                        throttle=throttle,
+                        steer=steer,
+                        brake=brake,
+                        hand_brake=hand_brake,
+                        reverse=reverse))
 
         # Process observations
         py_measurements = self._read_observation(actor_id)

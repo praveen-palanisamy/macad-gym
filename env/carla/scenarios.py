@@ -16,17 +16,57 @@ PAPER_TRAIN_WEATHERS = [2, 14]  # cloudy daytime, soft rain at sunset
 
 def build_scenario(city, start, end, vehicles, pedestrians, max_steps,
                    weathers):
-    return {
+    scenario = {
         "city": city,
         "num_vehicles": vehicles,
         "num_pedestrians": pedestrians,
         "weather_distribution": weathers,
-        "start_pos_id": start,
-        "end_pos_id": end,
         "max_steps": max_steps,
     }
+    if isinstance(start, list) and isinstance(end, list):
+        scenario.update({"start_pos_loc": start, "end_pos_loc": end})
+    elif isinstance(start, int) and isinstance(end, int):
+        scenario.update({"start_pos_id": start, "end_pos_id": end})
+    return scenario
 
 
+# Temporary (quick) soln to use MA. By defining one dict per agent in
+# the scenario. Can be improved by using something like the triple quoted eg:
+"""
+# Scenario for Town02 that involves driving through an intersection with a
+# pedestrian crossing one side
+INTERSECTION_SCENARIO_TOWN2 = build_ma_scenario(
+   city="Town02",
+   vehicles=[(start1,end1),(start2,end2)],
+   pedestrians=[(start1,end1)],
+   max_steps=2000,
+   weathers=[0])
+"""
+
+INTERSECTION_TOWN3_CAR1 = build_scenario(
+    city="Town03",
+    start=[19, -133, 0.3],
+    end=[104, -132, 8],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=200,
+    weathers=[0])
+INTERSECTION_TOWN3_CAR2 = build_scenario(
+    city="Town03",
+    start=[84, -115, 10],
+    end=[41, -137, 8],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=200,
+    weathers=[0])
+INTERSECTION_TOWN3_PED1 = build_scenario(
+    city="Town03",
+    start=[74, -126, 10],
+    end=[92, -125, 8],
+    vehicles=0,
+    pedestrians=1,
+    max_steps=200,
+    weathers=[0])
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_scenario(
     city="Town01",
@@ -55,7 +95,6 @@ DEFAULT_SCENARIO_TOWN2 = build_scenario(
     max_steps=200,
     weathers=[0])
 
-#  Town1 curve test.
 DEFAULT_CURVE_TOWN1 = build_scenario(
     city="Town01",
     start=[133],
