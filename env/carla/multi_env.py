@@ -40,7 +40,7 @@ from env.core.sensors.hud import HUD
 LOG_DIR = "logs"
 if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
-logging.basicConfig(filename=LOG_DIR + 'multi_env.log', level=logging.DEBUG)
+logging.basicConfig(filename=LOG_DIR + '/multi_env.log', level=logging.DEBUG)
 
 try:
     import carla
@@ -136,7 +136,7 @@ COMMAND_ORDINAL = {
 }
 
 # Number of retries if the server doesn't respond
-RETRIES_ON_ERROR = 5
+RETRIES_ON_ERROR = 2
 
 # Dummy Z coordinate to use when we only care about (x, y)
 GROUND_Z = 22
@@ -229,7 +229,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.y_res = self.env_config["y_res"]
         self.use_depth_camera = False  # !!test
         self.cameras = {}
-        self.planner = Planner(self.city)  # A* based navigation planner
+        if self.env_config.get("enable_planner"):
+            self.planner = Planner(self.city)  # A* based navigation planner
 
         # self.config["server_map"] = "/Game/Carla/Maps/" + args.map
 
@@ -546,9 +547,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         transform = carla.Transform(loc, rot)
         self.actor_configs[actor_id]["start_transform"] = transform
         vehicle = None
-        for retry in range(RETRIES_ON_ERROR):
+        for retry in range(RETRIES_ON_ERROR - 1):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
-            time.sleep(0.8)
+            time.sleep(0.4)
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 break
             # Wait to see if spawn area gets cleared before retrying
@@ -556,6 +557,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             # self.clean_world()
             print("spawn_actor: Retry#:{}/{}".format(retry + 1,
                                                      RETRIES_ON_ERROR))
+        if vehicle is None:
+            # Request a spawn one last time. Spit the error if it still fails
+            vehicle = self.world.spawn_actor(blueprint, transform)
         return vehicle
 
     def _reset(self):
