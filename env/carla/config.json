@@ -1,5 +1,6 @@
 {
     "env": {
+        "enable_planner": true,
         "server_map": "/Game/Carla/Maps/Town01",
         "render": true,
         "render_x_res": 800,

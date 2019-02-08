@@ -22,6 +22,7 @@ import sys
 import time
 import traceback
 import socket
+import math
 
 import numpy as np  # linalg.norm is used
 import GPUtil
@@ -398,6 +399,19 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             except RuntimeError:
                 self.client = None
         self.client.set_timeout(60.0)
+        self.world = self.client.get_world()
+        # Set the spectatator/server view if rendering is enabled
+        if self.render and self.env_config.get("spectator_loc"):
+            spectator = self.world.get_spectator()
+            spectator_loc = carla.Location(*self.env_config["spectator_loc"])
+            d = 6.4
+            angle = 160  # degrees
+            a = math.radians(angle)
+            location = carla.Location(d * math.cos(a), d * math.sin(a),
+                                      2.0) + spectator_loc
+            spectator.set_transform(
+                carla.Transform(location,
+                                carla.Rotation(yaw=180 + angle, pitch=-15)))
 
     def clean_world(self):
         """Destroy all actors cleanly before exiting
@@ -539,8 +553,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # TODO: num_actors not equal num_vehicle. Fix it when other actors are
         # like pedestrians are added
         self.num_vehicle = len(self.actor_configs)
-
-        self.world = self.client.get_world()
         self.weather = [
             self.world.get_weather().cloudyness,
             self.world.get_weather().precipitation,
