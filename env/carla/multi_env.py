@@ -591,19 +591,21 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             if self.done_dict.get(actor_id, False) is True:
                 if actor_id in self.actors.keys():
                     # Actor is already in the simulation. Do a soft reset
-                    # TODO: Keep a copy of the transform for each agent & reuse
-                    transform = carla.Transform(
-                        carla.Location(
-                            x=self.start_pos[actor_id][0],
-                            y=self.start_pos[actor_id][1],
-                            z=self.start_pos[actor_id][2]),
-                        carla.Rotation(pitch=0, yaw=0, roll=0))
-                    self.actors[actor_id].apply_control(
-                        carla.VehicleControl(
-                            throttle=0.0,
-                            steer=0.0,
-                            brake=0.0,
-                        ))
+                    transform = actor_config["start_transform"]
+                    # TODO: Remove the default of using "vehicle" type once
+                    # legacy support for config json/dicts without "type" is
+                    # no more required
+                    agent_type = actor_config.get("type", "vehicle")
+                    if agent_type == "pedestrian":
+                        self.actors[actor_id].apply_control(
+                            carla.WalkerControl(speed=0.0))
+                    elif agent_type == "vehicle":
+                        self.actors[actor_id].apply_control(
+                            carla.VehicleControl(
+                                throttle=0.0,
+                                steer=0.0,
+                                brake=0.0,
+                            ))
                     self.actors[actor_id].set_transform(transform)
                     if actor_id in self.dones:
                         self.dones.remove(actor_id)
@@ -896,13 +898,21 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             # the point with z = 0, and the default z of cars are 40
             # next_point_transform.location.z = 40
             # self.actor_list[i].set_transform(next_point_transform)
-            self.actors[actor_id].apply_control(
-                carla.VehicleControl(
-                    throttle=throttle,
-                    steer=steer,
-                    brake=brake,
-                    hand_brake=hand_brake,
-                    reverse=reverse))
+
+            agent_type = config.get("type", "vehicle")
+            # TODO: Add proper support for pedestrian actor according to action
+            # space of ped actors
+            if agent_type == "pedestrian":
+                self.actors[actor_id].apply_control(
+                    carla.WalkerControl(speed=throttle))
+            elif agent_type == "vehicle":
+                self.actors[actor_id].apply_control(
+                    carla.VehicleControl(
+                        throttle=throttle,
+                        steer=steer,
+                        brake=brake,
+                        hand_brake=hand_brake,
+                        reverse=reverse))
 
         # Process observations
         py_measurements = self._read_observation(actor_id)
