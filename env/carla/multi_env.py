@@ -323,6 +323,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         elif choice == "DEFAULT_CURVE_TOWN1":
             from env.carla.scenarios import DEFAULT_CURVE_TOWN1
             return DEFAULT_CURVE_TOWN1
+        # TODO: Combine the following INTERSECTION_TOWN3_* into a single config
+        elif "INTERSECTION_TOWN3_CAR1" in choice:
+            from env.carla.scenarios import INTERSECTION_TOWN3_CAR1
+            return INTERSECTION_TOWN3_CAR1
+        elif "INTERSECTION_TOWN3_CAR2" in choice:
+            from env.carla.scenarios import INTERSECTION_TOWN3_CAR2
+            return INTERSECTION_TOWN3_CAR2
+        elif "INTERSECTION_TOWN3_PED1" in choice:
+            from env.carla.scenarios import INTERSECTION_TOWN3_PED1
+            return INTERSECTION_TOWN3_PED1
 
     @staticmethod
     def get_free_tcp_port():
@@ -513,19 +523,28 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             of a Vehicle agent.
 
         """
-        blueprints = self.world.get_blueprint_library().filter('vehicle')
-        # Further filter down to 4-wheeled vehicles
-        blueprints = [
-            b for b in blueprints
-            if int(b.get_attribute('number_of_wheels')) == 4
-        ]
+        agent_type = self.actor_configs[actor_id].get("type", "vehicle")
+        if agent_type == "pedestrian":
+            blueprints = self.world.get_blueprint_library().filter('walker')
+
+        #  elif agent_type == "vehicle":
+        else:
+            blueprints = self.world.get_blueprint_library().filter('vehicle')
+            # Further filter down to 4-wheeled vehicles
+            blueprints = [
+                b for b in blueprints
+                if int(b.get_attribute('number_of_wheels')) == 4
+            ]
+
         blueprint = random.choice(blueprints)
-        transform = carla.Transform(
-            carla.Location(
-                x=self.start_pos[actor_id][0],
-                y=self.start_pos[actor_id][1],
-                z=self.start_pos[actor_id][2]),
-            carla.Rotation(pitch=0, yaw=0, roll=0))
+        loc = carla.Location(
+            x=self.start_pos[actor_id][0],
+            y=self.start_pos[actor_id][1],
+            z=self.start_pos[actor_id][2])
+        rot = self.world.get_map().get_waypoint(
+            loc, project_to_road=True).transform.rotation
+        transform = carla.Transform(loc, rot)
+        self.actor_configs[actor_id]["start_transform"] = transform
         vehicle = None
         for retry in range(RETRIES_ON_ERROR):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
@@ -560,6 +579,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             self.world.get_weather().wind_intensity
         ]
 
+        # TODO: Setup env actors based on scenario description in env config
         for actor_id, actor_config in self.actor_configs.items():
             if self.done_dict.get(actor_id, None) is None:
                 self.done_dict[actor_id] = True
@@ -615,11 +635,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                             update({actor_id: random.choice(scenario)})
 
                     self.scenario = self.scenario_map[actor_id]
-                    # str(start_id).decode("utf-8") # for py2
-                    s_id = str(self.scenario["start_pos_id"])
-                    e_id = str(self.scenario["end_pos_id"])
-                    self.start_pos[actor_id] = self.pos_coor_map[s_id]
-                    self.end_pos[actor_id] = self.pos_coor_map[e_id]
+                    if self.scenario.get("start_pos_id"):
+                        # str(start_id).decode("utf-8") # for py2
+                        s_id = str(self.scenario["start_pos_id"])
+                        e_id = str(self.scenario["end_pos_id"])
+                        self.start_pos[actor_id] = self.pos_coor_map[s_id]
+                        self.end_pos[actor_id] = self.pos_coor_map[e_id]
+                    elif self.scenario.get("start_pos_loc"):
+                        self.start_pos[actor_id] = self.scenario[
+                            "start_pos_loc"]
+                        self.end_pos[actor_id] = self.scenario["end_pos_loc"]
 
                     self.actors[actor_id] = self.spawn_new_agent(actor_id)
 
