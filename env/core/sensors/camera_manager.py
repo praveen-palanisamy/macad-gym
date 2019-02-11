@@ -24,12 +24,15 @@ class CameraManager(object):
         self._hud = hud
         self._recording = False
         self._memory_record = False
+        # TODO: Make the camera positioning configurable. Toggling is already
+        # supported through toggle_camera
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.6, z=1.7)),
             carla.Transform(
                 carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15))
         ]
-        self._transform_index = 1
+        # 0 is dashcam view; 1 is tethered view
+        self._transform_index = 0
         self._sensors = [
             ['sensor.camera.rgb', cc.Raw, 'Camera RGB'],
             ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)'],
