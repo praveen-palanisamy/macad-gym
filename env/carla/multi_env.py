@@ -34,7 +34,12 @@ from env.core.sensors.utils import preprocess_image
 from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
 # from env.core.sensors.utils import get_transform_from_nearest_way_point
 from env.carla.reward import Reward
-from env.carla.carla.planner.planner import Planner
+from env.carla.agents.navigation.global_route_planner_dao \
+    import GlobalRoutePlannerDAO
+from env.carla.agents.navigation.global_route_planner \
+    import GlobalRoutePlanner
+from env.carla.agents.navigation.local_planner import RoadOption
+
 from env.core.sensors.hud import HUD
 from env.viz.render import multi_view_render
 
@@ -47,9 +52,10 @@ try:
     import carla
 except ImportError:
     try:
+        # Find and use the egg file for the latest API version
         sys.path.append(
             glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
-                      f'{sys.version_info.minor}-linux-x86_64.egg')[0])
+                      f'{sys.version_info.minor}-linux-x86_64.egg')[-1])
         import carla  # noqa: E402
     except IndexError:
         raise IndexError('CARLA PythonAPI egg file not found. Check the path')
@@ -134,6 +140,14 @@ COMMAND_ORDINAL = {
     "TURN_RIGHT": 2,
     "TURN_LEFT": 3,
     "LANE_FOLLOW": 4,
+}
+
+ROAD_OPTION_TO_COMMANDS_MAPPING = {
+    RoadOption.VOID: "REACH_GOAL",
+    RoadOption.STRAIGHT: "GO_STRAIGHT",
+    RoadOption.RIGHT: "TURN_RIGHT",
+    RoadOption.LEFT: "TURN_LEFT",
+    RoadOption.LANEFOLLOW: "LANE_FOLLOW",
 }
 
 # Number of retries if the server doesn't respond
@@ -230,8 +244,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.y_res = self.env_config["y_res"]
         self.use_depth_camera = False  # !!test
         self.cameras = {}
-        if self.env_config.get("enable_planner"):
-            self.planner = Planner(self.city)  # A* based navigation planner
 
         # self.config["server_map"] = "/Game/Carla/Maps/" + args.map
 
@@ -411,7 +423,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.client = carla.Client("localhost", self.server_port)
                 self.client.set_timeout(2.0)
                 self.client.get_server_version()
-            except RuntimeError:
+            except RuntimeError as re:
+                if "timeout" not in str(re):
+                    print("Could not connect to Carla server because:", re)
                 self.client = None
         self.client.set_timeout(60.0)
         self.world = self.client.get_world()
@@ -427,6 +441,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             spectator.set_transform(
                 carla.Transform(location,
                                 carla.Rotation(yaw=180 + angle, pitch=-15)))
+
+        if self.env_config.get("enable_planner"):
+            planner_dao = GlobalRoutePlannerDAO(self.world.get_map())
+            self.planner = GlobalRoutePlanner(planner_dao)
+            self.planner.setup()
 
     def clean_world(self):
         """Destroy all actors cleanly before exiting
@@ -1014,15 +1033,14 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         cur_config = self.actor_configs[actor_id]
         planner_enabled = cur_config["enable_planner"]
         if planner_enabled:
-            next_command = COMMANDS_ENUM[self.planner.get_next_command(
-                [cur.get_location().x,
-                 cur.get_location().y, GROUND_Z], [
-                     cur.get_transform().rotation.pitch,
-                     cur.get_transform().rotation.yaw, GROUND_Z
-                 ], [
-                     self.end_pos[actor_id][0], self.end_pos[actor_id][1],
-                     GROUND_Z
-                 ], [0.0, 90.0, GROUND_Z])]
+            commands = self.planner.plan_route(
+                (cur.get_location().x, cur.get_location().y),
+                (self.end_pos[actor_id][0], self.end_pos[actor_id][1]))
+            if len(commands) > 0:
+                next_command = ROAD_OPTION_TO_COMMANDS_MAPPING.get(
+                    commands[0], "LANE_FOLLOW")
+            else:
+                next_command = "LANE_FOLLOW"
         else:
             next_command = "LANE_FOLLOW"
 
@@ -1036,14 +1054,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             distance_to_goal = 0.0  # avoids crash in planner
         elif planner_enabled:
             distance_to_goal = self.planner.get_shortest_path_distance(
-                [cur.get_location().x,
-                 cur.get_location().y, GROUND_Z], [
-                     cur.get_transform().rotation.pitch,
-                     cur.get_transform().rotation.yaw, GROUND_Z
-                 ], [
-                     self.end_pos[actor_id][0], self.end_pos[actor_id][1],
-                     GROUND_Z
-                 ], [0, 90, 0]) / 100
+                (cur.get_location().x, cur.get_location().y),
+                (self.end_pos[actor_id][0], self.end_pos[actor_id][1])) / 100
         else:
             distance_to_goal = -1
 
