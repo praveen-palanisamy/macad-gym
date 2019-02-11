@@ -97,7 +97,7 @@ spawn_locs = {
         "E": [104, -132, 8]
     },
     "car2": {
-        "S": [84, -115, 8],
+        "S": [84, -123, 8],
         "E": [41, -137, 8]
     },
     "ped1": {
@@ -109,6 +109,7 @@ spawn_locs = {
 
 def start_scenario():
     car_bp = random.choice(world.get_blueprint_library().filter('vehicle'))
+    car_bp.set_attribute("role_name", "hero")
     car1_loc_s = carla.Location(*spawn_locs["car1"]["S"])
     car2_loc_s = carla.Location(*spawn_locs["car2"]["S"])
     ped1_loc_s = carla.Location(*spawn_locs["ped1"]["S"])
@@ -126,7 +127,25 @@ def start_scenario():
     start_walker(ped1)
 
 
-# Main:
+def get_traffic_lights(loc=carla.Location(0, 0, 0)):
+    tls = {}
+    for a in world.get_actors().filter("traffic.traffic_light"):
+        tls[a.id] = [
+            a.get_location().x,
+            a.get_location().y,
+            a.get_location().z
+        ]
+        print("ID:", a.id, "loc:",
+              a.get_location().x,
+              a.get_location().y,
+              a.get_location().z)
+    # Sort traffic lights by their location.x
+    ans = sorted(tls.items(), key=lambda kv: kv[1][0])
+    return ans
+
+    # Main:
+
+
 client = carla.Client('localhost', 2000)
 client.set_timeout(2.0)
 world = client.get_world()

@@ -1,6 +1,8 @@
 import math
 import pygame
 
+i = 0
+
 
 def multi_view_render(images, unit_dimension, actor_configs):
     """Render images based on pygame > 1.9.4
@@ -13,6 +15,7 @@ def multi_view_render(images, unit_dimension, actor_configs):
     Returns:
         N/A.
     """
+    global i
     pygame.init()
     surface_seq = ()
     poses, window_dim = get_surface_poses(
@@ -29,6 +32,10 @@ def multi_view_render(images, unit_dimension, actor_configs):
                                       pygame.HWSURFACE | pygame.DOUBLEBUF)
     display.blits(blit_sequence=surface_seq, doreturn=1)
     pygame.display.flip()
+    # save to disk
+    pygame.image.save(display,
+                      "/mnt/DATADRIVE1/pygame_surfs/" + str(i) + ".jpeg")
+    i += 1
 
 
 def get_surface_poses(subwindow_num, unit_dimension, ids):

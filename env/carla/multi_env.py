@@ -372,7 +372,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         min_index = i
                 self.server_process = subprocess.Popen(
                     ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=10"
-                     " -carla-server -carla-world-port={}").format(
+                     " -carla-server -carla-world-port={} -dumpmovie").format(
                          min_index, SERVER_BINARY, self.server_map,
                          self.server_port),
                     shell=True,
@@ -391,7 +391,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     SERVER_BINARY, self.server_map, "-windowed", "-ResX=",
                     str(self.env_config["render_x_res"]), "-ResY=",
                     str(self.env_config["render_y_res"]), "-benchmark -fps=10"
-                    "-carla-server", "-carla-world-port={}".format(
+                    "-carla-server", "-carla-world-port={} -dumpmovie".format(
                         self.server_port)
                 ],
                                                        preexec_fn=os.setsid,
@@ -732,6 +732,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         print('New episode initialized with actors:{}'.format(
             self.actors.keys()))
+        # TEMP: set traffic light to green for car2
+        # tl = self.actors["car2"].get_traffic_light()
+        # tl.set_state(carla.TrafficLightState.Green)
+
         for actor_id, cam in self.cameras.items():
             if self.done_dict.get(actor_id, False) is True:
                 # TODO: Move the initialization value setting
