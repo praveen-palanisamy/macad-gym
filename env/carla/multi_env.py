@@ -335,6 +335,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         elif "INTERSECTION_TOWN3_PED1" in choice:
             from env.carla.scenarios import INTERSECTION_TOWN3_PED1
             return INTERSECTION_TOWN3_PED1
+        elif "INTERSECTION_TOWN3_BIKE1" in choice:
+            from env.carla.scenarios import INTERSECTION_TOWN3_BIKE1
+            return INTERSECTION_TOWN3_BIKE1
 
     @staticmethod
     def get_free_tcp_port():
@@ -526,16 +529,26 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         """
         agent_type = self.actor_configs[actor_id].get("type", "vehicle")
+        if agent_type not in ["pedestrian", "vehicle_2W", "vehicle_4W"]:
+            print("Unsupported actor type:{}. Using vehicle_4W as the type")
+            agent_type = "vehicle_4W"
+
         if agent_type == "pedestrian":
             blueprints = self.world.get_blueprint_library().filter('walker')
 
-        #  elif agent_type == "vehicle":
-        else:
+        elif agent_type == "vehicle_4W":
             blueprints = self.world.get_blueprint_library().filter('vehicle')
             # Further filter down to 4-wheeled vehicles
             blueprints = [
                 b for b in blueprints
                 if int(b.get_attribute('number_of_wheels')) == 4
+            ]
+        elif agent_type == "vehicle_2W":
+            blueprints = self.world.get_blueprint_library().filter('vehicle')
+            # Further filter down to 2-wheeled vehicles
+            blueprints = [
+                b for b in blueprints
+                if int(b.get_attribute('number_of_wheels')) == 2
             ]
 
         blueprint = random.choice(blueprints)
@@ -550,7 +563,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         vehicle = None
         for retry in range(RETRIES_ON_ERROR - 1):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
-            time.sleep(0.4)
+            time.sleep(0.8)
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 break
             # Wait to see if spawn area gets cleared before retrying
@@ -906,7 +919,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             # space of ped actors
             if agent_type == "pedestrian":
                 self.actors[actor_id].apply_control(
-                    carla.WalkerControl(speed=throttle))
+                    carla.WalkerControl(speed=2.0 + throttle))
             elif agent_type == "vehicle":
                 self.actors[actor_id].apply_control(
                     carla.VehicleControl(
