@@ -33,8 +33,8 @@ def multi_view_render(images, unit_dimension, actor_configs):
     display.blits(blit_sequence=surface_seq, doreturn=1)
     pygame.display.flip()
     # save to disk
-    pygame.image.save(display,
-                      "/mnt/DATADRIVE1/pygame_surfs/" + str(i) + ".jpeg")
+    # pygame.image.save(display,
+    #                   "/mnt/DATADRIVE1/pygame_surfs/" + str(i) + ".jpeg")
     i += 1
 
 

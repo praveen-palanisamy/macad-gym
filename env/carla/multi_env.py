@@ -92,11 +92,12 @@ DEFAULT_MULTIENV_CONFIG = {
         "squash_action_logits": False,
         "verbose": False,
         "use_depth_camera": False,
-        "send_measurements": False
+        "send_measurements": False,
+        "enable_planner": False
     },
     "actors": {
         "vehicle1": {
-            "enable_planner": True,
+            "enable_planner": False,
             "render": True,  # Whether to render to screen or send to VFB
             "framestack": 1,  # note: only [1, 2] currently supported
             "convert_images_to_video": False,
@@ -384,7 +385,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         min_index = i
                 self.server_process = subprocess.Popen(
                     ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=10"
-                     " -carla-server -carla-world-port={} -dumpmovie").format(
+                     " -carla-server -carla-world-port={}").format(
                          min_index, SERVER_BINARY, self.server_map,
                          self.server_port),
                     shell=True,
@@ -403,7 +404,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     SERVER_BINARY, self.server_map, "-windowed", "-ResX=",
                     str(self.env_config["render_x_res"]), "-ResY=",
                     str(self.env_config["render_y_res"]), "-benchmark -fps=10"
-                    "-carla-server", "-carla-world-port={} -dumpmovie".format(
+                    "-carla-server", "-carla-world-port={}".format(
                         self.server_port)
                 ],
                                                        preexec_fn=os.setsid,

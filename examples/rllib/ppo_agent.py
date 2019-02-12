@@ -7,8 +7,8 @@ from ray.rllib.models.catalog import ModelCatalog
 import ray.tune as tune
 from ray.tune import register_env
 from env.carla.multi_env import MultiCarlaEnv, DEFAULT_MULTIENV_CONFIG
-from agents.rllib.models import register_mnih15_net
-from agents.rllib.env_wrappers import wrap_deepmind
+from examples.rllib.models import register_mnih15_net
+from examples.rllib.env_wrappers import wrap_deepmind
 from ray.rllib.agents.ppo.ppo_policy_graph import PPOPolicyGraph
 
 parser = argparse.ArgumentParser()

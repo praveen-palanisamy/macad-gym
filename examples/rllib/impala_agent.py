@@ -1,4 +1,6 @@
+import os
 import argparse
+
 from gym.spaces import Box, Discrete
 import ray
 from ray.rllib.agents.impala import impala
@@ -6,10 +8,12 @@ from ray.rllib.models.preprocessors import Preprocessor
 from ray.rllib.models.catalog import ModelCatalog
 import ray.tune as tune
 from ray.tune import register_env
-from env.carla.multi_env import MultiCarlaEnv
-from agents.rllib.models import register_mnih15_net
-from agents.rllib.env_wrappers import wrap_deepmind
 from ray.rllib.agents.impala.vtrace_policy_graph import VTracePolicyGraph
+
+from env.carla.multi_env import MultiCarlaEnv
+from env.carla.multi_env import DEFAULT_MULTIENV_CONFIG
+from examples.rllib.models import register_mnih15_net
+from examples.rllib.env_wrappers import wrap_deepmind
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -30,7 +34,7 @@ parser.add_argument(
     type=int,
     help="Num workers (CPU cores) to use")
 parser.add_argument(
-    "--num-gpus", default=2, type=int, help="Number of gpus to use. Default=2")
+    "--num-gpus", default=1, type=int, help="Number of gpus to use. Default=2")
 parser.add_argument(
     "--sample-bs-per-worker",
     default=50,
@@ -90,18 +94,22 @@ env_name = "Carla-v0"
 
 num_framestack = args.num_framestack
 
+env_actor_configs = DEFAULT_MULTIENV_CONFIG
+
+# env_config["env"]["render"] = False
+
 
 def env_creator(env_config):
     # NOTES: env_config.worker_index & vector_index are useful for
     # curriculum learning or joint training experiments
-    env = MultiCarlaEnv()
+    env = MultiCarlaEnv(env_config)  # (env_actor_configs)
     # Apply wrappers to: convert to Grayscale, resize to 84 x 84,
     # stack frames & some more op
     env = wrap_deepmind(env, dim=84, num_framestack=num_framestack)
     return env
 
 
-register_env("dm-" + env_name, env_creator)
+register_env("dm-" + env_name, lambda config: env_creator(config))
 
 
 # Placeholder to enable use of a custom pre-processor
@@ -118,6 +126,9 @@ class ImagePreproc(Preprocessor):
 
 ModelCatalog.register_custom_preprocessor("sq_im_84", ImagePreproc)
 
+# NOTE: The config def here is unused. See agent init args. Config is created
+# during agent init. The below config is just a placeholder for future quick
+# experiments.
 config = {
     # Model and preprocessor options.
     "model": {
@@ -140,7 +151,7 @@ config = {
     # "preprocessor_pref": "deepmind",
 
     # env_config to be passed to env_creator
-    "env_config": {}
+    "env_config": env_actor_configs
 }
 # Common Agent config
 config.update({
@@ -242,14 +253,19 @@ if args.debug:
                 },
                 "policy_mapping_fn": lambda agent_id: "def_policy",
             },
+            "env_config": env_actor_configs
         })
+    if args.checkpoint_path and os.path.isfile(args.checkpoint_path):
+        trainer.restore(args.checkpoint_path)
+        print("Loaded checkpoint from:{}".format(args.checkpoint_path))
+
     for iter in tqdm(range(args.num_steps), desc="Iters"):
         results = trainer.train()
         if iter % 500 == 0:
             trainer.save("saved_models/multi-carla/" + args.model_arch)
         pprint(results)
 else:
-    config.update({
+    config = {
         "env": "dm-" + env_name,
         "log_level": "DEBUG",
         "multiagent": {
@@ -261,8 +277,9 @@ else:
                                })
             },
             "policy_mapping_fn": tune.function(lambda agent_id: "def_policy"),
-        }
-    })
+        },
+        "env_config": env_actor_configs
+    }
 
     experiment_spec = tune.Experiment(
         "multi-carla/" + args.model_arch,

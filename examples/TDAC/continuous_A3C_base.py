@@ -35,8 +35,8 @@ class Net(nn.Module):
         self.input_image_size = np.product(self.input_image_shape)
         # 1 is for the discrete space in state_space.spaces[1]
         self.input_measurements_shape = 1 + state_space.spaces[2].shape[0]
-        self.conv1 = nn.Conv2d(np.int(self.input_image_shape[2]), 32, 4,
-                               stride=2, padding=1)
+        self.conv1 = nn.Conv2d(
+            np.int(self.input_image_shape[2]), 32, 4, stride=2, padding=1)
         self.conv2 = nn.Conv2d(32, 32, 4, stride=2, padding=1)
         self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
         self.conv4 = nn.Conv2d(32, 32, 2, stride=1, padding=1)
@@ -49,8 +49,10 @@ class Net(nn.Module):
                                      self.action_space)
         # Init weights
         # self.apply(weights_init)
-        set_init([self.conv1, self.conv2, self.conv3, self.conv4, self.linear,
-                  self.critic_linear, self.actor_mu, self.actor_sigma])
+        set_init([
+            self.conv1, self.conv2, self.conv3, self.conv4, self.linear,
+            self.critic_linear, self.actor_mu, self.actor_sigma
+        ])
 
         self.actor_mu.weight.data = normalized_columns_initializer(
             self.actor_mu.weight.data, 0.01)
@@ -119,22 +121,24 @@ class Worker(mp.Process):
         self.g_ep, self.g_ep_r, self.res_queue = (global_ep, global_ep_r,
                                                   res_queue)
         self.gnet, self.opt = gnet, opt
-        self.lnet = Net(state_dim, action_dim)           # local network
+        self.lnet = Net(state_dim, action_dim)  # local network
         self.env = env_creator(self.config["env_config"])
         self.successful_episodes = 0
         self.mean_episode_len = 0
         self.total_step = 1
         now = datetime.datetime.now()
-        self.summary_writer = SummaryWriter(os.path.expanduser(
-            "~/tensorboard_log/continuous_a3c/{}_{}_{}_{}_{}_{}_{}".format(
-                now.year, now.month, now.day, now.hour, now.minute, now.second,
-                self.name)))
+        self.summary_writer = SummaryWriter(
+            os.path.expanduser(
+                "~/tensorboard_log/continuous_a3c/{}_{}_{}_{}_{}_{}_{}".format(
+                    now.year, now.month, now.day, now.hour, now.minute,
+                    now.second, self.name)))
 
     def run(self):
         while self.g_ep.value < self.config["MAX_EP"]:
             s = self.env.reset()
-            s = torch.from_numpy(np.concatenate(
-                (s[0].flatten(), np.array([s[1]]), np.array(s[2]).flatten())))
+            s = torch.from_numpy(
+                np.concatenate((s[0].flatten(), np.array([s[1]]),
+                                np.array(s[2]).flatten())))
             buffer_s, buffer_a, buffer_r = [], [], []
             ep_r = 0.
             times_sum = 0.0
@@ -142,8 +146,8 @@ class Worker(mp.Process):
             for t in range(self.config["MAX_EP_STEP"]):
                 start_time = time.time()
                 a = self.lnet.choose_action(Variable(s).float())
-                s_, r, done, py_measurements = self.env.step(
-                    a.squeeze().clip(-1, 1))
+                s_, r, done, py_measurements = self.env.step(a.squeeze().clip(
+                    -1, 1))
                 times_sum += time.time() - start_time
                 # TensorboardX freezing here
                 # self.summary_writer.add_scalar("Current Reward",
@@ -151,21 +155,21 @@ class Worker(mp.Process):
                 # self.summary_writer.add_scalar("Distance to Goal",
                 # torch.DoubleTensor(
                 # [py_measurements["dist_to_goal_euclidean"]]), self.total_step)
-                s_ = torch.from_numpy(np.concatenate(
-                    (s_[0].flatten(), np.array([s_[1]]),
-                     np.array(s_[2]).flatten())))
+                s_ = torch.from_numpy(
+                    np.concatenate((s_[0].flatten(), np.array([s_[1]]),
+                                    np.array(s_[2]).flatten())))
                 if t == self.config["MAX_EP_STEP"] - 1:
                     done = True
                 ep_r += r
                 buffer_a.append(a)
                 buffer_s.append(s)
-                buffer_r.append((r + 8.1) / 8.1)    # normalize
+                buffer_r.append((r + 8.1) / 8.1)  # normalize
 
                 if self.total_step % self.config["UPDATE_GLOBAL_ITER"] == 0 or \
                         done:  # update global and assign to local net
                     # sync
-                    push_and_pull(self.opt, self.lnet, self.gnet,
-                                  done, s_, buffer_s, buffer_a, buffer_r,
+                    push_and_pull(self.opt, self.lnet, self.gnet, done, s_,
+                                  buffer_s, buffer_a, buffer_r,
                                   self.config["gamma"])
                     buffer_s, buffer_a, buffer_r = [], [], []
 
@@ -181,18 +185,19 @@ class Worker(mp.Process):
                 self.successful_episodes += 1
 
             self.summary_writer.add_scalar(
-                "Num success episodes", torch.DoubleTensor(
+                "Num success episodes",
+                torch.DoubleTensor(
                     [self.successful_episodes / self.g_ep.value]),
                 self.g_ep.value)
             self.summary_writer.add_scalar(
-                "Mean Reward", torch.DoubleTensor([ep_r/(t+1)]),
+                "Mean Reward", torch.DoubleTensor([ep_r / (t + 1)]),
                 self.g_ep.value)
             self.summary_writer.add_scalar(
                 "Mean Time Per Iteration in Seconds",
-                torch.DoubleTensor([times_sum/(t + 1)]), self.g_ep.value)
+                torch.DoubleTensor([times_sum / (t + 1)]), self.g_ep.value)
 
-            self.mean_episode_len += ((episode_len - self.mean_episode_len)
-                                      / self.g_ep.value)
+            self.mean_episode_len += (
+                (episode_len - self.mean_episode_len) / self.g_ep.value)
             self.summary_writer.add_scalar(
                 "Mean Ep Len", torch.DoubleTensor([self.mean_episode_len]),
                 self.total_step)
@@ -207,9 +212,9 @@ class ContinuousA3CTune(Trainable):
         self.env = self.env_creator(self.config["env_config"])
         self.N_S = self.env.observation_space
         self.N_A = self.env.action_space
-        self.gnet = Net(self.N_S, self.N_A)        # global network
+        self.gnet = Net(self.N_S, self.N_A)  # global network
         if "load_checkpoint_path" in self.config and self.config[
-           "load_checkpoint_path"] is not None:
+                "load_checkpoint_path"] is not None:
             self.restore(self.config["load_checkpoint_path"])
         # share the global parameters in multiprocessing
         self.gnet.share_memory()
@@ -220,11 +225,11 @@ class ContinuousA3CTune(Trainable):
                                                             mp.Queue())
         self.training_iteration = 0
         # parallel training
-        self.workers = [Worker(
-            self.gnet, self.opt, self.global_ep, self.global_ep_r,
-            self.res_queue, i, self.env_creator, self.config, self.N_S,
-            self.N_A) for i in range(
-            self.config["num_local_workers"])]  # mp.cpu_count())]
+        self.workers = [
+            Worker(self.gnet, self.opt, self.global_ep, self.global_ep_r,
+                   self.res_queue, i, self.env_creator, self.config, self.N_S,
+                   self.N_A) for i in range(self.config["num_local_workers"])
+        ]  # mp.cpu_count())]
         [w.start() for w in self.workers]
 
     def _train(self):
@@ -250,9 +255,9 @@ class ContinuousA3CTune(Trainable):
 
     def _save(self, checkpoint_dir):
         current_time = int(round(time.time() * 1000))
-        torch.save(self.gnet.state_dict(),
-                   "{}global/{}_{}.pth".format(
-                       checkpoint_dir, self.training_iteration, current_time))
+        torch.save(
+            self.gnet.state_dict(), "{}global/{}_{}.pth".format(
+                checkpoint_dir, self.training_iteration, current_time))
 
     def _restore(self, path):
         self.gnet.load_state_dict(torch.load(path))
