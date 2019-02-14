@@ -2,7 +2,8 @@ import math
 
 
 def get_tls(world,
-            actor,
+            candidate_transform,
+            sort=False,
             distance_threshold=50.0,
             angle_threshold=math.pi / 4.0):
     """Get a list of traffic lights that will affect an actor
@@ -13,8 +14,10 @@ def get_tls(world,
 
     Args:
         world (carla.world): Carla World object
-        actor (carla.actor): Vehicle or actor for which the traffic lights will
-            apply
+        candidate_transform (carla.Transform): Pose (location & orientation) of
+            interest for which relevant traffic lights are to be found
+        sort (bool): Return a sorted list of TrafficLights based on L2 distance
+            and angle if True.
         distance_threshold: Maximum L2 distance to search for the lights
         angle_threshold:
 
@@ -22,15 +25,14 @@ def get_tls(world,
         list: Containing carla.TrafficLights that affect the actor
 
     """
-    tls = []
-    ax, ay = actor.get_location().x, actor.get_location().y
+    tls = {}
+    ax, ay = candidate_transform.location.x, candidate_transform.location.y
 
     for t in world.get_actors().filter("traffic.traffic_light"):
         tx, ty = t.get_location().x, t.get_location().y
-        if math.sqrt((ax - tx) * (ax - tx) +
-                     (ay - ty) * (ay - ty)) < distance_threshold:
-            actor_orientation = math.radians(
-                actor.get_transform().rotation.yaw)
+        dist = math.sqrt((ax - tx) * (ax - tx) + (ay - ty) * (ay - ty))
+        if dist < distance_threshold:
+            actor_orientation = math.radians(candidate_transform.rotation.yaw)
             traffic_light_orientation = math.radians(
                 t.get_transform().rotation.yaw)
             angle = math.fabs((
@@ -39,9 +41,12 @@ def get_tls(world,
 
             if math.fabs(angle) > angle_threshold and math.fabs(
                     angle) < math.pi - angle_threshold:
-                tls.append(t)
-
-    return tls
+                tls[t] = (dist, angle)
+    if sort:
+        # Return a sorted list sorted first based on dist & then angle
+        return sorted(tls.items(), key=lambda kv: kv[1])
+    else:
+        return list(tls.keys())
 
 
 def set_tl_state(traffic_lights, traffic_light_state):

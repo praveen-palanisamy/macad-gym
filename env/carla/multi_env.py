@@ -229,7 +229,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         #: list of str: Supported values for `type` filed in `actor_configs`
         #: for actors than can be actively controlled
         self.supported_active_actor_types = [
-            "vehicle_4W", "vehicle_2W", "pedestrian", "trafficlights"
+            "vehicle_4W", "vehicle_2W", "pedestrian", "traffic_light"
         ]
         #: list of str: Supported values for `type` field in `actor_configs`
         #: for actors that are passive. Example: A camera mounted on a pole
@@ -561,22 +561,37 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             print("Unsupported actor type:{}. Using vehicle_4W as the type")
             agent_type = "vehicle_4W"
 
+        if agent_type == "traffic_light":
+            # Traffic lights already exist in the world & can't be spawned.
+            # Find closest traffic light actor in world.actor_list and return
+            from env.core.controllers import traffic_lights
+            loc = carla.Location(self.start_pos[actor_id][0],
+                                 self.start_pos[actor_id][1],
+                                 self.start_pos[actor_id][2])
+            rot = self.world.get_map().get_waypoint(
+                loc, project_to_road=True).transform.rotation
+            transform = carla.Transform(loc, rot)
+            self.actor_configs[actor_id]["start_transform"] = transform
+            tls = traffic_lights.get_tls(self.world, transform, sort=True)
+            return tls[0][0]  #: Return the key (carla.TrafficLight object) of
+            #: closest match
+
         if agent_type == "pedestrian":
-            blueprints = self.world.get_blueprint_library().filter('walker')
+            blueprints = self.world.get_blueprint_library().filter("walker")
 
         elif agent_type == "vehicle_4W":
-            blueprints = self.world.get_blueprint_library().filter('vehicle')
+            blueprints = self.world.get_blueprint_library().filter("vehicle")
             # Further filter down to 4-wheeled vehicles
             blueprints = [
                 b for b in blueprints
-                if int(b.get_attribute('number_of_wheels')) == 4
+                if int(b.get_attribute("number_of_wheels")) == 4
             ]
         elif agent_type == "vehicle_2W":
-            blueprints = self.world.get_blueprint_library().filter('vehicle')
+            blueprints = self.world.get_blueprint_library().filter("vehicle")
             # Further filter down to 2-wheeled vehicles
             blueprints = [
                 b for b in blueprints
-                if int(b.get_attribute('number_of_wheels')) == 2
+                if int(b.get_attribute("number_of_wheels")) == 2
             ]
 
         blueprint = random.choice(blueprints)
@@ -761,8 +776,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         print('New episode initialized with actors:{}'.format(
             self.actors.keys()))
         # TEMP: set traffic light to green for car2
-        # tl = self.actors["car2"].get_traffic_light()
-        # tl.set_state(carla.TrafficLightState.Green)
+        # tls = traffic_lights.get_tls(self.world,
+        #                              self.actors["car2"].get_transform())
+        # traffic_lights.set_tl_state(tls, carla.TrafficLightState.Green)
 
         for actor_id, cam in self.cameras.items():
             if self.done_dict.get(actor_id, False) is True:
