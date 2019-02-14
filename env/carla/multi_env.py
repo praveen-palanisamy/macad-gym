@@ -34,14 +34,14 @@ from env.core.sensors.utils import preprocess_image
 from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
 # from env.core.sensors.utils import get_transform_from_nearest_way_point
 from env.carla.reward import Reward
-from env.carla.agents.navigation.global_route_planner_dao \
-    import GlobalRoutePlannerDAO
-from env.carla.agents.navigation.global_route_planner \
-    import GlobalRoutePlanner
-from env.carla.agents.navigation.local_planner import RoadOption
-
 from env.core.sensors.hud import HUD
 from env.viz.render import multi_view_render
+sys.path.append("env/carla/")
+from env.carla.agents.navigation.global_route_planner_dao \
+    import GlobalRoutePlannerDAO  # noqa: E402
+from env.carla.agents.navigation.global_route_planner \
+    import GlobalRoutePlanner  # noqa: E402
+from env.carla.agents.navigation.local_planner import RoadOption  # noqa: E402
 
 LOG_DIR = "logs"
 if not os.path.isdir(LOG_DIR):
@@ -226,6 +226,14 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         """
         self.env_config = configs["env"]
         self.actor_configs = configs["actors"]
+        #: list of str: Supported values for `type` filed in `actor_configs`
+        #: for actors than can be actively controlled
+        self.supported_active_actor_types = [
+            "vehicle_4W", "vehicle_2W", "pedestrian", "trafficlights"
+        ]
+        #: list of str: Supported values for `type` field in `actor_configs`
+        #: for actors that are passive. Example: A camera mounted on a pole
+        self.supported_passive_actor_types = ["camera"]
 
         # Set attributes as in gym's specs
         self.reward_range = (-float('inf'), float('inf'))
@@ -548,8 +556,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             of a Vehicle agent.
 
         """
-        agent_type = self.actor_configs[actor_id].get("type", "vehicle")
-        if agent_type not in ["pedestrian", "vehicle_2W", "vehicle_4W"]:
+        agent_type = self.actor_configs[actor_id].get("type", "vehicle_4W")
+        if agent_type not in self.supported_active_actor_types:
             print("Unsupported actor type:{}. Using vehicle_4W as the type")
             agent_type = "vehicle_4W"
 
@@ -925,7 +933,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             # TODO: Is this _on_render() method necessary? why?
             self._on_render()
         elif config["auto_control"]:
-            self.actors[actor_id].set_autopilot()
+            if getattr(self.actors[actor_id], 'set_autopilot', 0):
+                self.actors[actor_id].set_autopilot()
         else:
             # TODO: Planner based on waypoints.
             # cur_location = self.actor_list[i].get_location()
