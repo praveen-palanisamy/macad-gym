@@ -32,6 +32,7 @@ import pygame
 from env.multi_actor_env import MultiActorEnv
 from env.core.sensors.utils import preprocess_image
 from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
+from env.core.maps.nav_utils import get_shortest_path_distance
 # from env.core.sensors.utils import get_transform_from_nearest_way_point
 from env.carla.reward import Reward
 from env.core.sensors.hud import HUD
@@ -1079,8 +1080,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         if next_command == "REACH_GOAL":
             distance_to_goal = 0.0  # avoids crash in planner
         elif planner_enabled:
-            distance_to_goal = self.planner.get_shortest_path_distance(
-                (cur.get_location().x, cur.get_location().y),
+            distance_to_goal = get_shortest_path_distance(
+                self.planner, (cur.get_location().x, cur.get_location().y),
                 (self.end_pos[actor_id][0], self.end_pos[actor_id][1])) / 100
         else:
             distance_to_goal = -1
