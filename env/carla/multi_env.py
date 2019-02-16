@@ -653,7 +653,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.done_dict[actor_id] = True
 
             if self.done_dict.get(actor_id, False) is True:
-                if actor_id in self.actors.keys():
+                if actor_id in self.actors.keys() and self.world.get_actors(
+                ).find(self.actors[actor_id].id).is_alive:
                     # Actor is already in the simulation. Do a soft reset
                     transform = actor_config["start_transform"]
                     # TODO: Remove the default of using "vehicle" type once
