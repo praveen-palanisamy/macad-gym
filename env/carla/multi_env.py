@@ -152,6 +152,12 @@ ROAD_OPTION_TO_COMMANDS_MAPPING = {
     RoadOption.LANEFOLLOW: "LANE_FOLLOW",
 }
 
+# Threshold to determine that the goal has been reached based on distance
+DISTANCE_TO_GOAL_THRESHOLD = 0.15
+
+# Threshold to determine that the goal has been reached based on orientation
+ORIENTATION_TO_GOAL_THRESHOLD = math.pi / 4.0
+
 # Number of retries if the server doesn't respond
 RETRIES_ON_ERROR = 2
 
@@ -393,7 +399,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     if gpu.load < gpus[min_index].load:
                         min_index = i
                 self.server_process = subprocess.Popen(
-                    ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=10"
+                    ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=20"
                      " -carla-server -carla-world-port={}").format(
                          min_index, SERVER_BINARY, self.server_map,
                          self.server_port),
@@ -412,7 +418,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.server_process = subprocess.Popen([
                     SERVER_BINARY, self.server_map, "-windowed", "-ResX=",
                     str(self.env_config["render_x_res"]), "-ResY=",
-                    str(self.env_config["render_y_res"]), "-benchmark -fps=10"
+                    str(self.env_config["render_y_res"]), "-benchmark -fps=20"
                     "-carla-server", "-carla-world-port={}".format(
                         self.server_port)
                 ],
@@ -1060,12 +1066,29 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         cur_config = self.actor_configs[actor_id]
         planner_enabled = cur_config["enable_planner"]
         if planner_enabled:
+            dist = float(
+                np.linalg.norm([
+                    self.actors[actor_id].get_location().x -
+                    self.end_pos[actor_id][0],
+                    self.actors[actor_id].get_location().y -
+                    self.end_pos[actor_id][1]
+                ]) / 100)
+            end_loc = carla.Location(self.end_pos[actor_id][0],
+                                     self.end_pos[actor_id][1],
+                                     self.actors[actor_id].get_location().z)
+            orientation_diff = math.radians(
+                math.fabs(self.actors[actor_id].get_transform().rotation.yaw -
+                          self.world.get_map().get_waypoint(
+                              end_loc).transform.rotation.yaw))
             commands = self.planner.plan_route(
                 (cur.get_location().x, cur.get_location().y),
                 (self.end_pos[actor_id][0], self.end_pos[actor_id][1]))
             if len(commands) > 0:
                 next_command = ROAD_OPTION_TO_COMMANDS_MAPPING.get(
                     commands[0], "LANE_FOLLOW")
+            elif dist <= DISTANCE_TO_GOAL_THRESHOLD and \
+                    orientation_diff <= ORIENTATION_TO_GOAL_THRESHOLD:
+                next_command = "REACH_GOAL"
             else:
                 next_command = "LANE_FOLLOW"
         else:
@@ -1078,7 +1101,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         intersection_offroad = self.lane_invasions[actor_id].offroad
 
         if next_command == "REACH_GOAL":
-            distance_to_goal = 0.0  # avoids crash in planner
+            distance_to_goal = 0.0
         elif planner_enabled:
             distance_to_goal = get_shortest_path_distance(
                 self.planner, (cur.get_location().x, cur.get_location().y),
