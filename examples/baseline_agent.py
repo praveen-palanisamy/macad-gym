@@ -1,10 +1,16 @@
 import argparse
 import json
 import math
+import datetime
+
+from tensorboardX import SummaryWriter
 
 from env.carla.multi_env import MultiCarlaEnv, DEFAULT_MULTIENV_CONFIG, \
     DISCRETE_ACTIONS
 from env.carla.agents.navigation.basic_agent import BasicAgent
+
+timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+writer = SummaryWriter("logs/" + timestamp)
 
 
 def vehicle_control_to_action(vehicle_control, is_discrete):
@@ -57,41 +63,44 @@ if __name__ == "__main__":
     multi_env_config["env"]["enable_planner"] = True
     multi_env_config["env"]["discrete_actions"] = False
     env = MultiCarlaEnv(multi_env_config)
-    obs = env.reset()
-    vehicle_dict = {}
-    agent_dict = {}
 
     env_config = multi_env_config["env"]
     actor_configs = multi_env_config["actors"]
-    total_reward_dict = {}
 
-    for actor_id in actor_configs.keys():
-        vehicle_dict[actor_id] = env.actors[actor_id]
-        agent = BasicAgent(env.actors[actor_id], target_speed=40)
-        agent.set_destination(env.end_pos[actor_id])
-        agent_dict[actor_id] = agent
-        total_reward_dict[actor_id] = 0.0
+    step = 0
+    vehicle_dict = {}
 
-    done = False
-    i = 0
-    while not done:
-        action_dict = {}
-        for actor_id, agent in agent_dict.items():
-            action_dict[actor_id] = vehicle_control_to_action(
-                agent.run_step(), env.discrete_actions)
+    for ep in range(10):
+        agent_dict = {}
+        obs = env.reset()
+        total_reward_dict = {k: 0.0 for k in actor_configs.keys()}
+        for actor_id in actor_configs.keys():
+            vehicle_dict[actor_id] = env.actors[actor_id]
+            agent = BasicAgent(env.actors[actor_id], target_speed=40)
+            agent.set_destination(env.end_pos[actor_id])
+            agent_dict[actor_id] = agent
 
-        obs_dict, reward_dict, done_dict, info_dict = env.step(action_dict)
-        done = done_dict["__all__"]
+        done = False
+        while not done:
+            action_dict = {}
+            for actor_id, agent in agent_dict.items():
+                action_dict[actor_id] = vehicle_control_to_action(
+                    agent.run_step(), env.discrete_actions)
 
-        for actor_id, rew in reward_dict.items():
-            total_reward_dict[actor_id] += rew
-            print("Fwd speed of", actor_id, ":",
-                  info_dict[actor_id]["forward_speed"])
-        print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
-            i, reward_dict, total_reward_dict, done_dict))
-        i += 1
+            obs_dict, reward_dict, done_dict, info_dict = env.step(action_dict)
+            done = done_dict["__all__"]
 
+            for actor_id, rew in reward_dict.items():
+                total_reward_dict[actor_id] += rew
+                print("Fwd speed of", actor_id, ":",
+                      info_dict[actor_id]["forward_speed"])
+            print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
+                step, reward_dict, total_reward_dict, done_dict))
+            step += 1
+        for actor_id, ep_rew in total_reward_dict.items():
+            writer.add_scalar(actor_id, ep_rew, step)
     # Clean actors in world
     env.clean_world()
-
     # env.camera_list.save_images_to_disk()
+
+writer.close()

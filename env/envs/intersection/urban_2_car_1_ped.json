@@ -12,14 +12,14 @@
         "verbose": false,
         "use_depth_camera": false,
         "send_measurements": false,
-        "enable_planner": false,
+        "enable_planner": true,
         "spectator_loc": [70, -125, 9]
     },
 
     "actors": {
         "car1": {
             "type": "vehicle_4W",
-            "enable_planner": false,
+            "enable_planner": true,
             "convert_images_to_video": false,
             "early_terminate_on_collision": true,
             "reward_function": "corl2017",
@@ -41,7 +41,7 @@
         },
         "car2": {
             "type": "vehicle_4W",
-            "enable_planner": false,
+            "enable_planner": true,
             "convert_images_to_video": false,
             "early_terminate_on_collision": true,
             "reward_function": "corl2017",
@@ -63,7 +63,7 @@
         },
         "pedestrian1": {
             "type": "pedestrian",
-            "enable_planner": false,
+            "enable_planner": true,
             "convert_images_to_video": false,
             "early_terminate_on_collision": true,
             "reward_function": "corl2017",
@@ -85,7 +85,7 @@
         },
         "motorcycle1": {
             "type": "vehicle_2W",
-            "enable_planner": false,
+            "enable_planner": true,
             "convert_images_to_video": false,
             "early_terminate_on_collision": true,
             "reward_function": "corl2017",
