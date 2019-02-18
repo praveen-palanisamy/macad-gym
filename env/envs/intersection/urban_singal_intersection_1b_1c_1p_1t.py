@@ -9,7 +9,7 @@ from env.carla.multi_env import MultiCarlaEnv
 # configs = json.load(config_file)
 
 
-class UrbanSignalIntersection1Car1Ped1Bike1TL(MultiCarlaEnv):
+class UrbanSignalIntersection1Bike1Car1Ped1TL(MultiCarlaEnv):
     """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
 
     def __init__(self):
@@ -121,12 +121,12 @@ class UrbanSignalIntersection1Car1Ped1Bike1TL(MultiCarlaEnv):
                 }
             }
         }
-        super(UrbanSignalIntersection1Car1Ped1Bike1TL,
+        super(UrbanSignalIntersection1Bike1Car1Ped1TL,
               self).__init__(self.configs)
 
 
 if __name__ == "__main__":
-    env = UrbanSignalIntersection1Car1Ped1Bike1TL()
+    env = UrbanSignalIntersection1Bike1Car1Ped1TL()
     configs = env.configs
     for ep in range(2):
         obs = env.reset()
