@@ -69,16 +69,20 @@ if __name__ == "__main__":
 
     step = 0
     vehicle_dict = {}
+    agent_dict = {}
 
-    for ep in range(10):
-        agent_dict = {}
+    for ep in range(4):
         obs = env.reset()
         total_reward_dict = {k: 0.0 for k in actor_configs.keys()}
         for actor_id in actor_configs.keys():
             vehicle_dict[actor_id] = env.actors[actor_id]
-            agent = BasicAgent(env.actors[actor_id], target_speed=40)
-            agent.set_destination(env.end_pos[actor_id])
-            agent_dict[actor_id] = agent
+            if actor_id not in agent_dict.keys():
+                agent = BasicAgent(env.actors[actor_id], target_speed=40)
+                agent.set_destination(env.end_pos[actor_id])
+                agent_dict[actor_id] = agent
+            else:
+                agent = agent_dict[actor_id]
+                agent.set_destination(env.end_pos[actor_id])
 
         done = False
         while not done:
