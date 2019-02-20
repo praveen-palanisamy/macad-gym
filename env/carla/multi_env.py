@@ -32,7 +32,7 @@ import pygame
 from env.multi_actor_env import MultiActorEnv
 from env.core.sensors.utils import preprocess_image
 from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
-from env.core.maps.nav_utils import get_shortest_path_distance
+from env.core.maps.nav_utils import PathTracker
 # from env.core.sensors.utils import get_transform_from_nearest_way_point
 from env.carla.reward import Reward
 from env.core.sensors.hud import HUD
@@ -94,7 +94,7 @@ DEFAULT_MULTIENV_CONFIG = {
         "verbose": False,
         "use_depth_camera": False,
         "send_measurements": False,
-        "enable_planner": False
+        "enable_planner": True
     },
     "actors": {
         "vehicle1": {
@@ -153,7 +153,7 @@ ROAD_OPTION_TO_COMMANDS_MAPPING = {
 }
 
 # Threshold to determine that the goal has been reached based on distance
-DISTANCE_TO_GOAL_THRESHOLD = 0.15
+DISTANCE_TO_GOAL_THRESHOLD = 0.5
 
 # Threshold to determine that the goal has been reached based on orientation
 ORIENTATION_TO_GOAL_THRESHOLD = math.pi / 4.0
@@ -325,6 +325,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.last_reward = {}
         self.agents = {}  # Dictionary of agents with agent_id as key
         self.actors = {}  # Dictionary of actors with actor_id as key
+        self.path_trackers = {}
         self.collisions = {}
         self.lane_invasions = {}
         self.scenario_map = {}
@@ -493,6 +494,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         self.cameras = {}
         self.actors = {}
+        self.path_trackers = {}
         self.collisions = {}
         self.lane_invasions = {}
 
@@ -613,7 +615,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         vehicle = None
         for retry in range(RETRIES_ON_ERROR - 1):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
-            time.sleep(0.8)
+            time.sleep(0.4)
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 break
             # Wait to see if spawn area gets cleared before retrying
@@ -649,7 +651,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         # TODO: Setup env actors based on scenario description in env config
         for actor_id, actor_config in self.actor_configs.items():
-            if self.done_dict.get(actor_id, None) is None:
+            if self.done_dict.get(actor_id, None) is None or \
+                    actor_id in self.dones:
                 self.done_dict[actor_id] = True
 
             if self.done_dict.get(actor_id, False) is True:
@@ -678,6 +681,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         self.collisions[actor_id]._reset()
                     if actor_id in self.lane_invasions:
                         self.lane_invasions[actor_id]._reset()
+                    if actor_id in self.path_trackers:
+                        self.path_trackers[actor_id].reset()
                     # Wait until the actor is fully initialized. Otherwise,
                     # The control may be applied as the actor is being dropped
                     # into the scene
@@ -727,6 +732,14 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         # OR:
                         raise RuntimeError(
                             "Unable to spawn actor:{}".format(actor_id))
+
+                    self.path_trackers[actor_id] = PathTracker(
+                        self.world, self.planner,
+                        (self.start_pos[actor_id][0],
+                         self.start_pos[actor_id][1],
+                         self.start_pos[actor_id][2]),
+                        (self.end_pos[actor_id][0], self.end_pos[actor_id][1],
+                         self.end_pos[actor_id][2]), self.actors[actor_id])
 
                     print('Agent spawned at ',
                           self.actors[actor_id].get_location().x,
@@ -1067,20 +1080,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         cur_config = self.actor_configs[actor_id]
         planner_enabled = cur_config["enable_planner"]
         if planner_enabled:
-            dist = float(
-                np.linalg.norm([
-                    self.actors[actor_id].get_location().x -
-                    self.end_pos[actor_id][0],
-                    self.actors[actor_id].get_location().y -
-                    self.end_pos[actor_id][1]
-                ]) / 100)
-            end_loc = carla.Location(self.end_pos[actor_id][0],
-                                     self.end_pos[actor_id][1],
-                                     self.actors[actor_id].get_location().z)
-            orientation_diff = math.radians(
-                math.fabs(self.actors[actor_id].get_transform().rotation.yaw -
-                          self.world.get_map().get_waypoint(
-                              end_loc).transform.rotation.yaw))
+            dist = self.path_trackers[actor_id].get_distance_to_end()
+            orientation_diff = self.path_trackers[actor_id].\
+                get_orientation_difference_to_end_in_radians()
             commands = self.planner.plan_route(
                 (cur.get_location().x, cur.get_location().y),
                 (self.end_pos[actor_id][0], self.end_pos[actor_id][1]))
@@ -1104,9 +1106,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         if next_command == "REACH_GOAL":
             distance_to_goal = 0.0
         elif planner_enabled:
-            distance_to_goal = get_shortest_path_distance(
-                self.planner, (cur.get_location().x, cur.get_location().y),
-                (self.end_pos[actor_id][0], self.end_pos[actor_id][1])) / 100
+            distance_to_goal = self.path_trackers[actor_id].\
+                                   get_distance_to_end()
         else:
             distance_to_goal = -1
 
@@ -1116,7 +1117,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.end_pos[actor_id][0],
                 self.actors[actor_id].get_location().y -
                 self.end_pos[actor_id][1]
-            ]) / 100)
+            ]))
 
         py_measurements = {
             "episode_id": self.episode_id_dict[actor_id],
@@ -1162,8 +1163,8 @@ def print_measurements(measurements):
     message += "{other_lane:.0f}% other lane, {offroad:.0f}% off-road, "
     message += "({agents_num:d} non-player agents in the scene)"
     message = message.format(
-        pos_x=player_measurements.transform.location.x / 100,  # cm -> m
-        pos_y=player_measurements.transform.location.y / 100,
+        pos_x=player_measurements.transform.location.x,
+        pos_y=player_measurements.transform.location.y,
         speed=player_measurements.forward_speed,
         col_cars=player_measurements.collision_vehicles,
         col_ped=player_measurements.collision_pedestrians,
