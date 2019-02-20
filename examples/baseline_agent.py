@@ -8,6 +8,7 @@ from tensorboardX import SummaryWriter
 from env.carla.multi_env import MultiCarlaEnv, DEFAULT_MULTIENV_CONFIG, \
     DISCRETE_ACTIONS
 from env.carla.agents.navigation.basic_agent import BasicAgent
+from env.core.maps.nav_utils import get_next_waypoint
 
 timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 writer = SummaryWriter("logs/" + timestamp)
@@ -47,7 +48,7 @@ def vehicle_control_to_action(vehicle_control, is_discrete):
 
 
 if __name__ == "__main__":
-    argparser = argparse.ArgumentParser(description='CARLA Basic Navigation')
+    argparser = argparse.ArgumentParser(description='Baseline Carla Agent')
 
     argparser.add_argument(
         '--config',
@@ -71,18 +72,22 @@ if __name__ == "__main__":
     vehicle_dict = {}
     agent_dict = {}
 
-    for ep in range(4):
+    for ep in range(2):
         obs = env.reset()
         total_reward_dict = {k: 0.0 for k in actor_configs.keys()}
         for actor_id in actor_configs.keys():
             vehicle_dict[actor_id] = env.actors[actor_id]
+            end_wp = env.end_pos[actor_id]
+            # Set the goal for the planner to be 0.2 m after the destination
+            # to avoid falling short & not triggering done
+            dest_loc = get_next_waypoint(env.world, env.end_pos[actor_id], 0.2)
             if actor_id not in agent_dict.keys():
                 agent = BasicAgent(env.actors[actor_id], target_speed=40)
-                agent.set_destination(env.end_pos[actor_id])
+                agent.set_destination(dest_loc)
                 agent_dict[actor_id] = agent
             else:
                 agent = agent_dict[actor_id]
-                agent.set_destination(env.end_pos[actor_id])
+                agent.set_destination(dest_loc)
 
         done = False
         while not done:

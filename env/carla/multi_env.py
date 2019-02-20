@@ -670,7 +670,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                                 throttle=0.0,
                                 steer=0.0,
                                 brake=0.0,
-                            ))
+                                hand_brake=True))
                     self.actors[actor_id].set_transform(transform)
                     if actor_id in self.dones:
                         self.dones.remove(actor_id)
