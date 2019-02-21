@@ -177,12 +177,13 @@ def draw_shortest_path(world, planner, origin, destination):
                 thickness=0.5)
 
 
-def get_next_waypoint(world, location):
-    """Draws shortest feasible lines/arrows from origin to destination
+def get_next_waypoint(world, location, distance=1.0):
+    """Return the waypoint coordinates `distance` meters away from `location`
 
     Args:
-        world: world to navigate in
+        world (carla.World): world to navigate in
         location (tuple): [x, y, z]
+        distance (float): Desired separation distance in meters
 
     Returns:
         The next waypoint as a list of coordinates (x,y,z)
