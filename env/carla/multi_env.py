@@ -914,8 +914,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     self.dones.add(actor_id)
                 info_dict[actor_id] = info
             self.done_dict["__all__"] = len(self.dones) == len(self.actors)
-            multi_view_render(obs_dict, [self.x_res, self.y_res],
-                              self.actor_configs)
+            # Find if any actor's config has render=True & render only for
+            # that actor. NOTE: with async server stepping, enabling rendering
+            # affects the step time & therefore MAX_STEPS needs adjustments
+            render_required = [
+                k for k, v in self.actor_configs.items()
+                if v.get("render", False)
+            ]
+            if render_required:
+                multi_view_render(obs_dict, [self.x_res, self.y_res],
+                                  self.actor_configs)
             return obs_dict, reward_dict, self.done_dict, info_dict
         except Exception:
             print("Error during step, terminating episode early.",
