@@ -37,12 +37,6 @@ from env.core.maps.nav_utils import PathTracker
 from env.carla.reward import Reward
 from env.core.sensors.hud import HUD
 from env.viz.render import multi_view_render
-sys.path.append("env/carla/")
-from env.carla.agents.navigation.global_route_planner_dao \
-    import GlobalRoutePlannerDAO  # noqa: E402
-from env.carla.agents.navigation.global_route_planner \
-    import GlobalRoutePlanner  # noqa: E402
-from env.carla.agents.navigation.local_planner import RoadOption  # noqa: E402
 
 LOG_DIR = "logs"
 if not os.path.isdir(LOG_DIR):
@@ -66,6 +60,15 @@ from env.core.sensors.camera_manager import CameraManager  # noqa: E402
 from env.core.sensors.derived_sensors import LaneInvasionSensor  # noqa: E402
 from env.core.sensors.derived_sensors import CollisionSensor  # noqa: E402
 from env.core.controllers.keyboard_control import KeyboardControl  # noqa: E402
+from env.carla.agents.navigation.global_route_planner_dao \
+    import GlobalRoutePlannerDAO  # noqa:E402
+
+# The following imports depend on these paths being in sys path
+sys.path.append("env/carla")
+from env.carla.agents.navigation.global_route_planner \
+    import GlobalRoutePlanner  # noqa: E402
+from env.carla.agents.navigation.local_planner \
+    import RoadOption  # noqa:E402
 
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
@@ -98,7 +101,7 @@ DEFAULT_MULTIENV_CONFIG = {
     },
     "actors": {
         "vehicle1": {
-            "enable_planner": False,
+            "enable_planner": True,
             "render": True,  # Whether to render to screen or send to VFB
             "framestack": 1,  # note: only [1, 2] currently supported
             "convert_images_to_video": False,
@@ -672,8 +675,17 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                             carla.VehicleControl(
                                 throttle=0.0,
                                 steer=0.0,
-                                brake=0.0,
-                                hand_brake=True))
+                                brake=1.0,
+                                hand_brake=True,
+                            ))
+                        seconds_to_rest = 5.0
+                        vel = self.actors[actor_id].get_velocity()
+                        while np.linalg.norm([vel.x, vel.y, vel.z]) > 1.0 and \
+                                seconds_to_rest >= 0.0:
+                            time.sleep(0.25)
+                            seconds_to_rest -= 0.25
+                            vel = self.actors[actor_id].get_velocity()
+
                     self.actors[actor_id].set_transform(transform)
                     if actor_id in self.dones:
                         self.dones.remove(actor_id)
