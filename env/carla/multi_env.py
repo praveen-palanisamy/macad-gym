@@ -313,7 +313,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.episode_id_dict = {}
         self.measurements_file_dict = {}
         self.weather = None
-        self.scenario = None
         self.start_pos = {}  # Start pose for each actor
         self.end_pos = {}  # End pose for each actor
         self.start_coord = {}
@@ -722,17 +721,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         self.scenario_map.\
                             update({actor_id: random.choice(scenario)})
 
-                    self.scenario = self.scenario_map[actor_id]
-                    if self.scenario.get("start_pos_id"):
+                    scenario = self.scenario_map[actor_id]
+                    if scenario.get("start_pos_id"):
                         # str(start_id).decode("utf-8") # for py2
-                        s_id = str(self.scenario["start_pos_id"])
-                        e_id = str(self.scenario["end_pos_id"])
+                        s_id = str(scenario["start_pos_id"])
+                        e_id = str(scenario["end_pos_id"])
                         self.start_pos[actor_id] = self.pos_coor_map[s_id]
                         self.end_pos[actor_id] = self.pos_coor_map[e_id]
-                    elif self.scenario.get("start_pos_loc"):
-                        self.start_pos[actor_id] = self.scenario[
-                            "start_pos_loc"]
-                        self.end_pos[actor_id] = self.scenario["end_pos_loc"]
+                    elif scenario.get("start_pos_loc"):
+                        self.start_pos[actor_id] = scenario["start_pos_loc"]
+                        self.end_pos[actor_id] = scenario["end_pos_loc"]
 
                     self.actors[actor_id] = self.spawn_new_agent(actor_id)
 
@@ -1052,7 +1050,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         py_measurements["reward"] = reward
         py_measurements["total_reward"] = self.total_reward[actor_id]
-        done = (self.num_steps[actor_id] > self.scenario["max_steps"]
+        scenario = self.scenario_map[actor_id]
+        done = (self.num_steps[actor_id] > scenario["max_steps"]
                 or py_measurements["next_command"] == "REACH_GOAL"
                 or (config["early_terminate_on_collision"]
                     and collided_done(py_measurements)))
@@ -1164,7 +1163,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             "y_res": self.y_res,
             "num_vehicles": self.scenario_map[actor_id]["num_vehicles"],
             "num_pedestrians": self.scenario_map[actor_id]["num_pedestrians"],
-            "max_steps": self.scenario["max_steps"],
+            "max_steps": self.scenario_map[actor_id]["max_steps"],
             "next_command": next_command,
             "previous_action": self.previous_actions.get(actor_id, None),
             "previous_reward": self.previous_rewards.get(actor_id, None)
