@@ -32,7 +32,6 @@ import pygame
 from env.multi_actor_env import MultiActorEnv
 from env.core.sensors.utils import preprocess_image
 from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
-from env.core.maps.nav_utils import PathTracker
 # from env.core.sensors.utils import get_transform_from_nearest_way_point
 from env.carla.reward import Reward
 from env.core.sensors.hud import HUD
@@ -65,6 +64,7 @@ from env.carla.agents.navigation.global_route_planner_dao \
 
 # The following imports depend on these paths being in sys path
 sys.path.append("env/carla")
+from env.core.maps.nav_utils import PathTracker  # noqa: E402
 from env.carla.agents.navigation.global_route_planner \
     import GlobalRoutePlanner  # noqa: E402
 from env.carla.agents.navigation.local_planner \
