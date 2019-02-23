@@ -81,13 +81,9 @@ if __name__ == "__main__":
             # Set the goal for the planner to be 0.2 m after the destination
             # to avoid falling short & not triggering done
             dest_loc = get_next_waypoint(env.world, env.end_pos[actor_id], 0.2)
-            if actor_id not in agent_dict.keys():
-                agent = BasicAgent(env.actors[actor_id], target_speed=40)
-                agent.set_destination(dest_loc)
-                agent_dict[actor_id] = agent
-            else:
-                agent = agent_dict[actor_id]
-                agent.set_destination(dest_loc)
+            agent = BasicAgent(env.actors[actor_id], target_speed=40)
+            agent.set_destination(dest_loc)
+            agent_dict[actor_id] = agent
 
         done = False
         while not done:

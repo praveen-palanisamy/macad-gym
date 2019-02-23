@@ -491,7 +491,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         for v in self.world.get_actors().filter("vehicle*"):
             v.destroy()
             assert (v not in self.world.get_actors())
-        time.sleep(0.2)
         print("Cleaned-up the world...")
 
         self.cameras = {}
@@ -617,7 +616,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         vehicle = None
         for retry in range(RETRIES_ON_ERROR - 1):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
-            time.sleep(0.4)
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 break
             # Wait to see if spawn area gets cleared before retrying
@@ -632,24 +630,29 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
     def _reset(self):
         """Reset the state of the actors.
-
-        If an actor is already in the environment. A "soft" reset is performed
-        by simply applying a transform to reset the state of the actor back to
-        it's start state. If an actor does not exist in the environment,
-        a  "medium" reset is performed in which the actor is spawned into the
-        environment without affecting other aspects of the environment. If the
-        medium reset fails, a "hard" reset is performed in which the server's
-        entire state is cleared and a fresh instance of the simulation is
-        created from scratch. Note that the "hard" reset is expected to take
-        the longest amount of time. In all of the reset modes ,the state state/
-        pose and configuration (of sensors) are (re)initialized as per the actor
-        configuration.
+        A "medium" reset is performed in which the existing actors are destroyed
+        and the necessary actors are spawned into the environment without
+        affecting other aspects of the environment.
+        If the medium reset fails, a "hard" reset is performed in which
+        the environment's entire state is destroyed and a fresh instance of
+        the server is created from scratch. Note that the "hard" reset is
+        expected to take more time. In both of the reset modes ,the state/
+        pose and configuration of all actors (including the sensor actors) are
+        (re)initialized as per the actor configuration.
 
         Returns:
             dict: Dictionaries of observations for actors.
+
+        Raises:
+            RuntimeError: If spawning an actor at its initial state as per its'
+            configuration fails (eg.: Due to collision with an existing object
+            on that spot). This Error will be handled by the caller
+            `self.reset()` which will perform a "hard" reset by creating
+            a new server instance
         """
 
         self.done_dict["__all__"] = False
+        self.clean_world()
         self.weather = [
             self.world.get_weather().cloudyness,
             self.world.get_weather().precipitation,
@@ -672,140 +675,104 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 if actor_id in self.path_trackers:
                     self.path_trackers[actor_id].reset()
 
-                if actor_id in self.actors.keys() and self.world.get_actors(
-                ).find(self.actors[actor_id].id).is_alive:
-                    # Actor is already in the simulation. Do a soft reset
-                    transform = actor_config["start_transform"]
-                    # TODO: Remove the default of using "vehicle" type once
-                    # legacy support for config json/dicts without "type" is
-                    # no more required
-                    agent_type = actor_config.get("type", "vehicle")
-                    if agent_type == "pedestrian":
-                        self.actors[actor_id].apply_control(
-                            carla.WalkerControl(speed=0.0))
-                    elif agent_type == "vehicle":
-                        self.actors[actor_id].apply_control(
-                            carla.VehicleControl(
-                                throttle=0.0,
-                                steer=0.0,
-                                brake=1.0,
-                                hand_brake=True,
-                            ))
-                        # Wait until the actor has a zero momentum. Otherwise,
-                        # the actor will have some residual velocity on reset
-                        seconds_to_rest = 5.0
-                        vel = self.actors[actor_id].get_velocity()
-                        while np.linalg.norm([vel.x, vel.y, vel.z]) > 1.0 and \
-                                seconds_to_rest >= 0.0:
-                            time.sleep(0.25)
-                            seconds_to_rest -= 0.25
-                            vel = self.actors[actor_id].get_velocity()
-                    # Apply transform to perform a "soft" reset to init state
-                    self.actors[actor_id].set_transform(transform)
+                # Actor is not present in the simulation. Do a medium reset
+                # by clearing the world and spawning the actor from scratch.
+                # If the actor cannot be spawned, a hard reset is performed
+                # which creates a new carla server instance
 
-                else:
-                    # Actor is not present in the simulation. Do a medium reset
-                    # by clearing the world and spawning the actor from scratch.
-                    # If the actor cannot be spawned, a hard reset is performed
-                    # which creates a new carla server instance
+                # TODO: Once a unified (1 for all actors) scenario def is
+                # implemented, move this outside of the foreach actor loop
+                self.measurements_file_dict[actor_id] = None
+                self.episode_id_dict[actor_id] = datetime.today().\
+                    strftime("%Y-%m-%d_%H-%M-%S_%f")
+                actor_config = self.actor_configs[actor_id]
+                scenario = self.get_scenarios(actor_config["scenarios"])
+                # If config contains a single scenario, then use it,
+                # if it's an array of scenarios,randomly choose one and init
+                if isinstance(scenario, dict):
+                    self.scenario_map.update({actor_id: scenario})
+                else:  # instance array of dict
+                    self.scenario_map.\
+                        update({actor_id: random.choice(scenario)})
 
-                    # TODO: Once a unified (1 for all actors) scenario def is
-                    # implemented, move this outside of the foreach actor loop
-                    self.measurements_file_dict[actor_id] = None
-                    self.episode_id_dict[actor_id] = datetime.today().\
-                        strftime("%Y-%m-%d_%H-%M-%S_%f")
-                    actor_config = self.actor_configs[actor_id]
-                    scenario = self.get_scenarios(actor_config["scenarios"])
-                    # If config contains a single scenario, then use it,
-                    # if it's an array of scenarios,randomly choose one and init
-                    if isinstance(scenario, dict):
-                        self.scenario_map.update({actor_id: scenario})
-                    else:  # instance array of dict
-                        self.scenario_map.\
-                            update({actor_id: random.choice(scenario)})
+                scenario = self.scenario_map[actor_id]
+                if scenario.get("start_pos_id"):
+                    # str(start_id).decode("utf-8") # for py2
+                    s_id = str(scenario["start_pos_id"])
+                    e_id = str(scenario["end_pos_id"])
+                    self.start_pos[actor_id] = self.pos_coor_map[s_id]
+                    self.end_pos[actor_id] = self.pos_coor_map[e_id]
+                elif scenario.get("start_pos_loc"):
+                    self.start_pos[actor_id] = scenario["start_pos_loc"]
+                    self.end_pos[actor_id] = scenario["end_pos_loc"]
 
-                    scenario = self.scenario_map[actor_id]
-                    if scenario.get("start_pos_id"):
-                        # str(start_id).decode("utf-8") # for py2
-                        s_id = str(scenario["start_pos_id"])
-                        e_id = str(scenario["end_pos_id"])
-                        self.start_pos[actor_id] = self.pos_coor_map[s_id]
-                        self.end_pos[actor_id] = self.pos_coor_map[e_id]
-                    elif scenario.get("start_pos_loc"):
-                        self.start_pos[actor_id] = scenario["start_pos_loc"]
-                        self.end_pos[actor_id] = scenario["end_pos_loc"]
+                self.actors[actor_id] = self.spawn_new_agent(actor_id)
 
-                    self.actors[actor_id] = self.spawn_new_agent(actor_id)
+                if self.actors[actor_id] is None:
+                    # Try to spawn for one last time. If it fails,
+                    # a RuntimeExceptions is raised by  `world.spawn_actor`
+                    # which is handled by the caller `self.reset()`
+                    # vehicle = world.spawn_actor(blueprint, transform)
+                    # OR:
+                    raise RuntimeError(
+                        "Unable to spawn actor:{}".format(actor_id))
 
-                    if self.actors[actor_id] is None:
-                        # Try to spawn for one last time. If it fails,
-                        # a RuntimeExceptions is raised by  `world.spawn_actor`
-                        # which is handled by the caller `self.reset()`
-                        # vehicle = world.spawn_actor(blueprint, transform)
-                        # OR:
-                        raise RuntimeError(
-                            "Unable to spawn actor:{}".format(actor_id))
+                self.path_trackers[actor_id] = PathTracker(
+                    self.world, self.planner,
+                    (self.start_pos[actor_id][0], self.start_pos[actor_id][1],
+                     self.start_pos[actor_id][2]),
+                    (self.end_pos[actor_id][0], self.end_pos[actor_id][1],
+                     self.end_pos[actor_id][2]), self.actors[actor_id])
 
-                    self.path_trackers[actor_id] = PathTracker(
-                        self.world, self.planner,
-                        (self.start_pos[actor_id][0],
-                         self.start_pos[actor_id][1],
-                         self.start_pos[actor_id][2]),
-                        (self.end_pos[actor_id][0], self.end_pos[actor_id][1],
-                         self.end_pos[actor_id][2]), self.actors[actor_id])
+                print('Agent spawned at ',
+                      self.actors[actor_id].get_location().x,
+                      self.actors[actor_id].get_location().y,
+                      self.actors[actor_id].get_location().z)
 
-                    print('Agent spawned at ',
-                          self.actors[actor_id].get_location().x,
-                          self.actors[actor_id].get_location().y,
-                          self.actors[actor_id].get_location().z)
+                # Spawn collision and lane sensors if necessary
+                if actor_config["collision_sensor"] == "on":
+                    collision_sensor = CollisionSensor(self.actors[actor_id],
+                                                       0)
+                    self.collisions.update({actor_id: collision_sensor})
+                if actor_config["lane_sensor"] == "on":
+                    lane_sensor = LaneInvasionSensor(self.actors[actor_id], 0)
+                    self.lane_invasions.update({actor_id: lane_sensor})
 
-                    # Spawn collision and lane sensors if necessary
-                    if actor_config["collision_sensor"] == "on":
-                        collision_sensor = CollisionSensor(
-                            self.actors[actor_id], 0)
-                        self.collisions.update({actor_id: collision_sensor})
-                    if actor_config["lane_sensor"] == "on":
-                        lane_sensor = LaneInvasionSensor(
-                            self.actors[actor_id], 0)
-                        self.lane_invasions.update({actor_id: lane_sensor})
+                # Spawn cameras
+                pygame.font.init()  # for HUD
+                hud = HUD(self.env_config["x_res"], self.env_config["x_res"])
+                camera_manager = CameraManager(self.actors[actor_id], hud)
+                if actor_config["log_images"]:
+                    # TODO: The recording option should be part of config
+                    # 1: Save to disk during runtime
+                    # 2: save to memory first, dump to disk on exit
+                    camera_manager.set_recording_option(1)
 
-                    # Spawn cameras
-                    pygame.font.init()  # for HUD
-                    hud = HUD(self.env_config["x_res"],
-                              self.env_config["x_res"])
-                    camera_manager = CameraManager(self.actors[actor_id], hud)
-                    if actor_config["log_images"]:
-                        # TODO: The recording option should be part of config
-                        # 1: Save to disk during runtime
-                        # 2: save to memory first, dump to disk on exit
-                        camera_manager.set_recording_option(1)
+                # TODO: Fix the hard-corded 0 id use sensor_type-> "camera"
+                # TODO: Make this consistent with keys
+                # in CameraManger's._sensors
+                camera_manager.set_sensor(0, notify=False)
+                assert (camera_manager.sensor.is_listening)
+                self.cameras.update({actor_id: camera_manager})
 
-                    # TODO: Fix the hard-corded 0 id use sensor_type-> "camera"
-                    # TODO: Make this consistent with keys
-                    # in CameraManger's._sensors
-                    camera_manager.set_sensor(0, notify=False)
-                    assert (camera_manager.sensor.is_listening)
-                    self.cameras.update({actor_id: camera_manager})
+                self.start_coord.update({
+                    actor_id: [
+                        self.start_pos[actor_id][0] // 100,
+                        self.start_pos[actor_id][1] // 100
+                    ]
+                })
+                self.end_coord.update({
+                    actor_id: [
+                        self.end_pos[actor_id][0] // 100,
+                        self.end_pos[actor_id][1] // 100
+                    ]
+                })
 
-                    self.start_coord.update({
-                        actor_id: [
-                            self.start_pos[actor_id][0] // 100,
-                            self.start_pos[actor_id][1] // 100
-                        ]
-                    })
-                    self.end_coord.update({
-                        actor_id: [
-                            self.end_pos[actor_id][0] // 100,
-                            self.end_pos[actor_id][1] // 100
-                        ]
-                    })
-
-                    print(
-                        "Actor: {} start_pos(coord): {} ({}), "
-                        "end_pos(coord) {} ({})".format(
-                            actor_id, self.start_pos[actor_id],
-                            self.start_coord[actor_id], self.end_pos[actor_id],
-                            self.end_coord[actor_id]))
+                print("Actor: {} start_pos(coord): {} ({}), "
+                      "end_pos(coord) {} ({})".format(
+                          actor_id, self.start_pos[actor_id],
+                          self.start_coord[actor_id], self.end_pos[actor_id],
+                          self.end_coord[actor_id]))
 
         print('New episode initialized with actors:{}'.format(
             self.actors.keys()))
@@ -1286,8 +1253,6 @@ if __name__ == "__main__":
                 total_reward_dict[actor_id] += reward[actor_id]
             print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
                 i, reward, total_reward_dict, done))
-
-            time.sleep(0.1)
 
         print("{} fps".format(i / (time.time() - start)))
 
