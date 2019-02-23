@@ -527,6 +527,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         for retry in range(RETRIES_ON_ERROR):
             try:
                 if not self.server_process:
+                    self.first_reset = True
                     self.init_server()
                 return self._reset()
             except Exception as e:
@@ -652,7 +653,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         """
 
         self.done_dict["__all__"] = False
-        self.clean_world()
+        if not self.first_reset:
+            self.clean_world()
+        self.first_reset = False
         self.weather = [
             self.world.get_weather().cloudyness,
             self.world.get_weather().precipitation,
@@ -706,23 +709,23 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     self.start_pos[actor_id] = scenario["start_pos_loc"]
                     self.end_pos[actor_id] = scenario["end_pos_loc"]
 
-                self.actors[actor_id] = self.spawn_new_agent(actor_id)
-
-                if self.actors[actor_id] is None:
-                    # Try to spawn for one last time. If it fails,
-                    # a RuntimeExceptions is raised by  `world.spawn_actor`
-                    # which is handled by the caller `self.reset()`
-                    # vehicle = world.spawn_actor(blueprint, transform)
-                    # OR:
-                    raise RuntimeError(
+                try:
+                    self.actors[actor_id] = self.spawn_new_agent(actor_id)
+                except RuntimeError as spawn_err:
+                    self.done_dict[actor_id] = None
+                    # Chain the exception & re-raise to be handled by the caller
+                    # `self.reset()`
+                    raise spawn_err from RuntimeError(
                         "Unable to spawn actor:{}".format(actor_id))
 
-                self.path_trackers[actor_id] = PathTracker(
-                    self.world, self.planner,
-                    (self.start_pos[actor_id][0], self.start_pos[actor_id][1],
-                     self.start_pos[actor_id][2]),
-                    (self.end_pos[actor_id][0], self.end_pos[actor_id][1],
-                     self.end_pos[actor_id][2]), self.actors[actor_id])
+                if self.env_config["enable_planner"]:
+                    self.path_trackers[actor_id] = PathTracker(
+                        self.world, self.planner,
+                        (self.start_pos[actor_id][0],
+                         self.start_pos[actor_id][1],
+                         self.start_pos[actor_id][2]),
+                        (self.end_pos[actor_id][0], self.end_pos[actor_id][1],
+                         self.end_pos[actor_id][2]), self.actors[actor_id])
 
                 print('Agent spawned at ',
                       self.actors[actor_id].get_location().x,
@@ -1255,8 +1258,3 @@ if __name__ == "__main__":
                 i, reward, total_reward_dict, done))
 
         print("{} fps".format(i / (time.time() - start)))
-
-    # Clean actors in world
-    env.clean_world()
-
-    # env.camera_list.save_images_to_disk()
