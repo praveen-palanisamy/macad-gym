@@ -631,19 +631,25 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         return vehicle
 
     def _reset(self):
-        """Initialize actors.
+        """Reset the state of the actors.
 
-        Get poses for vehicle actors and spawn them.
-        Spawn all sensors as needed.
+        If an actor is already in the environment. A "soft" reset is performed
+        by simply applying a transform to reset the state of the actor back to
+        it's start state. If an actor does not exist in the environment,
+        a  "medium" reset is performed in which the actor is spawned into the
+        environment without affecting other aspects of the environment. If the
+        medium reset fails, a "hard" reset is performed in which the server's
+        entire state is cleared and a fresh instance of the simulation is
+        created from scratch. Note that the "hard" reset is expected to take
+        the longest amount of time. In all of the reset modes ,the state state/
+        pose and configuration (of sensors) are (re)initialized as per the actor
+        configuration.
 
         Returns:
-            dict: observation dictionaries for actors.
+            dict: Dictionaries of observations for actors.
         """
 
         self.done_dict["__all__"] = False
-        # TODO: num_actors not equal num_vehicle. Fix it when other actors are
-        # like pedestrians are added
-        self.num_vehicle = len(self.actor_configs)
         self.weather = [
             self.world.get_weather().cloudyness,
             self.world.get_weather().precipitation,
@@ -651,13 +657,21 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             self.world.get_weather().wind_intensity
         ]
 
-        # TODO: Setup env actors based on scenario description in env config
         for actor_id, actor_config in self.actor_configs.items():
             if self.done_dict.get(actor_id, None) is None or \
                     actor_id in self.dones:
                 self.done_dict[actor_id] = True
 
             if self.done_dict.get(actor_id, False) is True:
+                if actor_id in self.dones:
+                    self.dones.remove(actor_id)
+                if actor_id in self.collisions:
+                    self.collisions[actor_id]._reset()
+                if actor_id in self.lane_invasions:
+                    self.lane_invasions[actor_id]._reset()
+                if actor_id in self.path_trackers:
+                    self.path_trackers[actor_id].reset()
+
                 if actor_id in self.actors.keys() and self.world.get_actors(
                 ).find(self.actors[actor_id].id).is_alive:
                     # Actor is already in the simulation. Do a soft reset
@@ -677,6 +691,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                                 brake=1.0,
                                 hand_brake=True,
                             ))
+                        # Wait until the actor has a zero momentum. Otherwise,
+                        # the actor will have some residual velocity on reset
                         seconds_to_rest = 5.0
                         vel = self.actors[actor_id].get_velocity()
                         while np.linalg.norm([vel.x, vel.y, vel.z]) > 1.0 and \
@@ -684,30 +700,17 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                             time.sleep(0.25)
                             seconds_to_rest -= 0.25
                             vel = self.actors[actor_id].get_velocity()
-
+                    # Apply transform to perform a "soft" reset to init state
                     self.actors[actor_id].set_transform(transform)
-                    if actor_id in self.dones:
-                        self.dones.remove(actor_id)
-                    if actor_id in self.collisions:
-                        self.collisions[actor_id]._reset()
-                    if actor_id in self.lane_invasions:
-                        self.lane_invasions[actor_id]._reset()
-                    if actor_id in self.path_trackers:
-                        self.path_trackers[actor_id].reset()
-                    # Wait until the actor is fully initialized. Otherwise,
-                    # The control may be applied as the actor is being dropped
-                    # into the scene
-                    time.sleep(0.8)
 
                 else:
-                    # TODO: Move the following comments to method docstring
                     # Actor is not present in the simulation. Do a medium reset
                     # by clearing the world and spawning the actor from scratch.
                     # If the actor cannot be spawned, a hard reset is performed
                     # which creates a new carla server instance
 
-                    # TODO: If scenario is same for all actors,move this outside
-                    # of the foreach actor loop
+                    # TODO: Once a unified (1 for all actors) scenario def is
+                    # implemented, move this outside of the foreach actor loop
                     self.measurements_file_dict[actor_id] = None
                     self.episode_id_dict[actor_id] = datetime.today().\
                         strftime("%Y-%m-%d_%H-%M-%S_%f")
@@ -1258,7 +1261,6 @@ if __name__ == "__main__":
 
     for _ in range(2):
         obs = env.reset()
-        total_vehicle = env.num_vehicle
 
         total_reward_dict = {}
         action_dict = {}
