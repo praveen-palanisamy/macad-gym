@@ -475,7 +475,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             self.planner = GlobalRoutePlanner(planner_dao)
             self.planner.setup()
 
-    def clean_world(self):
+    def _clean_world(self):
         """Destroy all actors cleanly before exiting
 
         Returns:
@@ -630,7 +630,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 break
             # Wait to see if spawn area gets cleared before retrying
             # time.sleep(0.5)
-            # self.clean_world()
+            # self._clean_world()
             print("spawn_actor: Retry#:{}/{}".format(retry + 1,
                                                      RETRIES_ON_ERROR))
         if vehicle is None:
@@ -663,7 +663,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         self.done_dict["__all__"] = False
         if not self.first_reset:
-            self.clean_world()
+            self._clean_world()
         self.first_reset = False
         self.weather = [
             self.world.get_weather().cloudyness,

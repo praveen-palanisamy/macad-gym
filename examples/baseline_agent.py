@@ -95,17 +95,14 @@ if __name__ == "__main__":
             obs_dict, reward_dict, done_dict, info_dict = env.step(action_dict)
             done = done_dict["__all__"]
 
-            for actor_id, rew in reward_dict.items():
-                total_reward_dict[actor_id] += rew
-                print("Fwd speed of", actor_id, ":",
-                      info_dict[actor_id]["forward_speed"])
             print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
                 step, reward_dict, total_reward_dict, done_dict))
             step += 1
+            for actor_id, rew in reward_dict.items():
+                total_reward_dict[actor_id] += rew
+                writer.add_scalar(actor_id + "/step_r",
+                                  total_reward_dict[actor_id], step)
         for actor_id, ep_rew in total_reward_dict.items():
             writer.add_scalar(actor_id, ep_rew, step)
-    # Clean actors in world
-    env.clean_world()
-    # env.camera_list.save_images_to_disk()
 
 writer.close()

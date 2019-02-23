@@ -112,6 +112,3 @@ if __name__ == "__main__":
             time.sleep(0.1)
 
         print("{} fps".format(i / (time.time() - start)))
-
-    # Clean actors in world
-    env.clean_world()

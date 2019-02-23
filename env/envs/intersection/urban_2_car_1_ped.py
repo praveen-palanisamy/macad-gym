@@ -122,7 +122,6 @@ if __name__ == "__main__":
     configs = env.configs
     for ep in range(2):
         obs = env.reset()
-        total_vehicle = env.num_vehicle
 
         total_reward_dict = {}
         action_dict = {}
@@ -152,6 +151,3 @@ if __name__ == "__main__":
             time.sleep(0.1)
 
         print("{} fps".format(i / (time.time() - start)))
-
-    # Clean actors in world
-    env.clean_world()
