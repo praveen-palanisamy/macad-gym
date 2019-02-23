@@ -42,6 +42,74 @@ INTERSECTION_SCENARIO_TOWN2 = build_ma_scenario(
    max_steps=2000,
    weathers=[0])
 """
+"""Signalized Urban Intersection scenario with 3 Cars passing through.
+CAR1: Starts almost inside the intersection, goes straight
+CAR2: Starts 90 wrt CAR1 close to intersection, turns right to merge
+CAR3: Starts behind CAR1 away from intersection, goes straight
+TAG: SUIC3
+"""
+
+SUIC3_TOWN3_CAR1 = build_scenario(
+    city="Town03",
+    start=[70, -132.8, 8],
+    end=[127, -132, 8],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=500,
+    weathers=[0])
+
+SUIC3_TOWN3_CAR2 = build_scenario(
+    city="Town03",
+    start=[84.3, -118, 9],
+    end=[120, -132, 8],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=500,
+    weathers=[0])
+
+SUIC3_TOWN3_CAR3 = build_scenario(
+    city="Town03",
+    start=[43, -133, 4],
+    end=[100, -132, 8],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=500,
+    weathers=[0])
+# End of TAG: SUIC3
+"""Signalized Urban Intersection scenario with 3 Cars passing through.
+CAR1: Starts almost inside the intersection, goes straight
+CAR2: Starts 90 wrt CAR1 close to intersection, turns right to merge
+CAR3: Starts behind CAR1 away from intersection, goes straight
+TAG: SUIC3
+"""
+
+SUIC3_TOWN3_CAR1 = build_scenario(
+    city="Town03",
+    start=[70, -132.8, 8],
+    end=[127, -132, 8],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=500,
+    weathers=[0])
+
+SUIC3_TOWN3_CAR2 = build_scenario(
+    city="Town03",
+    start=[84.3, -118, 9],
+    end=[120, -132, 8],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=500,
+    weathers=[0])
+
+SUIC3_TOWN3_CAR3 = build_scenario(
+    city="Town03",
+    start=[43, -133, 4],
+    end=[100, -132, 8],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=500,
+    weathers=[0])
+# End of TAG: SUIC3
 
 INTERSECTION_TOWN3_CAR1 = build_scenario(
     city="Town03",
