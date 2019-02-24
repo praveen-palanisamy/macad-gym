@@ -508,7 +508,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 actor.destroy()
         # Clean-up any remaining vehicle in the world
         for v in self.world.get_actors().filter("vehicle*"):
-            v.destroy()
+            if v.is_alive:
+                v.destroy()
             assert (v not in self.world.get_actors())
         print("Cleaned-up the world...")
 
