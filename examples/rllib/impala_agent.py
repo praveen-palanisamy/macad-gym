@@ -261,7 +261,12 @@ if args.debug:
                 },
                 "policy_mapping_fn": lambda agent_id: "def_policy",
             },
-            "env_config": env_actor_configs
+            "env_config": env_actor_configs,
+            "num_workers": args.num_workers,
+            "num_envs_per_worker": args.envs_per_worker,
+            "sample_batch_size": args.sample_bs_per_worker,
+            "train_batch_size": args.train_bs
+
         })
     if args.checkpoint_path and os.path.isfile(args.checkpoint_path):
         trainer.restore(args.checkpoint_path)
@@ -287,6 +292,11 @@ else:
             "policy_mapping_fn": tune.function(lambda agent_id: "def_policy"),
         },
         "env_config": env_actor_configs
+        "num_workers": args.num_workers,
+        "num_envs_per_worker": args.envs_per_worker,
+        "sample_batch_size": args.sample_bs_per_worker,
+        "train_batch_size": args.train_bs
+
     }
 
     experiment_spec = tune.Experiment(

@@ -16,7 +16,7 @@ class StopSignUrbanIntersection3Car(MultiCarlaEnv):
         self.configs = {
             "env": {
                 "server_map": "/Game/Carla/Maps/Town03",
-                "render": True,
+                "render": False,
                 "render_x_res": 800,
                 "render_y_res": 600,
                 "x_res": 84,
