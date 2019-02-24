@@ -140,5 +140,7 @@ if __name__ == "__main__":
                 "sample_batch_size": args.sample_bs_per_worker,
                 "train_batch_size": args.train_bs
             },
+            "checkpoint_freq": 500,
+            "checkpoint_at_end": True,
         }
     })
