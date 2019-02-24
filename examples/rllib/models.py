@@ -154,3 +154,53 @@ class Mnih15(Model):
 
 def register_mnih15_net():
     ModelCatalog.register_custom_model("mnih15", Mnih15)
+
+
+class Mnih15SharedWeights(Model):
+    """
+    Network definition as per Mnih15, Nature paper Methods section.
+    Shared FC layers for use in Multi-Agent settings
+    """
+
+    def _build_layers_v2(self, input_dict, num_outputs, options):
+        convs = options.get("conv_filters")
+        if convs is None:
+            convs = filters_mnih15
+        activation = tf.nn.relu
+        conv_output = input_dict["obs"]
+        with tf.name_scope("mnih15_convs"):
+            for i, (out_size, kernel, stride) in enumerate(convs[:-1], 1):
+                conv_output = slim.conv2d(
+                    input_dict["obs"],
+                    out_size,
+                    kernel,
+                    stride,
+                    activation_fn=activation,
+                    padding="SAME",
+                    scope="conv{}".format(i))
+            out_size, kernel, stride = convs[-1]
+            conv_output = slim.conv2d(
+                conv_output,
+                out_size,
+                kernel,
+                stride,
+                activation_fn=activation,
+                padding="VALID",
+                scope="conv_out")
+        action_out = slim.flatten(conv_output)
+        with tf.name_scope("mnih15_FC"):
+            # Share weights of the following layer with other instances of this
+            # model (usually by other agents in a Multi-Agent setting)
+            with tf.variable_scope(
+                    tf.VariableScope(tf.AUTO_REUSE, "shared"),
+                    reuse=tf.AUTO_REUSE):
+                shared_layer = slim.fully_connected(
+                    action_out, 128, activation_fn=activation)
+            action_logits = slim.fully_connected(
+                action_out, num_outputs=num_outputs, activation_fn=None)
+        return action_logits, shared_layer
+
+
+def register_mnih15_shared_weights_net():
+    ModelCatalog.register_custom_model("mnih15_shared_weights",
+                                       Mnih15SharedWeights)
