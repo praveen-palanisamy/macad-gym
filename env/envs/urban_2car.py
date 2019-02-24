@@ -8,72 +8,74 @@ from env.carla.multi_env import MultiCarlaEnv
 # config_file = open("urban_2_car_1_ped.json")
 # configs = json.load(config_file)
 
+U2C_CONFIGS = {
+    "env": {
+        "enable_planner": True,
+        "server_map": "/Game/Carla/Maps/Town01",
+        "render": True,
+        "render_x_res": 800,
+        "render_y_res": 600,
+        "x_res": 84,
+        "y_res": 84,
+        "framestack": 1,
+        "discrete_actions": True,
+        "squash_action_logits": False,
+        "verbose": False,
+        "use_depth_camera": False,
+        "send_measurements": False
+    },
+    "actors": {
+        "vehicle1": {
+            "enable_planner": True,
+            "convert_images_to_video": False,
+            "early_terminate_on_collision": True,
+            "reward_function": "corl2017",
+            "scenarios": "DEFAULT_SCENARIO_TOWN1",
+            "manual_control": False,
+            "auto_control": False,
+            "camera_type": "rgb",
+            "collision_sensor": "on",
+            "lane_sensor": "on",
+            "log_images": False,
+            "log_measurements": False,
+            "render": False,
+            "render_x_res": 800,
+            "render_y_res": 600,
+            "x_res": 84,
+            "y_res": 84,
+            "use_depth_camera": False,
+            "send_measurements": False
+        },
+        "vehicle2": {
+            "enable_planner": True,
+            "convert_images_to_video": False,
+            "early_terminate_on_collision": True,
+            "reward_function": "corl2017",
+            "scenarios": "DEFAULT_SCENARIO_TOWN1_2",
+            "manual_control": False,
+            "auto_control": False,
+            "camera_type": "rgb",
+            "collision_sensor": "on",
+            "lane_sensor": "on",
+            "log_images": False,
+            "log_measurements": False,
+            "render": False,
+            "render_x_res": 800,
+            "render_y_res": 600,
+            "x_res": 84,
+            "y_res": 84,
+            "use_depth_camera": False,
+            "send_measurements": False
+        }
+    }
+}
+
 
 class Urban2Car(MultiCarlaEnv):
     """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
 
     def __init__(self):
-        self.configs = {
-            "env": {
-                "enable_planner": True,
-                "server_map": "/Game/Carla/Maps/Town01",
-                "render": True,
-                "render_x_res": 800,
-                "render_y_res": 600,
-                "x_res": 84,
-                "y_res": 84,
-                "framestack": 1,
-                "discrete_actions": True,
-                "squash_action_logits": False,
-                "verbose": False,
-                "use_depth_camera": False,
-                "send_measurements": False
-            },
-            "actors": {
-                "vehicle1": {
-                    "enable_planner": True,
-                    "convert_images_to_video": False,
-                    "early_terminate_on_collision": True,
-                    "reward_function": "corl2017",
-                    "scenarios": "DEFAULT_SCENARIO_TOWN1",
-                    "manual_control": False,
-                    "auto_control": False,
-                    "camera_type": "rgb",
-                    "collision_sensor": "on",
-                    "lane_sensor": "on",
-                    "log_images": False,
-                    "log_measurements": False,
-                    "render": False,
-                    "render_x_res": 800,
-                    "render_y_res": 600,
-                    "x_res": 84,
-                    "y_res": 84,
-                    "use_depth_camera": False,
-                    "send_measurements": False
-                },
-                "vehicle2": {
-                    "enable_planner": True,
-                    "convert_images_to_video": False,
-                    "early_terminate_on_collision": True,
-                    "reward_function": "corl2017",
-                    "scenarios": "DEFAULT_SCENARIO_TOWN1_2",
-                    "manual_control": False,
-                    "auto_control": False,
-                    "camera_type": "rgb",
-                    "collision_sensor": "on",
-                    "lane_sensor": "on",
-                    "log_images": False,
-                    "log_measurements": False,
-                    "render": False,
-                    "render_x_res": 800,
-                    "render_y_res": 600,
-                    "x_res": 84,
-                    "y_res": 84,
-                    "use_depth_camera": False,
-                    "send_measurements": False
-                }
-            }
-        }
+        self.configs = U2C_CONFIGS
         super(Urban2Car, self).__init__(self.configs)
 
 

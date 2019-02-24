@@ -8,111 +8,113 @@ from env.carla.multi_env import MultiCarlaEnv
 # config_file = open("urban_2_car_1_ped.json")
 # configs = json.load(config_file)
 
+USI2C1P1B_CONFIGS = {
+    "env": {
+        "server_map": "/Game/Carla/Maps/Town03",
+        "render": True,
+        "render_x_res": 800,
+        "render_y_res": 600,
+        "x_res": 84,
+        "y_res": 84,
+        "framestack": 1,
+        "discrete_actions": True,
+        "squash_action_logits": False,
+        "verbose": False,
+        "use_depth_camera": False,
+        "send_measurements": False,
+        "enable_planner": True,
+        "spectator_loc": [70, -125, 9]
+    },
+    "actors": {
+        "car1": {
+            "type": "vehicle_4W",
+            "enable_planner": True,
+            "convert_images_to_video": False,
+            "early_terminate_on_collision": True,
+            "reward_function": "corl2017",
+            "scenarios": "INTERSECTION_TOWN3_CAR1",
+            "manual_control": False,
+            "auto_control": False,
+            "camera_type": "rgb",
+            "collision_sensor": "on",
+            "lane_sensor": "on",
+            "log_images": False,
+            "log_measurements": False,
+            "render": False,
+            "x_res": 84,
+            "y_res": 84,
+            "use_depth_camera": False,
+            "send_measurements": False
+        },
+        "car2": {
+            "type": "vehicle_4W",
+            "enable_planner": True,
+            "convert_images_to_video": False,
+            "early_terminate_on_collision": True,
+            "reward_function": "corl2017",
+            "scenarios": "INTERSECTION_TOWN3_CAR2",
+            "manual_control": False,
+            "auto_control": False,
+            "camera_type": "rgb",
+            "collision_sensor": "on",
+            "lane_sensor": "on",
+            "log_images": False,
+            "log_measurements": False,
+            "render": False,
+            "x_res": 84,
+            "y_res": 84,
+            "use_depth_camera": False,
+            "send_measurements": False
+        },
+        "pedestrian1": {
+            "type": "pedestrian",
+            "enable_planner": True,
+            "convert_images_to_video": False,
+            "early_terminate_on_collision": True,
+            "reward_function": "corl2017",
+            "scenarios": "INTERSECTION_TOWN3_PED1",
+            "manual_control": False,
+            "auto_control": False,
+            "camera_type": "rgb",
+            "collision_sensor": "on",
+            "lane_sensor": "on",
+            "log_images": False,
+            "log_measurements": False,
+            "render": False,
+            "x_res": 84,
+            "y_res": 84,
+            "use_depth_camera": False,
+            "send_measurements": False
+        },
+        "bike1": {
+            "type": "vehicle_2W",
+            "enable_planner": True,
+            "convert_images_to_video": False,
+            "early_terminate_on_collision": True,
+            "reward_function": "corl2017",
+            "scenarios": "INTERSECTION_TOWN3_BIKE1",
+            "manual_control": False,
+            "auto_control": False,
+            "camera_type": "rgb",
+            "collision_sensor": "on",
+            "lane_sensor": "on",
+            "log_images": False,
+            "log_measurements": False,
+            "render": False,
+            "x_res": 84,
+            "y_res": 84,
+            "use_depth_camera": False,
+            "send_measurements": False
+        }
+    }
+}
+
 
 class UrbanSignalIntersection2Car1Ped1Bike(MultiCarlaEnv):
     """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
 
     def __init__(self):
-        self.configs = {
-            "env": {
-                "server_map": "/Game/Carla/Maps/Town03",
-                "render": True,
-                "render_x_res": 800,
-                "render_y_res": 600,
-                "x_res": 84,
-                "y_res": 84,
-                "framestack": 1,
-                "discrete_actions": True,
-                "squash_action_logits": False,
-                "verbose": False,
-                "use_depth_camera": False,
-                "send_measurements": False,
-                "enable_planner": True,
-                "spectator_loc": [70, -125, 9]
-            },
-            "actors": {
-                "car1": {
-                    "type": "vehicle_4W",
-                    "enable_planner": True,
-                    "convert_images_to_video": False,
-                    "early_terminate_on_collision": True,
-                    "reward_function": "corl2017",
-                    "scenarios": "INTERSECTION_TOWN3_CAR1",
-                    "manual_control": False,
-                    "auto_control": False,
-                    "camera_type": "rgb",
-                    "collision_sensor": "on",
-                    "lane_sensor": "on",
-                    "log_images": False,
-                    "log_measurements": False,
-                    "render": False,
-                    "x_res": 84,
-                    "y_res": 84,
-                    "use_depth_camera": False,
-                    "send_measurements": False
-                },
-                "car2": {
-                    "type": "vehicle_4W",
-                    "enable_planner": True,
-                    "convert_images_to_video": False,
-                    "early_terminate_on_collision": True,
-                    "reward_function": "corl2017",
-                    "scenarios": "INTERSECTION_TOWN3_CAR2",
-                    "manual_control": False,
-                    "auto_control": False,
-                    "camera_type": "rgb",
-                    "collision_sensor": "on",
-                    "lane_sensor": "on",
-                    "log_images": False,
-                    "log_measurements": False,
-                    "render": False,
-                    "x_res": 84,
-                    "y_res": 84,
-                    "use_depth_camera": False,
-                    "send_measurements": False
-                },
-                "pedestrian1": {
-                    "type": "pedestrian",
-                    "enable_planner": True,
-                    "convert_images_to_video": False,
-                    "early_terminate_on_collision": True,
-                    "reward_function": "corl2017",
-                    "scenarios": "INTERSECTION_TOWN3_PED1",
-                    "manual_control": False,
-                    "auto_control": False,
-                    "camera_type": "rgb",
-                    "collision_sensor": "on",
-                    "lane_sensor": "on",
-                    "log_images": False,
-                    "log_measurements": False,
-                    "render": False,
-                    "x_res": 84,
-                    "y_res": 84,
-                    "use_depth_camera": False,
-                    "send_measurements": False
-                },
-                "bike1": {
-                    "type": "vehicle_2W",
-                    "enable_planner": True,
-                    "convert_images_to_video": False,
-                    "early_terminate_on_collision": True,
-                    "reward_function": "corl2017",
-                    "scenarios": "INTERSECTION_TOWN3_BIKE1",
-                    "manual_control": False,
-                    "auto_control": False,
-                    "camera_type": "rgb",
-                    "collision_sensor": "on",
-                    "lane_sensor": "on",
-                    "log_images": False,
-                    "log_measurements": False,
-                    "render": False,
-                    "x_res": 84,
-                    "y_res": 84,
-                    "use_depth_camera": False,
-                    "send_measurements": False
-                }
-            }
-        }
+        self.configs = USI2C1P1B_CONFIGS
         super(UrbanSignalIntersection2Car1Ped1Bike,
               self).__init__(self.configs)
 

@@ -17,8 +17,7 @@ from ray.rllib.agents.impala.vtrace_policy_graph import VTracePolicyGraph
 # from env.envs.intersection.urban_signal_intersection_3c import \
 #    UrbanSignalIntersection3Car
 from env.envs.intersection.stop_sign_urban_intersection_3c import \
-    StopSignUrbanIntersection3Car
-from env.carla.multi_env import DEFAULT_MULTIENV_CONFIG
+    StopSignUrbanIntersection3Car, SSUI3C_CONFIGS
 from examples.rllib.models import register_mnih15_net
 from examples.rllib.env_wrappers import wrap_deepmind
 
@@ -101,7 +100,7 @@ env_name = "Carla-v0"
 
 num_framestack = args.num_framestack
 
-env_actor_configs = DEFAULT_MULTIENV_CONFIG
+env_actor_configs = SSUI3C_CONFIGS
 
 # env_config["env"]["render"] = False
 
@@ -266,7 +265,6 @@ if args.debug:
             "num_envs_per_worker": args.envs_per_worker,
             "sample_batch_size": args.sample_bs_per_worker,
             "train_batch_size": args.train_bs
-
         })
     if args.checkpoint_path and os.path.isfile(args.checkpoint_path):
         trainer.restore(args.checkpoint_path)
@@ -291,12 +289,11 @@ else:
             },
             "policy_mapping_fn": tune.function(lambda agent_id: "def_policy"),
         },
-        "env_config": env_actor_configs
+        "env_config": env_actor_configs,
         "num_workers": args.num_workers,
         "num_envs_per_worker": args.envs_per_worker,
         "sample_batch_size": args.sample_bs_per_worker,
         "train_batch_size": args.train_bs
-
     }
 
     experiment_spec = tune.Experiment(
