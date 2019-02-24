@@ -357,25 +357,25 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             from env.carla.scenarios import DEFAULT_CURVE_TOWN1
             return DEFAULT_CURVE_TOWN1
         # TODO: Combine the following INTERSECTION_TOWN3_* into a single config
-        elif "INTERSECTION_TOWN3_CAR1" in choice:
+        elif choice == "INTERSECTION_TOWN3_CAR1":
             from env.carla.scenarios import INTERSECTION_TOWN3_CAR1
             return INTERSECTION_TOWN3_CAR1
-        elif "INTERSECTION_TOWN3_CAR2" in choice:
+        elif choice == "INTERSECTION_TOWN3_CAR2":
             from env.carla.scenarios import INTERSECTION_TOWN3_CAR2
             return INTERSECTION_TOWN3_CAR2
-        elif "INTERSECTION_TOWN3_PED1" in choice:
+        elif choice == "INTERSECTION_TOWN3_PED1":
             from env.carla.scenarios import INTERSECTION_TOWN3_PED1
             return INTERSECTION_TOWN3_PED1
-        elif "INTERSECTION_TOWN3_BIKE1" in choice:
+        elif choice == "INTERSECTION_TOWN3_BIKE1":
             from env.carla.scenarios import INTERSECTION_TOWN3_BIKE1
             return INTERSECTION_TOWN3_BIKE1
-        elif "SUIC3_TOWN3_CAR1" in choice:
+        elif choice == "SUIC3_TOWN3_CAR1":
             from env.carla.scenarios import SUIC3_TOWN3_CAR1
             return SUIC3_TOWN3_CAR1
-        elif "SUIC3_TOWN3_CAR2" in choice:
+        elif choice == "SUIC3_TOWN3_CAR2":
             from env.carla.scenarios import SUIC3_TOWN3_CAR2
             return SUIC3_TOWN3_CAR2
-        elif "SUIC3_TOWN3_CAR3" in choice:
+        elif choice == "SUIC3_TOWN3_CAR3":
             from env.carla.scenarios import SUIC3_TOWN3_CAR3
             return SUIC3_TOWN3_CAR3
 
@@ -1000,7 +1000,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             if agent_type == "pedestrian":
                 self.actors[actor_id].apply_control(
                     carla.WalkerControl(speed=2.0 + throttle))
-            elif agent_type == "vehicle":
+            # TODO: Change this if different vehicle types (Eg.:vehicle_4W,
+            #  vehicle_W) have different control APIs
+            elif "vehicle" in agent_type:
                 self.actors[actor_id].apply_control(
                     carla.VehicleControl(
                         throttle=throttle,
