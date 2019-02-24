@@ -42,6 +42,37 @@ INTERSECTION_SCENARIO_TOWN2 = build_ma_scenario(
    max_steps=2000,
    weathers=[0])
 """
+"""Stop Sign Urban Intersection scenario with 3 Cars passing through.
+TAG: SSUIC3
+"""
+
+SSUIC3_TOWN3_CAR1 = build_scenario(
+    city="Town03",
+    start=[170.5, 80, 0.4],
+    end=[144, 59, 0],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=500,
+    weathers=[0])
+
+SSUIC3_TOWN3_CAR2 = build_scenario(
+    city="Town03",
+    start=[188, 59, 0.4],
+    end=[167, 75.7, 0.13],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=500,
+    weathers=[0])
+
+SSUIC3_TOWN3_CAR3 = build_scenario(
+    city="Town03",
+    start=[147.6, 62.6, 0.4],
+    end=[191.2, 62.7, 0],
+    vehicles=1,
+    pedestrians=0,
+    max_steps=500,
+    weathers=[0])
+# End of TAG: SSUIC3
 """Signalized Urban Intersection scenario with 3 Cars passing through.
 CAR1: Starts almost inside the intersection, goes straight
 CAR2: Starts 90 wrt CAR1 close to intersection, turns right to merge

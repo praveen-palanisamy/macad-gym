@@ -379,6 +379,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             from env.carla.scenarios import SUIC3_TOWN3_CAR3
             return SUIC3_TOWN3_CAR3
 
+        elif choice == "SSUIC3_TOWN3_CAR1":
+            from env.carla.scenarios import SSUIC3_TOWN3_CAR1
+            return SSUIC3_TOWN3_CAR1
+        elif choice == "SSUIC3_TOWN3_CAR2":
+            from env.carla.scenarios import SSUIC3_TOWN3_CAR2
+            return SSUIC3_TOWN3_CAR2
+        elif choice == "SSUIC3_TOWN3_CAR3":
+            from env.carla.scenarios import SSUIC3_TOWN3_CAR3
+            return SSUIC3_TOWN3_CAR3
+
     @staticmethod
     def get_free_tcp_port():
         s = socket.socket()
