@@ -13,7 +13,11 @@ from ray.rllib.agents.impala.vtrace_policy_graph import VTracePolicyGraph
 # from env.carla.multi_env import MultiCarlaEnv
 # from env.envs.intersection.urban_2_car_1_ped import \
 # UrbanSignalIntersection2Car1Ped1Bike
-from env.envs.urban_2car import Urban2Car
+# from env.envs.urban_2car import Urban2Car
+# from env.envs.intersection.urban_signal_intersection_3c import \
+#    UrbanSignalIntersection3Car
+from env.envs.intersection.stop_sign_urban_intersection_3c import \
+    StopSignUrbanIntersection3Car
 from env.carla.multi_env import DEFAULT_MULTIENV_CONFIG
 from examples.rllib.models import register_mnih15_net
 from examples.rllib.env_wrappers import wrap_deepmind
@@ -106,7 +110,7 @@ def env_creator(env_config):
     # NOTES: env_config.worker_index & vector_index are useful for
     # curriculum learning or joint training experiments
     # env = MultiCarlaEnv(env_config)  # (env_actor_configs)
-    env = Urban2Car()
+    env = StopSignUrbanIntersection3Car()  # Urban2Car()
     # Apply wrappers to: convert to Grayscale, resize to 84 x 84,
     # stack frames & some more op
     env = wrap_deepmind(env, dim=84, num_framestack=num_framestack)
