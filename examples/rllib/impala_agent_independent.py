@@ -70,6 +70,11 @@ parser.add_argument(
     type=int,
     help="Number of steps to train. Default=20M")
 parser.add_argument(
+    "--num-iters",
+    default=20,
+    type=int,
+    help="Number of training iterations. Default=20")
+parser.add_argument(
     "--log-graph",
     action="store_true",
     help="Write TF graph on Tensorboard for debugging")
@@ -85,6 +90,9 @@ parser.add_argument(
     default=None,
     help="Address of ray head node. Be sure to start ray with"
     "ray start --redis-address <...> --num-gpus<.> before running this script")
+parser.add_argument(
+    "--use-lstm", action="store_true", help="Append a LSTM cell to the model")
+
 args = parser.parse_args()
 
 model_name = args.model_arch
@@ -96,7 +104,7 @@ else:
     model_name = "mnih15"
 
 # Used only in debug mode
-env_name = "Carla-v0"
+env_name = "SSUI3CCARLA"
 
 num_framestack = args.num_framestack
 
@@ -116,7 +124,7 @@ def env_creator(env_config):
     return env
 
 
-register_env("dm-" + env_name, lambda config: env_creator(config))
+register_env(env_name, lambda config: env_creator(config))
 
 
 # Placeholder to enable use of a custom pre-processor
@@ -247,7 +255,8 @@ else:
 def default_policy():
     return (VTracePolicyGraph, Box(0.0, 255.0, shape=(84, 84, 3)), Discrete(9),
             {
-                "gamma": 0.99
+                "gamma": 0.99,
+                "use_lstm": args.use_lstm
             })
 
 
@@ -276,30 +285,13 @@ if args.debug:
         trainer.restore(args.checkpoint_path)
         print("Loaded checkpoint from:{}".format(args.checkpoint_path))
 
-    for iter in tqdm(range(args.num_steps), desc="Iters"):
+    for iter in tqdm(range(args.num_iters), desc="Iters"):
         results = trainer.train()
         if iter % 500 == 0:
             trainer.save("saved_models/multi-carla/" + args.model_arch)
         pprint(results)
 else:
-    config = {
-        "env": "dm-" + env_name,
-        "log_level": "DEBUG",
-        # Use independent policy graphs for each agent
-        "multiagent": {
-            "policy_graphs": {
-                id: default_policy()
-                for id in env_actor_configs["actors"].keys()
-            },
-            "policy_mapping_fn": lambda agent_id: agent_id,
-        },
-        "env_config": env_actor_configs,
-        "num_workers": args.num_workers,
-        "num_envs_per_worker": args.envs_per_worker,
-        "sample_batch_size": args.sample_bs_per_worker,
-        "train_batch_size": args.train_bs
-    }
-
+    # Unused exp_spec
     experiment_spec = tune.Experiment(
         "multi-carla/" + args.model_arch,
         "IMPALA",
@@ -313,4 +305,32 @@ else:
             "cpu": 4,
             "gpu": 1
         })
-    tune.run_experiments(experiment_spec)
+
+    tune.run_experiments({
+        "MA-Inde-IMPALA-SSUI3CCARLA": {
+            "run": "IMPALA",
+            "env": env_name,
+            "stop": {
+                "training_iteration": args.num_iters
+            },
+            "config": {
+                "log_level": "DEBUG",
+                "num_sgd_iter": 10,
+                "multiagent": {
+                    "policy_graphs": {
+                        id: default_policy()
+                        for id in env_actor_configs["actors"].keys()
+                    },
+                    "policy_mapping_fn":
+                    tune.function(lambda agent_id: agent_id),
+                },
+                "env_config": env_actor_configs,
+                "num_workers": args.num_workers,
+                "num_envs_per_worker": args.envs_per_worker,
+                "sample_batch_size": args.sample_bs_per_worker,
+                "train_batch_size": args.train_bs
+            },
+            "checkpoint_freq": 500,
+            "checkpoint_at_end": True,
+        }
+    })
