@@ -142,5 +142,6 @@ if __name__ == "__main__":
             },
             "checkpoint_freq": 500,
             "checkpoint_at_end": True,
+            "max_failures": 5
         }
     })

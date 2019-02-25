@@ -315,7 +315,7 @@ else:
             },
             "config": {
                 "log_level": "DEBUG",
-                "num_sgd_iter": 10,
+                "num_sgd_iter": 10,  # Enables Experience Replay
                 "multiagent": {
                     "policy_graphs": {
                         id: default_policy()
