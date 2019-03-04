@@ -253,7 +253,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         # Belongs to env_config.
         self.server_map = self.env_config["server_map"]
-        self.city = self.server_map.split("/")[-1]
+        self.map = self.server_map.split("/")[-1]
         self.render = self.env_config["render"]
         self.framestack = self.env_config["framestack"]
         self.discrete_actions = self.env_config["discrete_actions"]
@@ -297,8 +297,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 255.0,
                 shape=(self.y_res, self.x_res, 3 * self.framestack))
 
-        # Set pos_coor map for Town01 or Town02.
-        if self.city == "Town01":
+        #: Set appropriate node-id to coordinate mappings for Town01 or Town02.
+        if self.map == "Town01":
             self.pos_coor_map = TOWN01
         else:
             self.pos_coor_map = TOWN02

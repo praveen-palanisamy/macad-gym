@@ -14,10 +14,10 @@ PAPER_TEST_WEATHERS = [
 PAPER_TRAIN_WEATHERS = [2, 14]  # cloudy daytime, soft rain at sunset
 
 
-def build_scenario(city, start, end, vehicles, pedestrians, max_steps,
+def build_scenario(map, start, end, vehicles, pedestrians, max_steps,
                    weathers):
     scenario = {
-        "city": city,
+        "map": map,
         "num_vehicles": vehicles,
         "num_pedestrians": pedestrians,
         "weather_distribution": weathers,
@@ -30,9 +30,9 @@ def build_scenario(city, start, end, vehicles, pedestrians, max_steps,
     return scenario
 
 
-def build_ma_scenario(city, actors, max_steps, weathers):
+def build_ma_scenario(map, actors, max_steps, weathers):
     scenario = {
-        "city": city,
+        "map": map,
         "actors": actors,
         "weather_distribution": weathers,
         "max_steps": max_steps,
@@ -45,7 +45,7 @@ def build_ma_scenario(city, actors, max_steps, weathers):
 TAG: SSUIC3
 """
 SSUIC3_TOWN3 = {
-    "city": "Town03",
+    "map": "Town03",
     "actors": {
         "car1": {
             "start": [170.5, 80, 0.4],
@@ -72,7 +72,7 @@ TAG: SUIC3
 """
 
 SUIC3_TOWN3 = {
-    "city": "Town03",
+    "map": "Town03",
     "actors": {
         "car1": {
             "start": [70, -132.8, 8],
@@ -93,7 +93,7 @@ SUIC3_TOWN3 = {
 # End of TAG: SUIC3
 
 SUIB1C2P1_TOWN3 = {
-    "city": "Town03",
+    "map": "Town03",
     "actors": {
         "car1": {
             "start": [94, -132.7, 10],
@@ -117,7 +117,7 @@ SUIB1C2P1_TOWN3 = {
 
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_ma_scenario(
-    city="Town01",
+    map="Town01",
     actors={"vehicle1": {
         "start": 128,
         "end": 133
@@ -126,7 +126,7 @@ DEFAULT_SCENARIO_TOWN1 = build_ma_scenario(
     weathers=[0])
 
 DEFAULT_SCENARIO_TOWN1_2 = build_ma_scenario(
-    city="Town01",
+    map="Town01",
     actors={"vehicle1": {
         "start": 133,
         "end": 65
@@ -135,7 +135,7 @@ DEFAULT_SCENARIO_TOWN1_2 = build_ma_scenario(
     weathers=[0])
 
 DEFAULT_SCENARIO_TOWN1_COMBINED = build_ma_scenario(
-    city="Town01",
+    map="Town01",
     actors={
         "vehicle1": {
             "start": [
@@ -156,7 +156,7 @@ DEFAULT_SCENARIO_TOWN1_COMBINED = build_ma_scenario(
     weathers=[0])
 
 DEFAULT_SCENARIO_TOWN1_COMBINED_WITH_MANUAL = build_ma_scenario(
-    city="Town01",
+    map="Town01",
     actors={
         "vehicle1": {
             "start": [
@@ -187,7 +187,7 @@ DEFAULT_SCENARIO_TOWN1_COMBINED_WITH_MANUAL = build_ma_scenario(
     weathers=[0])
 
 DEFAULT_SCENARIO_TOWN2 = build_scenario(
-    city="Town01",
+    map="Town01",
     start=[47],
     end=[52],
     vehicles=20,
@@ -196,7 +196,7 @@ DEFAULT_SCENARIO_TOWN2 = build_scenario(
     weathers=[0])
 
 DEFAULT_CURVE_TOWN1 = build_scenario(
-    city="Town01",
+    map="Town01",
     start=[133],
     end=[150],
     vehicles=20,
@@ -206,7 +206,7 @@ DEFAULT_CURVE_TOWN1 = build_scenario(
 
 # Simple scenario for Town02 that involves driving down a road
 LANE_KEEP_TOWN2 = build_scenario(
-    city="Town02",
+    map="Town02",
     start=36,
     end=40,
     vehicles=0,
@@ -216,7 +216,7 @@ LANE_KEEP_TOWN2 = build_scenario(
 
 # Simple scenario for Town01 that involves driving down a road
 LANE_KEEP_TOWN1 = build_scenario(
-    city="Town01",
+    map="Town01",
     start=36,
     end=40,
     vehicles=0,
@@ -225,7 +225,7 @@ LANE_KEEP_TOWN1 = build_scenario(
     weathers=[0])
 
 CURVE_TOWN1 = build_scenario(
-    city="Town01",
+    map="Town01",
     start=[131, 133],
     end=[65, 64],
     vehicles=0,
@@ -233,7 +233,7 @@ CURVE_TOWN1 = build_scenario(
     max_steps=2000,
     weathers=[0])
 CURVE_TOWN2 = build_scenario(
-    city="Town01",
+    map="Town01",
     start=[16, 27],
     end=[74, 75],
     vehicles=0,
