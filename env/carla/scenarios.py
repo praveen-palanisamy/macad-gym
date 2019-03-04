@@ -30,11 +30,10 @@ def build_scenario(city, start, end, vehicles, pedestrians, max_steps,
     return scenario
 
 
-def build_ma_scenario(city, vehicles, pedestrians, max_steps, weathers):
+def build_ma_scenario(city, actors, max_steps, weathers):
     scenario = {
         "city": city,
-        "vehicles": vehicles,
-        "pedestrians": pedestrians,
+        "actors": actors,
         "weather_distribution": weathers,
         "max_steps": max_steps,
     }
@@ -47,7 +46,7 @@ TAG: SSUIC3
 """
 SSUIC3_TOWN3 = {
     "city": "Town03",
-    "vehicles": {
+    "actors": {
         "car1": {
             "start": [170.5, 80, 0.4],
             "end": [144, 59, 0]
@@ -61,7 +60,6 @@ SSUIC3_TOWN3 = {
             "end": [191.2, 62.7, 0],
         }
     },
-    "pedestrians": {},
     "weather_distribution": [0],
     "max_steps": 500
 }
@@ -75,7 +73,7 @@ TAG: SUIC3
 
 SUIC3_TOWN3 = {
     "city": "Town03",
-    "vehicles": {
+    "actors": {
         "car1": {
             "start": [70, -132.8, 8],
             "end": [127, -132, 8]
@@ -89,20 +87,19 @@ SUIC3_TOWN3 = {
             "end": [100, -132, 8],
         }
     },
-    "pedestrians": {},
     "weather_distribution": [0],
     "max_steps": 500
 }
 # End of TAG: SUIC3
 
-SUIB1C2P1 = {
+SUIB1C2P1_TOWN3 = {
     "city": "Town03",
-    "vehicles": {
+    "actors": {
         "car1": {
             "start": [94, -132.7, 10],
             "end": [106, -132.7, 8],
         },
-        "car2": {
+        "trafficlight1": {
             "start": [84, -115, 10],
             "end": [41, -137, 8],
         },
@@ -121,27 +118,25 @@ SUIB1C2P1 = {
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_ma_scenario(
     city="Town01",
-    vehicles={"vehicle1": {
+    actors={"vehicle1": {
         "start": 128,
         "end": 133
     }},
-    pedestrians={},
     max_steps=2000,
     weathers=[0])
 
 DEFAULT_SCENARIO_TOWN1_2 = build_ma_scenario(
     city="Town01",
-    vehicles={"vehicle1": {
+    actors={"vehicle1": {
         "start": 133,
         "end": 65
     }},
-    pedestrians={},
     max_steps=2000,
     weathers=[0])
 
 DEFAULT_SCENARIO_TOWN1_COMBINED = build_ma_scenario(
     city="Town01",
-    vehicles={
+    actors={
         "vehicle1": {
             "start": [
                 217.50997924804688, 198.75999450683594, 39.430625915527344,
@@ -157,13 +152,12 @@ DEFAULT_SCENARIO_TOWN1_COMBINED = build_ma_scenario(
             "end": 65
         }
     },
-    pedestrians={},
     max_steps=2000,
     weathers=[0])
 
 DEFAULT_SCENARIO_TOWN1_COMBINED_WITH_MANUAL = build_ma_scenario(
     city="Town01",
-    vehicles={
+    actors={
         "vehicle1": {
             "start": [
                 217.50997924804688, 198.75999450683594, 39.430625915527344,
@@ -189,7 +183,6 @@ DEFAULT_SCENARIO_TOWN1_COMBINED_WITH_MANUAL = build_ma_scenario(
             ]
         },
     },
-    pedestrians={},
     max_steps=2000,
     weathers=[0])
 

@@ -769,25 +769,20 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         else:  # instance array of dict
             scenario = random.choice(scenario_parameter)
 
-        self.scenario_map["num_vehicles"] = len(scenario.get("vehicles", []))
-        self.scenario_map["num_pedestrians"] = len(
-            scenario.get("pedestrians", []))
         self.scenario_map["max_steps"] = scenario["max_steps"]
 
-        actor_types = [scenario.get("vehicles"), scenario.get("pedestrians")]
-        for actors in actor_types:
-            for actor_id, actor in actors.items():
-                if isinstance(actor["start"], int):
-                    self.start_pos[actor_id] = \
-                        self.pos_coor_map[str(actor["start"])]
-                else:
-                    self.start_pos[actor_id] = actor["start"]
+        for actor_id, actor in scenario["actors"].items():
+            if isinstance(actor["start"], int):
+                self.start_pos[actor_id] = \
+                    self.pos_coor_map[str(actor["start"])]
+            else:
+                self.start_pos[actor_id] = actor["start"]
 
-                if isinstance(actor["end"], int):
-                    self.end_pos[actor_id] = \
-                        self.pos_coor_map[str(actor["end"])]
-                else:
-                    self.end_pos[actor_id] = actor["end"]
+            if isinstance(actor["end"], int):
+                self.end_pos[actor_id] = \
+                    self.pos_coor_map[str(actor["end"])]
+            else:
+                self.end_pos[actor_id] = actor["end"]
 
     def encode_obs(self, actor_id, image, py_measurements):
         """Encode sensor and measurements into obs based on state-space config.
@@ -1118,8 +1113,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             "current_scenario": self.scenario_map,
             "x_res": self.x_res,
             "y_res": self.y_res,
-            "num_vehicles": self.scenario_map["num_vehicles"],
-            "num_pedestrians": self.scenario_map["num_pedestrians"],
             "max_steps": self.scenario_map["max_steps"],
             "next_command": next_command,
             "previous_action": self.previous_actions.get(actor_id, None),

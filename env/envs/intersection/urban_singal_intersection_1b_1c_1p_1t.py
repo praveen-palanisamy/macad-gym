@@ -8,6 +8,7 @@ from env.carla.multi_env import MultiCarlaEnv
 # config_file = open("urban_2_car_1_ped.json")
 # configs = json.load(config_file)
 USI1B1C1P1T_CONFIGS = {
+    "scenarios": "SUIB1C2P1_TOWN3",
     "env": {
         "server_map": "/Game/Carla/Maps/Town03",
         "render": True,
@@ -31,7 +32,6 @@ USI1B1C1P1T_CONFIGS = {
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "INTERSECTION_TOWN3_CAR1",
             "manual_control": False,
             "auto_control": True,
             "camera_type": "rgb",
@@ -47,13 +47,12 @@ USI1B1C1P1T_CONFIGS = {
             "use_depth_camera": False,
             "send_measurements": False
         },
-        "tl1": {
+        "trafficlight1": {
             "type": "traffic_light",
             "enable_planner": False,
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "INTERSECTION_TOWN3_CAR2",
             "manual_control": False,
             "auto_control": True,
             "camera_type": "rgb",
@@ -75,7 +74,6 @@ USI1B1C1P1T_CONFIGS = {
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "INTERSECTION_TOWN3_PED1",
             "manual_control": False,
             "auto_control": False,
             "camera_type": "rgb",
@@ -97,7 +95,6 @@ USI1B1C1P1T_CONFIGS = {
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "INTERSECTION_TOWN3_BIKE1",
             "manual_control": False,
             "auto_control": True,
             "camera_type": "rgb",
