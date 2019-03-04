@@ -188,7 +188,9 @@ def get_next_waypoint(world, location, distance=1.0):
     Returns:
         The next waypoint as a list of coordinates (x,y,z)
     """
-    current_waypoint = world.get_map().get_waypoint(carla.Location(*location))
+    # TODO: Use named tuple for location
+    current_waypoint = world.get_map().get_waypoint(
+        carla.Location(location[0], location[1], location[2]))
     current_coords = current_waypoint.transform.location
     next_waypoints = current_waypoint.next(1.0)
     if len(next_waypoints) > 0:

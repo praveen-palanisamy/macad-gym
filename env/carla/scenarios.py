@@ -30,6 +30,18 @@ def build_scenario(city, start, end, vehicles, pedestrians, max_steps,
     return scenario
 
 
+def build_ma_scenario(city, vehicles, pedestrians, max_steps, weathers):
+    scenario = {
+        "city": city,
+        "vehicles": vehicles,
+        "pedestrians": pedestrians,
+        "weather_distribution": weathers,
+        "max_steps": max_steps,
+    }
+
+    return scenario
+
+
 # Temporary (quick) soln to use MA. By defining one dict per agent in
 # the scenario. Can be improved by using something like the triple quoted eg:
 """
@@ -72,41 +84,8 @@ SSUIC3_TOWN3_CAR3 = build_scenario(
     pedestrians=0,
     max_steps=500,
     weathers=[0])
+
 # End of TAG: SSUIC3
-"""Signalized Urban Intersection scenario with 3 Cars passing through.
-CAR1: Starts almost inside the intersection, goes straight
-CAR2: Starts 90 wrt CAR1 close to intersection, turns right to merge
-CAR3: Starts behind CAR1 away from intersection, goes straight
-TAG: SUIC3
-"""
-
-SUIC3_TOWN3_CAR1 = build_scenario(
-    city="Town03",
-    start=[70, -132.8, 8],
-    end=[127, -132, 8],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=500,
-    weathers=[0])
-
-SUIC3_TOWN3_CAR2 = build_scenario(
-    city="Town03",
-    start=[84.3, -118, 9],
-    end=[120, -132, 8],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=500,
-    weathers=[0])
-
-SUIC3_TOWN3_CAR3 = build_scenario(
-    city="Town03",
-    start=[43, -133, 4],
-    end=[100, -132, 8],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=500,
-    weathers=[0])
-# End of TAG: SUIC3
 """Signalized Urban Intersection scenario with 3 Cars passing through.
 CAR1: Starts almost inside the intersection, goes straight
 CAR2: Starts 90 wrt CAR1 close to intersection, turns right to merge
@@ -174,22 +153,79 @@ INTERSECTION_TOWN3_BIKE1 = build_scenario(
     pedestrians=0,
     max_steps=300,
     weathers=[0])
+
 # Simple scenario for Town01 that involves driving down a road
-DEFAULT_SCENARIO_TOWN1 = build_scenario(
+DEFAULT_SCENARIO_TOWN1 = build_ma_scenario(
     city="Town01",
-    start=128,
-    end=133,
-    vehicles=20,
-    pedestrians=40,
+    vehicles={"vehicle1": {
+        "start": 128,
+        "end": 133
+    }},
+    pedestrians={},
     max_steps=2000,
     weathers=[0])
 
-DEFAULT_SCENARIO_TOWN1_2 = build_scenario(
+DEFAULT_SCENARIO_TOWN1_2 = build_ma_scenario(
     city="Town01",
-    start=133,
-    end=65,
-    vehicles=20,
-    pedestrians=40,
+    vehicles={"vehicle1": {
+        "start": 133,
+        "end": 65
+    }},
+    pedestrians={},
+    max_steps=2000,
+    weathers=[0])
+
+DEFAULT_SCENARIO_TOWN1_COMBINED = build_ma_scenario(
+    city="Town01",
+    vehicles={
+        "vehicle1": {
+            "start": [
+                217.50997924804688, 198.75999450683594, 39.430625915527344,
+                -0.16
+            ],
+            "end": [
+                299.39996337890625, 199.05999755859375, 39.430625915527344,
+                -0.16
+            ]
+        },
+        "vehicle2": {
+            "start": 133,
+            "end": 65
+        }
+    },
+    pedestrians={},
+    max_steps=2000,
+    weathers=[0])
+
+DEFAULT_SCENARIO_TOWN1_COMBINED_WITH_MANUAL = build_ma_scenario(
+    city="Town01",
+    vehicles={
+        "vehicle1": {
+            "start": [
+                217.50997924804688, 198.75999450683594, 39.430625915527344,
+                -0.16
+            ],
+            "end": [
+                299.39996337890625, 199.05999755859375, 39.430625915527344,
+                -0.16
+            ]
+        },
+        "vehicle2": {
+            "start": 133,
+            "end": 65
+        },
+        "manual": {
+            "start": [
+                299.39996337890625, 194.75999450683594, 39.430625915527344,
+                180.0
+            ],
+            "end": [
+                217.50997924804688, 194.05999755859375, 39.430625915527344,
+                180.0
+            ]
+        },
+    },
+    pedestrians={},
     max_steps=2000,
     weathers=[0])
 
@@ -349,3 +385,10 @@ def update_scenarios_parameter(config_map):
     if "scenarios" in config_map:
         config_map["scenarios"] = local_map[config_map["scenarios"]]
     return config_map
+
+
+def get_scenario_parameter(scenario_name):
+    if scenario_name in local_map:
+        return local_map[scenario_name]
+    else:
+        return None

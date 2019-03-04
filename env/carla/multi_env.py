@@ -36,6 +36,7 @@ from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
 from env.carla.reward import Reward
 from env.core.sensors.hud import HUD
 from env.viz.render import multi_view_render
+from env.carla.scenarios import update_scenarios_parameter
 
 LOG_DIR = "logs"
 if not os.path.isdir(LOG_DIR):
@@ -84,6 +85,7 @@ assert os.path.exists(SERVER_BINARY)
 # TODO: Clean env & actor configs to have appropriate keys based on the nature
 # of env
 DEFAULT_MULTIENV_CONFIG = {
+    "scenarios": "DEFAULT_SCENARIO_TOWN1",
     "env": {
         "server_map": "/Game/Carla/Maps/Town01",
         "render": True,
@@ -112,8 +114,6 @@ DEFAULT_MULTIENV_CONFIG = {
             "render_y_res": 600,
             "x_res": 84,
             "y_res": 84,
-            "server_map": "/Game/Carla/Maps/Town01",
-            "scenarios": "DEFAULT_SCENARIO_TOWN1",  # # no scenarios
             "use_depth_camera": False,
             "squash_action_logits": False,
             "manual_control": False,
@@ -234,6 +234,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 "actor_id2": {"enable_planner": False)}}}
 
         """
+
+        self.scenario_config = update_scenarios_parameter(configs)["scenarios"]
         self.env_config = configs["env"]
         self.actor_configs = configs["actors"]
         #: list of str: Supported values for `type` filed in `actor_configs`
@@ -331,63 +333,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.collisions = {}
         self.lane_invasions = {}
         self.scenario_map = {}
+        self.load_scenario(self.scenario_config)
         self.done_dict = {}
         self.dones = set()  # Set of all done actor IDs
-
-    def get_scenarios(self, choice):
-        if choice == "DEFAULT_SCENARIO_TOWN1":
-            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1
-            return DEFAULT_SCENARIO_TOWN1
-        elif choice == "DEFAULT_SCENARIO_TOWN1_2":
-            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN1_2
-            return DEFAULT_SCENARIO_TOWN1_2
-        elif choice == "DEFAULT_SCENARIO_TOWN2":
-            from env.carla.scenarios import DEFAULT_SCENARIO_TOWN2
-            return DEFAULT_SCENARIO_TOWN2
-        elif choice == "TOWN1_STRAIGHT":
-            from env.carla.scenarios import TOWN1_STRAIGHT
-            return TOWN1_STRAIGHT
-        elif choice == "CURVE_TOWN1":
-            from env.carla.scenarios import CURVE_TOWN1
-            return CURVE_TOWN1
-        elif choice == "CURVE_TOWN2":
-            from env.carla.scenarios import CURVE_TOWN2
-            return CURVE_TOWN2
-        elif choice == "DEFAULT_CURVE_TOWN1":
-            from env.carla.scenarios import DEFAULT_CURVE_TOWN1
-            return DEFAULT_CURVE_TOWN1
-        # TODO: Combine the following INTERSECTION_TOWN3_* into a single config
-        elif choice == "INTERSECTION_TOWN3_CAR1":
-            from env.carla.scenarios import INTERSECTION_TOWN3_CAR1
-            return INTERSECTION_TOWN3_CAR1
-        elif choice == "INTERSECTION_TOWN3_CAR2":
-            from env.carla.scenarios import INTERSECTION_TOWN3_CAR2
-            return INTERSECTION_TOWN3_CAR2
-        elif choice == "INTERSECTION_TOWN3_PED1":
-            from env.carla.scenarios import INTERSECTION_TOWN3_PED1
-            return INTERSECTION_TOWN3_PED1
-        elif choice == "INTERSECTION_TOWN3_BIKE1":
-            from env.carla.scenarios import INTERSECTION_TOWN3_BIKE1
-            return INTERSECTION_TOWN3_BIKE1
-        elif choice == "SUIC3_TOWN3_CAR1":
-            from env.carla.scenarios import SUIC3_TOWN3_CAR1
-            return SUIC3_TOWN3_CAR1
-        elif choice == "SUIC3_TOWN3_CAR2":
-            from env.carla.scenarios import SUIC3_TOWN3_CAR2
-            return SUIC3_TOWN3_CAR2
-        elif choice == "SUIC3_TOWN3_CAR3":
-            from env.carla.scenarios import SUIC3_TOWN3_CAR3
-            return SUIC3_TOWN3_CAR3
-
-        elif choice == "SSUIC3_TOWN3_CAR1":
-            from env.carla.scenarios import SSUIC3_TOWN3_CAR1
-            return SSUIC3_TOWN3_CAR1
-        elif choice == "SSUIC3_TOWN3_CAR2":
-            from env.carla.scenarios import SSUIC3_TOWN3_CAR2
-            return SSUIC3_TOWN3_CAR2
-        elif choice == "SSUIC3_TOWN3_CAR3":
-            from env.carla.scenarios import SSUIC3_TOWN3_CAR3
-            return SSUIC3_TOWN3_CAR3
 
     @staticmethod
     def get_free_tcp_port():
@@ -632,6 +580,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             z=self.start_pos[actor_id][2])
         rot = self.world.get_map().get_waypoint(
             loc, project_to_road=True).transform.rotation
+        if len(self.start_pos[actor_id]) > 3:
+            rot.yaw = self.start_pos[actor_id][3]
         transform = carla.Transform(loc, rot)
         self.actor_configs[actor_id]["start_transform"] = transform
         vehicle = None
@@ -709,25 +659,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.episode_id_dict[actor_id] = datetime.today().\
                     strftime("%Y-%m-%d_%H-%M-%S_%f")
                 actor_config = self.actor_configs[actor_id]
-                scenario = self.get_scenarios(actor_config["scenarios"])
-                # If config contains a single scenario, then use it,
-                # if it's an array of scenarios,randomly choose one and init
-                if isinstance(scenario, dict):
-                    self.scenario_map.update({actor_id: scenario})
-                else:  # instance array of dict
-                    self.scenario_map.\
-                        update({actor_id: random.choice(scenario)})
-
-                scenario = self.scenario_map[actor_id]
-                if scenario.get("start_pos_id"):
-                    # str(start_id).decode("utf-8") # for py2
-                    s_id = str(scenario["start_pos_id"])
-                    e_id = str(scenario["end_pos_id"])
-                    self.start_pos[actor_id] = self.pos_coor_map[s_id]
-                    self.end_pos[actor_id] = self.pos_coor_map[e_id]
-                elif scenario.get("start_pos_loc"):
-                    self.start_pos[actor_id] = scenario["start_pos_loc"]
-                    self.end_pos[actor_id] = scenario["end_pos_loc"]
 
                 try:
                     self.actors[actor_id] = self.spawn_new_agent(actor_id)
@@ -828,6 +759,34 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.obs_dict[actor_id] = obs
 
         return self.obs_dict
+
+    def load_scenario(self, scenario_parameter):
+        self.scenario_map = {}
+        # If config contains a single scenario, then use it,
+        # if it's an array of scenarios,randomly choose one and init
+        if isinstance(scenario_parameter, dict):
+            scenario = scenario_parameter
+        else:  # instance array of dict
+            scenario = random.choice(scenario_parameter)
+
+        self.scenario_map["num_vehicles"] = len(scenario["vehicles"])
+        self.scenario_map["num_pedestrians"] = len(scenario["pedestrians"])
+        self.scenario_map["max_steps"] = scenario["max_steps"]
+
+        actor_types = [scenario["vehicles"], scenario["pedestrians"]]
+        for actors in actor_types:
+            for actor_id, actor in actors.items():
+                if isinstance(actor["start"], int):
+                    self.start_pos[actor_id] = \
+                        self.pos_coor_map[str(actor["start"])]
+                else:
+                    self.start_pos[actor_id] = actor["start"]
+
+                if isinstance(actor["end"], int):
+                    self.end_pos[actor_id] = \
+                        self.pos_coor_map[str(actor["end"])]
+                else:
+                    self.end_pos[actor_id] = actor["end"]
 
     def encode_obs(self, actor_id, image, py_measurements):
         """Encode sensor and measurements into obs based on state-space config.
@@ -1045,8 +1004,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         py_measurements["reward"] = reward
         py_measurements["total_reward"] = self.total_reward[actor_id]
-        scenario = self.scenario_map[actor_id]
-        done = (self.num_steps[actor_id] > scenario["max_steps"]
+        done = (self.num_steps[actor_id] > self.scenario_map["max_steps"]
                 or py_measurements["next_command"] == "REACH_GOAL"
                 or (config["early_terminate_on_collision"]
                     and collided_done(py_measurements)))
@@ -1108,6 +1066,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 next_command = "REACH_GOAL"
             else:
                 next_command = "LANE_FOLLOW"
+
+            # DEBUG
+            # self.path_trackers[actor_id].draw()
         else:
             next_command = "LANE_FOLLOW"
 
@@ -1153,12 +1114,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             "map": self.server_map,
             "start_coord": self.start_coord[actor_id],
             "end_coord": self.end_coord[actor_id],
-            "current_scenario": self.scenario_map[actor_id],
+            "current_scenario": self.scenario_map,
             "x_res": self.x_res,
             "y_res": self.y_res,
-            "num_vehicles": self.scenario_map[actor_id]["num_vehicles"],
-            "num_pedestrians": self.scenario_map[actor_id]["num_pedestrians"],
-            "max_steps": self.scenario_map[actor_id]["max_steps"],
+            "num_vehicles": self.scenario_map["num_vehicles"],
+            "num_pedestrians": self.scenario_map["num_pedestrians"],
+            "max_steps": self.scenario_map["max_steps"],
             "next_command": next_command,
             "previous_action": self.previous_actions.get(actor_id, None),
             "previous_reward": self.previous_rewards.get(actor_id, None)

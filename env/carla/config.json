@@ -1,4 +1,5 @@
 {
+    "scenarios": "DEFAULT_SCENARIO_TOWN1_COMBINED",
     "env": {
         "enable_planner": true,
         "server_map": "/Game/Carla/Maps/Town01",
@@ -21,7 +22,6 @@
             "convert_images_to_video": false,
             "early_terminate_on_collision": true,
             "reward_function": "corl2017",
-            "scenarios": "DEFAULT_SCENARIO_TOWN1",
             "manual_control": false,
             "auto_control": false,
             "camera_type": "rgb",
@@ -42,7 +42,6 @@
             "convert_images_to_video": false,
             "early_terminate_on_collision": true,
             "reward_function": "corl2017",
-            "scenarios": "DEFAULT_SCENARIO_TOWN1_2",
             "manual_control": false,
             "auto_control": false,
             "camera_type": "rgb",
