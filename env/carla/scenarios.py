@@ -1,7 +1,7 @@
-"""
-scenarios.py CARLA-Gym collection of Carla scenarios based on node IDs
-from 0.8.x. Currently needs a conversion tool to convert between node IDs and
-(x, y, z) coordinate locations
+"""Collection of Driving Scenario specs in CARLA
+
+Supports scenario specifications based on node IDs (CARLA 0.8.x) as well as
+(X, Y, Z, Yaw) (CARLA 0.9.x +)
 __author__:PP
 """
 
@@ -42,49 +42,29 @@ def build_ma_scenario(city, vehicles, pedestrians, max_steps, weathers):
     return scenario
 
 
-# Temporary (quick) soln to use MA. By defining one dict per agent in
-# the scenario. Can be improved by using something like the triple quoted eg:
-"""
-# Scenario for Town02 that involves driving through an intersection with a
-# pedestrian crossing one side
-INTERSECTION_SCENARIO_TOWN2 = build_ma_scenario(
-   city="Town02",
-   vehicles=[(start1,end1),(start2,end2)],
-   pedestrians=[(start1,end1)],
-   max_steps=2000,
-   weathers=[0])
-"""
 """Stop Sign Urban Intersection scenario with 3 Cars passing through.
 TAG: SSUIC3
 """
-
-SSUIC3_TOWN3_CAR1 = build_scenario(
-    city="Town03",
-    start=[170.5, 80, 0.4],
-    end=[144, 59, 0],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=500,
-    weathers=[0])
-
-SSUIC3_TOWN3_CAR2 = build_scenario(
-    city="Town03",
-    start=[188, 59, 0.4],
-    end=[167, 75.7, 0.13],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=500,
-    weathers=[0])
-
-SSUIC3_TOWN3_CAR3 = build_scenario(
-    city="Town03",
-    start=[147.6, 62.6, 0.4],
-    end=[191.2, 62.7, 0],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=500,
-    weathers=[0])
-
+SSUIC3_TOWN3 = {
+    "city": "Town03",
+    "vehicles": {
+        "car1": {
+            "start": [170.5, 80, 0.4],
+            "end": [144, 59, 0]
+        },
+        "car2": {
+            "start": [188, 59, 0.4],
+            "end": [167, 75.7, 0.13],
+        },
+        "car3": {
+            "start": [147.6, 62.6, 0.4],
+            "end": [191.2, 62.7, 0],
+        }
+    },
+    "pedestrians": {},
+    "weather_distribution": [0],
+    "max_steps": 500
+}
 # End of TAG: SSUIC3
 """Signalized Urban Intersection scenario with 3 Cars passing through.
 CAR1: Starts almost inside the intersection, goes straight
@@ -93,66 +73,50 @@ CAR3: Starts behind CAR1 away from intersection, goes straight
 TAG: SUIC3
 """
 
-SUIC3_TOWN3_CAR1 = build_scenario(
-    city="Town03",
-    start=[70, -132.8, 8],
-    end=[127, -132, 8],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=500,
-    weathers=[0])
-
-SUIC3_TOWN3_CAR2 = build_scenario(
-    city="Town03",
-    start=[84.3, -118, 9],
-    end=[120, -132, 8],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=500,
-    weathers=[0])
-
-SUIC3_TOWN3_CAR3 = build_scenario(
-    city="Town03",
-    start=[43, -133, 4],
-    end=[100, -132, 8],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=500,
-    weathers=[0])
+SUIC3_TOWN3 = {
+    "city": "Town03",
+    "vehicles": {
+        "car1": {
+            "start": [70, -132.8, 8],
+            "end": [127, -132, 8]
+        },
+        "car2": {
+            "start": [84.3, -118, 9],
+            "end": [120, -132, 8]
+        },
+        "car3": {
+            "start": [43, -133, 4],
+            "end": [100, -132, 8],
+        }
+    },
+    "pedestrians": {},
+    "weather_distribution": [0],
+    "max_steps": 500
+}
 # End of TAG: SUIC3
 
-INTERSECTION_TOWN3_CAR1 = build_scenario(
-    city="Town03",
-    start=[94, -132.7, 10],
-    end=[106, -132.7, 8],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=300,
-    weathers=[0])
-INTERSECTION_TOWN3_CAR2 = build_scenario(
-    city="Town03",
-    start=[84, -115, 10],
-    end=[41, -137, 8],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=300,
-    weathers=[0])
-INTERSECTION_TOWN3_PED1 = build_scenario(
-    city="Town03",
-    start=[74, -126, 10],
-    end=[92, -125, 8],
-    vehicles=0,
-    pedestrians=1,
-    max_steps=300,
-    weathers=[0])
-INTERSECTION_TOWN3_BIKE1 = build_scenario(
-    city="Town03",
-    start=[69, -132, 8],
-    end=[104, -132, 8],
-    vehicles=1,
-    pedestrians=0,
-    max_steps=300,
-    weathers=[0])
+SUIB1C2P1 = {
+    "city": "Town03",
+    "vehicles": {
+        "car1": {
+            "start": [94, -132.7, 10],
+            "end": [106, -132.7, 8],
+        },
+        "car2": {
+            "start": [84, -115, 10],
+            "end": [41, -137, 8],
+        },
+        "pedestrian1": {
+            "start": [74, -126, 10],
+            "end": [92, -125, 8],
+        },
+        "bike1": {
+            "start": [69, -132, 8],
+            "end": [104, -132, 8],
+        }
+    },
+    "max_steps": 500
+}
 
 # Simple scenario for Town01 that involves driving down a road
 DEFAULT_SCENARIO_TOWN1 = build_ma_scenario(

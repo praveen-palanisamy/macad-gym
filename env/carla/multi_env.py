@@ -535,12 +535,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             of a Vehicle agent.
 
         """
-        agent_type = self.actor_configs[actor_id].get("type", "vehicle_4W")
-        if agent_type not in self.supported_active_actor_types:
+        actor_type = self.actor_configs[actor_id].get("type", "vehicle_4W")
+        if actor_type not in self.supported_active_actor_types:
             print("Unsupported actor type:{}. Using vehicle_4W as the type")
-            agent_type = "vehicle_4W"
+            actor_type = "vehicle_4W"
 
-        if agent_type == "traffic_light":
+        if actor_type == "traffic_light":
             # Traffic lights already exist in the world & can't be spawned.
             # Find closest traffic light actor in world.actor_list and return
             from env.core.controllers import traffic_lights
@@ -555,17 +555,17 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             return tls[0][0]  #: Return the key (carla.TrafficLight object) of
             #: closest match
 
-        if agent_type == "pedestrian":
+        if actor_type == "pedestrian":
             blueprints = self.world.get_blueprint_library().filter("walker")
 
-        elif agent_type == "vehicle_4W":
+        elif actor_type == "vehicle_4W":
             blueprints = self.world.get_blueprint_library().filter("vehicle")
             # Further filter down to 4-wheeled vehicles
             blueprints = [
                 b for b in blueprints
                 if int(b.get_attribute("number_of_wheels")) == 4
             ]
-        elif agent_type == "vehicle_2W":
+        elif actor_type == "vehicle_2W":
             blueprints = self.world.get_blueprint_library().filter("vehicle")
             # Further filter down to 2-wheeled vehicles
             blueprints = [
@@ -769,11 +769,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         else:  # instance array of dict
             scenario = random.choice(scenario_parameter)
 
-        self.scenario_map["num_vehicles"] = len(scenario["vehicles"])
-        self.scenario_map["num_pedestrians"] = len(scenario["pedestrians"])
+        self.scenario_map["num_vehicles"] = len(scenario.get("vehicles", []))
+        self.scenario_map["num_pedestrians"] = len(
+            scenario.get("pedestrians", []))
         self.scenario_map["max_steps"] = scenario["max_steps"]
 
-        actor_types = [scenario["vehicles"], scenario["pedestrians"]]
+        actor_types = [scenario.get("vehicles"), scenario.get("pedestrians")]
         for actors in actor_types:
             for actor_id, actor in actors.items():
                 if isinstance(actor["start"], int):
