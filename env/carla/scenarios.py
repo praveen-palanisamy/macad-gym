@@ -1,10 +1,9 @@
 """Collection of Driving Scenario specs in CARLA
+@Author: PP
 
 Supports scenario specifications based on node IDs (CARLA 0.8.x) as well as
-(X, Y, Z, Yaw) (CARLA 0.9.x +)
-__author__:PP
-"""
-"""
+[X, Y, Z, Yaw] (CARLA 0.9.x +)
+
 #: Weather mapping
 WEATHERS = {
     0: carla.WeatherParameters.ClearNoon,
@@ -22,6 +21,11 @@ WEATHERS = {
     12: carla.WeatherParameters.HardRainSunset,
     13: carla.WeatherParameters.SoftRainSunset,
 }
+
+Start/End locations are specified as [X, Y, Z, Yaw] arrays. If only [X, Y, Z]
+is specified in the start field, the actor is initialized with a default
+heading oriented along the direction of the road at that location [X, Y, Z]
+__author__:PP
 """
 
 TEST_WEATHERS = [0, 2, 5, 7, 9, 10, 11, 12, 13]
@@ -118,12 +122,12 @@ SUIB1C2P1_TOWN3 = {
             "start": [94, -132.7, 10],
             "end": [106, -132.7, 8],
         },
-        "trafficlight1": {
+        "car2": {
             "start": [84, -115, 10],
             "end": [41, -137, 8],
         },
         "pedestrian1": {
-            "start": [74, -126, 10],
+            "start": [74, -126, 10, 0.0],
             "end": [92, -125, 8],
         },
         "bike1": {

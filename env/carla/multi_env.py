@@ -566,6 +566,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                                  self.start_pos[actor_id][2])
             rot = self.world.get_map().get_waypoint(
                 loc, project_to_road=True).transform.rotation
+            #: If yaw is provided in addition to (X, Y, Z), set yaw
+            if len(self.start_pos[actor_id]) > 3:
+                rot.yaw = self.start_pos[actor_id][3]
             transform = carla.Transform(loc, rot)
             self.actor_configs[actor_id]["start_transform"] = transform
             tls = traffic_lights.get_tls(self.world, transform, sort=True)
@@ -597,6 +600,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             z=self.start_pos[actor_id][2])
         rot = self.world.get_map().get_waypoint(
             loc, project_to_road=True).transform.rotation
+        #: If yaw is provided in addition to (X, Y, Z), set yaw
         if len(self.start_pos[actor_id]) > 3:
             rot.yaw = self.start_pos[actor_id][3]
         transform = carla.Transform(loc, rot)
@@ -981,10 +985,18 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             # TODO: Add proper support for pedestrian actor according to action
             # space of ped actors
             if agent_type == "pedestrian":
+                rotation = self.actors[actor_id].get_transform().rotation
+                rotation.yaw += steer * 10.0
+                x_dir = math.cos(math.radians(rotation.yaw))
+                y_dir = math.sin(math.radians(rotation.yaw))
+
                 self.actors[actor_id].apply_control(
-                    carla.WalkerControl(speed=2.0 + throttle))
+                    carla.WalkerControl(
+                        speed=3.0 * throttle,
+                        direction=carla.Vector3D(x_dir, y_dir, 0.0)))
+
             # TODO: Change this if different vehicle types (Eg.:vehicle_4W,
-            #  vehicle_W) have different control APIs
+            #  vehicle_2W, etc) have different control APIs
             elif "vehicle" in agent_type:
                 self.actors[actor_id].apply_control(
                     carla.VehicleControl(

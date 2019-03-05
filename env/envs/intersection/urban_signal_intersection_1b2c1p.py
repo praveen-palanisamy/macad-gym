@@ -47,8 +47,8 @@ USI1B1C1P1T_CONFIGS = {
             "use_depth_camera": False,
             "send_measurements": False
         },
-        "trafficlight1": {
-            "type": "traffic_light",
+        "car2": {
+            "type": "vehicle_4w",
             "enable_planner": False,
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
@@ -114,17 +114,17 @@ USI1B1C1P1T_CONFIGS = {
 }
 
 
-class UrbanSignalIntersection1Bike1Car1Ped1TL(MultiCarlaEnv):
+class UrbanSignalIntersection1Bike2Car1Ped(MultiCarlaEnv):
     """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
 
     def __init__(self):
         self.configs = USI1B1C1P1T_CONFIGS
-        super(UrbanSignalIntersection1Bike1Car1Ped1TL,
+        super(UrbanSignalIntersection1Bike2Car1Ped,
               self).__init__(self.configs)
 
 
 if __name__ == "__main__":
-    env = UrbanSignalIntersection1Bike1Car1Ped1TL()
+    env = UrbanSignalIntersection1Bike2Car1Ped()
     configs = env.configs
     for ep in range(2):
         obs = env.reset()
