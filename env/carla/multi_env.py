@@ -188,6 +188,23 @@ DISCRETE_ACTIONS = {
     8: [-0.5, 0.5],
 }
 
+WEATHERS = {
+    0: carla.WeatherParameters.ClearNoon,
+    1: carla.WeatherParameters.CloudyNoon,
+    2: carla.WeatherParameters.WetNoon,
+    3: carla.WeatherParameters.WetCloudyNoon,
+    4: carla.WeatherParameters.MidRainyNoon,
+    5: carla.WeatherParameters.HardRainNoon,
+    6: carla.WeatherParameters.SoftRainNoon,
+    7: carla.WeatherParameters.ClearSunset,
+    8: carla.WeatherParameters.CloudySunset,
+    9: carla.WeatherParameters.WetSunset,
+    10: carla.WeatherParameters.WetCloudySunset,
+    11: carla.WeatherParameters.MidRainSunset,
+    12: carla.WeatherParameters.HardRainSunset,
+    13: carla.WeatherParameters.SoftRainSunset,
+}
+
 live_carla_processes = set()
 
 
@@ -626,6 +643,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         if not self.first_reset:
             self._clean_world()
         self.first_reset = False
+
+        weather_num = 0
+        if "weather_distribution" in self.scenario_config:
+            weather_num = \
+                random.choice(self.scenario_config["weather_distribution"])
+            if weather_num not in WEATHERS:
+                weather_num = 0
+
+        self.world.set_weather(WEATHERS[weather_num])
+
         self.weather = [
             self.world.get_weather().cloudyness,
             self.world.get_weather().precipitation,

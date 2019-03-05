@@ -4,9 +4,28 @@ Supports scenario specifications based on node IDs (CARLA 0.8.x) as well as
 (X, Y, Z, Yaw) (CARLA 0.9.x +)
 __author__:PP
 """
+"""
+#: Weather mapping
+WEATHERS = {
+    0: carla.WeatherParameters.ClearNoon,
+    1: carla.WeatherParameters.CloudyNoon,
+    2: carla.WeatherParameters.WetNoon,
+    3: carla.WeatherParameters.WetCloudyNoon,
+    4: carla.WeatherParameters.MidRainyNoon,
+    5: carla.WeatherParameters.HardRainNoon,
+    6: carla.WeatherParameters.SoftRainNoon,
+    7: carla.WeatherParameters.ClearSunset,
+    8: carla.WeatherParameters.CloudySunset,
+    9: carla.WeatherParameters.WetSunset,
+    10: carla.WeatherParameters.WetCloudySunset,
+    11: carla.WeatherParameters.MidRainSunset,
+    12: carla.WeatherParameters.HardRainSunset,
+    13: carla.WeatherParameters.SoftRainSunset,
+}
+"""
 
 TEST_WEATHERS = [0, 2, 5, 7, 9, 10, 11, 12, 13]
-TRAIN_WEATHERS = [1, 3, 4, 6, 8, 14]
+TRAIN_WEATHERS = [1, 3, 4, 6, 8]
 
 PAPER_TEST_WEATHERS = [
     1, 8, 5, 3
