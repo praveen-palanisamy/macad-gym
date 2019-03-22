@@ -61,6 +61,10 @@ class CameraManager(object):
         self._index = None
         self.callback_count = 0
 
+    def __del__(self):
+        if self.sensor is not None:
+            self.sensor.destroy()
+
     def set_recording_option(self, option):
         """Set class vars to select recording method.
 
