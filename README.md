@@ -1,5 +1,38 @@
 ### CARLA environment Codebase for CARLA-Gym
 
+### Usage guide
+
+#### 1. Running scenarios
+
+`python env/envs/intersection/urban_signal_intersection_1b2c1p.py`
+##### Config docs:
+```bash
+{
+    "actors": {
+            "car1": {
+                "type": "vehicle_4W",
+                "enable_planner": true,
+                "convert_images_to_video": false,
+                "early_terminate_on_collision": true,
+                "reward_function": "corl2017",
+                "scenarios": "SSUIC3_TOWN3_CAR1",
+                "manual_control": false,
+                "auto_control": false,
+                "camera_type": "rgb",
+                "collision_sensor": "on",
+                "lane_sensor": "on",
+                "log_images": false,
+                "log_measurements": false,
+                "render": true,
+                "x_res": 84,  --> Observation dimension along x (height)
+                "y_res": 84,  --> Observation dimension along y (width)
+                "use_depth_camera": false,
+                "send_measurements": false
+            }
+            }
+}
+```
+
 **NOTE**:
 > The following instructions are for CARLA 0.9.x.
 If you are looking for a stable version that "works", use the master branch.

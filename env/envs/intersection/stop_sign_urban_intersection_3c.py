@@ -9,13 +9,14 @@ from env.carla.multi_env import MultiCarlaEnv
 # configs = json.load(config_file)
 
 SSUI3C_CONFIGS = {
+    "scenarios": "SSUIC3_TOWN3",
     "env": {
         "server_map": "/Game/Carla/Maps/Town03",
         "render": True,
         "render_x_res": 800,
         "render_y_res": 600,
-        "x_res": 84,
-        "y_res": 84,
+        "x_res": 168,
+        "y_res": 168,
         "framestack": 1,
         "discrete_actions": True,
         "squash_action_logits": False,
@@ -40,11 +41,9 @@ SSUI3C_CONFIGS = {
             "lane_sensor": "on",
             "log_images": False,
             "log_measurements": False,
-            "render": False,
-            "render_x_res": 800,
-            "render_y_res": 600,
-            "x_res": 84,
-            "y_res": 84,
+            "render": True,
+            "x_res": 168,
+            "y_res": 168,
             "use_depth_camera": False,
             "send_measurements": False
         },
@@ -62,11 +61,9 @@ SSUI3C_CONFIGS = {
             "lane_sensor": "on",
             "log_images": False,
             "log_measurements": False,
-            "render": False,
-            "render_x_res": 800,
-            "render_y_res": 600,
-            "x_res": 84,
-            "y_res": 84,
+            "render": True,
+            "x_res": 168,
+            "y_res": 168,
             "use_depth_camera": False,
             "send_measurements": False
         },
@@ -84,11 +81,9 @@ SSUI3C_CONFIGS = {
             "lane_sensor": "on",
             "log_images": False,
             "log_measurements": False,
-            "render": False,
-            "render_x_res": 800,
-            "render_y_res": 600,
-            "x_res": 84,
-            "y_res": 84,
+            "render": True,
+            "x_res": 168,
+            "y_res": 168,
             "use_depth_camera": False,
             "send_measurements": False
         }

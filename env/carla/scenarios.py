@@ -135,7 +135,7 @@ SUIB1C2P1_TOWN3 = {
             "end": [104, -132, 8],
         }
     },
-    "max_steps": 500
+    "max_steps": 200
 }
 
 # Simple scenario for Town01 that involves driving down a road
