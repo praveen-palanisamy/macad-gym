@@ -389,7 +389,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         min_index = i
                 self.server_process = subprocess.Popen(
                     ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=20"
-                     " -carla-server -carla-world-port={}").format(
+                     "-carla-server ",
+                     "-carla-world-port={} -carla-streaming-port=0").format(
                          min_index, SERVER_BINARY, self.server_map,
                          self.server_port),
                     shell=True,
@@ -408,7 +409,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     SERVER_BINARY, self.server_map, "-windowed", "-ResX=",
                     str(self.env_config["render_x_res"]), "-ResY=",
                     str(self.env_config["render_y_res"]), "-benchmark -fps=20"
-                    "-carla-server", "-carla-world-port={}".format(
+                    "-carla-server",
+                    "-carla-world-port={} -carla-streaming-port=0".format(
                         self.server_port)
                 ],
                                                        preexec_fn=os.setsid,
