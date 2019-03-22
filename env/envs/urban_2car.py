@@ -22,7 +22,8 @@ U2C_CONFIGS = {
         "squash_action_logits": False,
         "verbose": False,
         "use_depth_camera": False,
-        "send_measurements": False
+        "send_measurements": False,
+        "sync_server": True
     },
     "actors": {
         "vehicle1": {

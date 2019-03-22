@@ -101,7 +101,8 @@ DEFAULT_MULTIENV_CONFIG = {
         "verbose": False,
         "use_depth_camera": False,
         "send_measurements": False,
-        "enable_planner": True
+        "enable_planner": True,
+        "sync_server": True
     },
     "actors": {
         "vehicle1": {
@@ -112,8 +113,6 @@ DEFAULT_MULTIENV_CONFIG = {
             "early_terminate_on_collision": True,
             "verbose": False,
             "reward_function": "corl2017",
-            "render_x_res": 800,
-            "render_y_res": 600,
             "x_res": 84,
             "y_res": 84,
             "use_depth_camera": False,
@@ -284,6 +283,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.y_res = self.env_config["y_res"]
         self.use_depth_camera = False  # !!test
         self.cameras = {}
+        self.sync_server = self.env_config["sync_server"]
 
         # self.config["server_map"] = "/Game/Carla/Maps/" + args.map
 
@@ -436,6 +436,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.client = None
         self.client.set_timeout(60.0)
         self.world = self.client.get_world()
+        world_settings = self.world.get_settings()
+        world_settings.synchronous_mode = self.sync_server
+        self.world.apply_settings(world_settings)
         # Set the spectatator/server view if rendering is enabled
         if self.render and self.env_config.get("spectator_loc"):
             spectator = self.world.get_spectator()
@@ -612,6 +615,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         vehicle = None
         for retry in range(RETRIES_ON_ERROR - 1):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
+            if self.sync_server:
+                self.world.tick()
+                self.world.wait_for_tick()
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 break
             # Wait to see if spawn area gets cleared before retrying
@@ -786,6 +792,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 # Wait for the sensor (camera) actor to start streaming
                 # Shouldn't take too long
                 while cam.callback_count == 0:
+                    if self.sync_server:
+                        self.world.tick()
+                        self.world.wait_for_tick()
                     pass
                 if cam.image is None:
                     print("callback_count:", actor_id, ":", cam.callback_count)
@@ -1009,6 +1018,14 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         brake=brake,
                         hand_brake=hand_brake,
                         reverse=reverse))
+        # Asynchronosly (one actor at a time; not all at once in a sync) apply
+        # actor actions & perform a server tick after each actor's apply_action
+        # if running with sync_server steps
+        # NOTE: A distinction is made between "(A)Synchronous Environment" and
+        # "(A)Synchronous (carla) server
+        if self.sync_server:
+            self.world.tick()
+            self.world.wait_for_tick()
 
         # Process observations
         py_measurements = self._read_observation(actor_id)

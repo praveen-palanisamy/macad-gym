@@ -24,7 +24,8 @@ SSUI3C_CONFIGS = {
         "use_depth_camera": False,
         "send_measurements": False,
         "enable_planner": True,
-        "spectator_loc": [140, 68, 9]
+        "spectator_loc": [140, 68, 9],
+        "sync_server": True
     },
     "actors": {
         "car1": {

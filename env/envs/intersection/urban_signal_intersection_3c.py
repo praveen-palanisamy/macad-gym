@@ -23,7 +23,8 @@ USI3C_CONFIGS = {
         "use_depth_camera": False,
         "send_measurements": False,
         "enable_planner": True,
-        "spectator_loc": [70, -125, 9]
+        "spectator_loc": [70, -125, 9],
+        "sync_server": True
     },
     "actors": {
         "car1": {

@@ -13,7 +13,8 @@
         "squash_action_logits": false,
         "verbose": false,
         "use_depth_camera": false,
-        "send_measurements": false
+        "send_measurements": false,
+        "sync_server": true
     },
 
     "actors": {

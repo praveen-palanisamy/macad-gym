@@ -23,7 +23,8 @@ USI1B1C1P1T_CONFIGS = {
         "use_depth_camera": False,
         "send_measurements": False,
         "enable_planner": False,
-        "spectator_loc": [70, -125, 9]
+        "spectator_loc": [70, -125, 9],
+        "sync_server": True
     },
     "actors": {
         "car1": {

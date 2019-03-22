@@ -12,7 +12,8 @@
                 "use_depth_camera": false,
                 "send_measurements": false,
                 "enable_planner": true,
-                "spectator_loc": [140, 68, 9]
+                "spectator_loc": [140, 68, 9],
+                "synch_server": true
             },
             "actors": {
                 "car1": {
