@@ -5,6 +5,7 @@
 #
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
+
 """ This module implements an agent that roams around a track following random
 waypoints and avoiding other vehicles.
 The agent also responds to traffic lights. """
@@ -14,9 +15,9 @@ import math
 import numpy as np
 
 import carla
-from agents.navigation.agent import *
+from agents.navigation.agent import Agent, AgentState
 from agents.navigation.local_planner import LocalPlanner
-from agents.navigation.local_planner import compute_connection, RoadOption
+from agents.navigation.local_planner import RoadOption
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 from agents.tools.misc import vector
@@ -37,8 +38,7 @@ class BasicAgent(Agent):
 
         self._proximity_threshold = 10.0  # meters
         self._state = AgentState.NAVIGATING
-        self._local_planner = LocalPlanner(
-            self._vehicle, opt_dict={'target_speed': target_speed})
+        self._local_planner = LocalPlanner(self._vehicle, opt_dict={'target_speed': target_speed})
         self._hop_resolution = 2.0
 
         # setting up global router
@@ -74,10 +74,10 @@ class BasicAgent(Agent):
                 wp_choice = current_waypoint.next(self._hop_resolution)
                 #   Stop at destination
                 if current_waypoint.transform.location.distance(
-                        end_waypoint.transform.
-                        location) < self._hop_resolution:
+                        end_waypoint.transform.location) < self._hop_resolution:
                     break
-            if action == RoadOption.VOID: break
+            if action == RoadOption.VOID:
+                break
 
             #   Select appropriate path at the junction
             if len(wp_choice) > 1:
@@ -102,8 +102,8 @@ class BasicAgent(Agent):
 
                 #   Choose correct path
                 for wp_select in wp_choice:
-                    v_select = vector(current_location,
-                                      wp_select.transform.location)
+                    v_select = vector(
+                        current_location, wp_select.transform.location)
                     cross = float('inf')
                     if direction == 0:
                         cross = abs(np.cross(v_current, v_select)[-1])
@@ -116,12 +116,10 @@ class BasicAgent(Agent):
                 #   Generate all waypoints within the junction
                 #   along selected path
                 solution.append((current_waypoint, action))
-                current_waypoint = current_waypoint.next(
-                    self._hop_resolution)[0]
+                current_waypoint = current_waypoint.next(self._hop_resolution)[0]
                 while current_waypoint.is_intersection:
                     solution.append((current_waypoint, action))
-                    current_waypoint = current_waypoint.next(
-                        self._hop_resolution)[0]
+                    current_waypoint = current_waypoint.next(self._hop_resolution)[0]
 
         assert solution
 

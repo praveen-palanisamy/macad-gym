@@ -1,16 +1,15 @@
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
+
 """
 This module provides GlobalRoutePlanner implementation.
 """
 
 import math
-from enum import Enum
 
 import numpy as np
 import networkx as nx
 
-import carla
 from agents.navigation.local_planner import RoadOption
 
 
@@ -60,7 +59,7 @@ class GlobalRoutePlanner(object):
             next_edge = self._graph.edges[route[i + 1], route[i + 2]]
             cv = current_edge['exit_vector']
             nv = next_edge['net_vector']
-            cv, nv = cv + (0, ), nv + (0, )  # Making vectors 3D
+            cv, nv = cv + (0,), nv + (0,)  # Making vectors 3D
             num_edges = 0
             cross_list = []
             # Accumulating cross products of all other paths
@@ -73,8 +72,8 @@ class GlobalRoutePlanner(object):
             # Calculating turn decision
             if next_edge['intersection'] and num_edges > 1:
                 next_cross = np.cross(cv, nv)[2]
-                deviation = math.acos(np.dot(cv, nv) /\
-                    (np.linalg.norm(cv)*np.linalg.norm(nv)))
+                deviation = math.acos(np.dot(cv, nv) /
+                                      (np.linalg.norm(cv) * np.linalg.norm(nv)))
                 if deviation < threshold:
                     action = RoadOption.STRAIGHT
                 elif next_cross < min(cross_list):
@@ -91,7 +90,7 @@ class GlobalRoutePlanner(object):
         """
         (x1, y1) = self._graph.nodes[n1]['vertex']
         (x2, y2) = self._graph.nodes[n2]['vertex']
-        return ((x1 - x2)**2 + (y1 - y2)**2)**0.5
+        return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
 
     def path_search(self, origin, destination):
         """
@@ -108,8 +107,7 @@ class GlobalRoutePlanner(object):
         end = self.localise(xd, yd)
 
         route = nx.astar_path(
-            self._graph,
-            source=self._id_map[start['entry']],
+            self._graph, source=self._id_map[start['entry']],
             target=self._id_map[end['exit']],
             heuristic=self._distance_heuristic,
             weight='length')
@@ -175,10 +173,8 @@ class GlobalRoutePlanner(object):
             n1, n2 = id_map[entryxy], id_map[exitxy]
             # Adding edge with attributes
             graph.add_edge(
-                n1,
-                n2,
-                length=len(path) + 1,
-                path=path,
+                n1, n2,
+                length=len(path) + 1, path=path,
                 entry_vector=self.unit_vector(
                     entryxy, path[0] if len(path) > 0 else exitxy),
                 exit_vector=self.unit_vector(
@@ -224,5 +220,3 @@ class GlobalRoutePlanner(object):
         return      :   dot porduct scalar between vector1 and vector2
         """
         return vector1[0] * vector2[0] + vector1[1] * vector2[1]
-
-    pass

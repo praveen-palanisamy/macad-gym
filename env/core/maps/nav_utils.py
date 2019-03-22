@@ -15,9 +15,10 @@ except ImportError:
     except IndexError:
         raise IndexError('CARLA PythonAPI egg file not found. Check the path')
 
-sys.path.append("env/carla/carla/")
-from agents.navigation.local_planner import RoadOption  # noqa: E402
-from agents.tools.misc import vector  # noqa: E402
+sys.path.append("env/carla/PythonAPI/")
+from env.carla.PythonAPI.agents.navigation.local_planner import \
+    RoadOption  # noqa: E402
+from env.carla.PythonAPI.agents.tools.misc import vector  # noqa: E402
 
 
 def get_shortest_path_distance(world, planner, origin, destination):

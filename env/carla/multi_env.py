@@ -62,15 +62,15 @@ from env.core.sensors.camera_manager import CameraManager  # noqa: E402
 from env.core.sensors.derived_sensors import LaneInvasionSensor  # noqa: E402
 from env.core.sensors.derived_sensors import CollisionSensor  # noqa: E402
 from env.core.controllers.keyboard_control import KeyboardControl  # noqa: E402
-from env.carla.agents.navigation.global_route_planner_dao \
+from env.carla.PythonAPI.agents.navigation.global_route_planner_dao \
     import GlobalRoutePlannerDAO  # noqa:E402
 
 # The following imports depend on these paths being in sys path
 sys.path.append("env/carla")
 from env.core.maps.nav_utils import PathTracker  # noqa: E402
-from env.carla.agents.navigation.global_route_planner \
+from env.carla.PythonAPI.agents.navigation.global_route_planner \
     import GlobalRoutePlanner  # noqa: E402
-from env.carla.agents.navigation.local_planner \
+from env.carla.PythonAPI.agents.navigation.local_planner \
     import RoadOption  # noqa:E402
 
 # Set this where you want to save image outputs (or empty string to disable)
