@@ -58,10 +58,11 @@ This branch will soon replace the master branch and will become the mainstream.
 
     `mkdir ~/software && cd ~/software`
 
-    Example: Download the 0.9.2 release version from: [Here](https://drive.google.com/open?id=1Wt2cxXCtWI3cSI4rt3_HjGnVfkK8Z9bl)
+    Example: Download the 0.9.4 release version from: [Here](https://drive.google.com/open?id=1Wt2cxXCtWI3cSI4rt3_HjGnVfkK8Z9blhttps://github.com/carla-simulator/carla/releases)
     Extract it into `~/software`
 
-    `export CARLA_SERVER=~/software/CARLA_0.9.2/CarlaUE4.sh`
+    `export CARLA_SERVER=~/software/CARLA_0.9.4/CarlaUE4.sh`
+3.1 `pip install carla==0.9.4`
     
 4. Clone this repository into your workspace (assuming the path is $workspace on your laptop)
 

@@ -49,8 +49,10 @@ except ImportError:
     try:
         # Find and use the egg file for the latest API version
         sys.path.append(
-            glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
-                      f'{sys.version_info.minor}-linux-x86_64.egg')[-1])
+            sorted(
+                glob.glob(
+                    f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
+                    f'{sys.version_info.minor}-linux-x86_64.egg')[-1]))
         import carla  # noqa: E402
     except IndexError:
         raise IndexError('CARLA PythonAPI egg file not found. Check the path')
@@ -78,7 +80,7 @@ if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
 
 # Set this to the path of your Carla binary
 SERVER_BINARY = os.environ.get(
-    "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.3/CarlaUE4.sh"))
+    "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.4/CarlaUE4.sh"))
 
 assert os.path.exists(SERVER_BINARY)
 
@@ -427,7 +429,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.client.set_timeout(2.0)
                 self.client.get_server_version()
             except RuntimeError as re:
-                if "timeout" not in str(re):
+                if "timeout" not in str(re) and "time-out" not in str(re):
                     print("Could not connect to Carla server because:", re)
                 self.client = None
         self.client.set_timeout(60.0)

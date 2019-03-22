@@ -192,7 +192,7 @@ def get_next_waypoint(world, location, distance=1.0):
     current_waypoint = world.get_map().get_waypoint(
         carla.Location(location[0], location[1], location[2]))
     current_coords = current_waypoint.transform.location
-    next_waypoints = current_waypoint.next(1.0)
+    next_waypoints = current_waypoint.next(distance)
     if len(next_waypoints) > 0:
         current_coords = next_waypoints[0].transform.location
     return [current_coords.x, current_coords.y, current_coords.z]
