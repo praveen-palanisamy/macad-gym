@@ -1,4 +1,4 @@
-name: carla_gym
+name: carla_gym 
 channels:
   - defaults
 dependencies:

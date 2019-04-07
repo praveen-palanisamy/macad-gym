@@ -3,7 +3,7 @@
 # You are encouraged to run this locally before pushing changes for review.
 
 # The base branch to find the merge_base and run the diff against. Change as per the current branch
-BASE_BRANCH="dev-0.9.x"
+BASE_BRANCH="agents-0.9.x"
 
 # Cause the script to exit if a single command fails
 set -eo pipefail
@@ -16,7 +16,7 @@ builtin cd "$ROOT" || exit 1
 
 # Add the upstream branch if it doesn't exist
 if ! [[ -e "$ROOT/.git/refs/remotes/upstream" ]]; then
-    git remote add 'upstream' 'ssh://git@bitbucket.org:carla-gym/carla_gym.git
+    git remote add 'upstream' 'git@bitbucket.org:carla-gym/carla_gym.git'
 fi
 
 # Only fetch $BASE_BRANCH since that's the branch we're diffing against.

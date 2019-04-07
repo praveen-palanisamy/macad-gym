@@ -1,4 +1,4 @@
-### CARLA environment Codebase for CARLA-Gym
+### CARLA-Gym: Multi-Agent Connected Autonomous Driving (MACAD) RL learning platform
 
 ### Usage guide
 
@@ -35,44 +35,43 @@
 
 **NOTE**:
 > The following instructions are for CARLA 0.9.x.
-If you are looking for a stable version that "works", use the master branch.
-This branch will soon replace the master branch and will become the mainstream.
 
 1. [Getting Started](#getting-started)
-2. [Developer Contribution Guide](http://bitbucket.org:carla-gym/carla_gym.git
+2. [Developer Contribution Guide](README.md#developer-contribution-guide)
 
 ### Getting Started
 
-0. Assumes a Ubuntu 16.04 system.
-1. Install the system requirements
+0. Assumes an Ubuntu (16.04/18.04 or later) system.
+1. Install the system requirements:
 	- Anaconda 3.x
-	- cmake (sudo apt-get install cmake)
-	- zlib (sudo apt-get install zlib1g-dev)
-	- [optional] ffmpeg (sudo apt-get install ffmpeg)
+		- `wget -P ~ https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; bash ~/Miniconda3-latest-Linux-x86_64.sh`
+	- cmake (`sudo apt-get install cmake`)
+	- zlib (`sudo apt-get install zlib1g-dev`)
+	- [optional] ffmpeg (`sudo apt-get install ffmpeg`)
 	
-2. Create a new conda env and install the required packages
+2. Create a new conda env named "carla_gym" and install the required packages
 
     `conda env create -f conda_env.yaml`
     
-3. Download 0.9.x release version of Carla
+3. Setup CARLA (0.9.x)
 
-    `mkdir ~/software && cd ~/software`
+    3.1 `mkdir ~/software && cd ~/software`
 
-    Example: Download the 0.9.4 release version from: [Here](https://drive.google.com/open?id=1Wt2cxXCtWI3cSI4rt3_HjGnVfkK8Z9blhttps://github.com/carla-simulator/carla/releases)
-    Extract it into `~/software`
+    3.2 Example: Download the 0.9.4 release version from: [Here](https://drive.google.com/file/d/1p5qdXU4hVS2k5BOYSlEm7v7_ez3Et9bP/view)
+    Extract it into `~/software/CARLA_0.9.4`
 
-    `export CARLA_SERVER=~/software/CARLA_0.9.4/CarlaUE4.sh`
-3.1 `pip install carla==0.9.4`
+    3.3 `echo "export CARLA_SERVER=${HOME}/software/CARLA_0.9.4/CarlaUE4.sh" >> ~/.bashrc`
+	3.4 `source activate carla_gym` and `pip install carla==0.9.4` (or `easy_install carla*.egg`)
     
-4. Clone this repository into your workspace (assuming the path is $workspace on your laptop)
+4. Clone this repository into your workspace (assuming the path is $workspace on your machine)
 
     `cd $workspace`
 
-    `git clone ssh://git@bitbucket.org:carla-gym/carla_gym.git
+    `git clone <REPO URL>`
     
 5. [Work in progress] Test if everything is fine
  
-    `cd CARLA-Gym`
+    `cd <REPO DIR>`
     
     `python -m env.carla.multi_env`
 
