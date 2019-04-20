@@ -18,8 +18,8 @@ from ray.rllib.agents.impala.vtrace_policy_graph import VTracePolicyGraph
 #    UrbanSignalIntersection3Car
 from env.envs.intersection.stop_sign_urban_intersection_3c import \
     StopSignUrbanIntersection3Car, SSUI3C_CONFIGS
-from examples.rllib.models import register_mnih15_net
-from examples.rllib.env_wrappers import wrap_deepmind
+from agents.rllib.models import register_mnih15_net
+from agents.rllib.env_wrappers import wrap_deepmind
 
 parser = argparse.ArgumentParser()
 parser.add_argument(

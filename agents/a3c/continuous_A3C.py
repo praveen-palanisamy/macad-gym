@@ -1,5 +1,5 @@
 """
-TDAC agent for Carla cont.
+A3C agent for Carla continuous control.
 """
 import os
 import glob
@@ -29,7 +29,7 @@ MODEL_DIR = os.path.join(
 
 env_config = DEFAULT_MULTIENV_CONFIG
 config_update = update_scenarios_parameter(
-    json.load(open("agents/TDAC/env_config.json")))
+    json.load(open("agents/a3c/env_config.json")))
 env_config.update(config_update)
 
 vehicle_name = next(iter(env_config['actors'].keys()))

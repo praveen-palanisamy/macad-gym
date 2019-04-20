@@ -30,7 +30,7 @@ if gpu_info is not None and len(gpu_info) > 0:
 env_name = "carla_env"
 env_config = DEFAULT_MULTIENV_CONFIG
 config_update = update_scenarios_parameter(
-    json.load(open("agents/TDAC/env_config.json")))
+    json.load(open("agents/a3c/env_config.json")))
 env_config.update(config_update)
 
 register_env(env_name, lambda env_config: MultiCarlaEnv(env_config))

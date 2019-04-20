@@ -14,8 +14,8 @@ from ray.tune.registry import register_env
 
 from env.envs.intersection.stop_sign_urban_intersection_3c import \
     StopSignUrbanIntersection3Car, SSUI3C_CONFIGS
-from examples.rllib.env_wrappers import wrap_deepmind
-from examples.rllib.models import register_mnih15_shared_weights_net
+from agents.rllib.env_wrappers import wrap_deepmind
+from agents.rllib.models import register_mnih15_shared_weights_net
 
 parser = argparse.ArgumentParser()
 
