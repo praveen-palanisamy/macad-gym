@@ -190,7 +190,7 @@ class Mnih15SharedWeights(Model):
         action_out = slim.flatten(conv_output)
         with tf.name_scope("mnih15_FC"):
             # Share weights of the following layer with other instances of this
-            # model (usually by other agents in a Multi-Agent setting)
+            # model (usually by other macad_agents in a Multi-Agent setting)
             with tf.variable_scope(
                     tf.VariableScope(tf.AUTO_REUSE, "shared"),
                     reuse=tf.AUTO_REUSE):

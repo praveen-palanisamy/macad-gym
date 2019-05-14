@@ -73,7 +73,7 @@
  
     `cd <REPO DIR>`
     
-    `python -m env.carla.multi_env`
+    `python -m macadgym.carla.multi_env`
 
 ### Developer Contribution Guide
 

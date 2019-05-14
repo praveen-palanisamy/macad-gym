@@ -29,14 +29,14 @@ import GPUtil
 from gym.spaces import Box, Discrete, Tuple
 import pygame
 
-from env.multi_actor_env import MultiActorEnv
-from env.core.sensors.utils import preprocess_image
-from env.core.maps.nodeid_coord_map import TOWN01, TOWN02
-# from env.core.sensors.utils import get_transform_from_nearest_way_point
-from env.carla.reward import Reward
-from env.core.sensors.hud import HUD
-from env.viz.render import multi_view_render
-from env.carla.scenarios import update_scenarios_parameter
+from macad_gym.multi_actor_env import MultiActorEnv
+from macad_gym.core.sensors.utils import preprocess_image
+from macad_gym.core.maps.nodeid_coord_map import TOWN01, TOWN02
+# from macad_gym.core.sensors.utils import get_transform_from_nearest_way_point
+from macad_gym.carla.reward import Reward
+from macad_gym.core.sensors.hud import HUD
+from macad_gym.viz.render import multi_view_render
+from macad_gym.carla.scenarios import update_scenarios_parameter
 
 LOG_DIR = "logs"
 if not os.path.isdir(LOG_DIR):
@@ -58,19 +58,19 @@ except ImportError:
         raise IndexError('CARLA PythonAPI egg file not found. Check the path')
 
 # The following imports depend on carla. TODO: Can it be made better?
-from env.core.sensors.camera_manager import CameraManager  # noqa: E402
-from env.core.sensors.derived_sensors import LaneInvasionSensor  # noqa: E402
-from env.core.sensors.derived_sensors import CollisionSensor  # noqa: E402
-from env.core.controllers.keyboard_control import KeyboardControl  # noqa: E402
-from env.carla.PythonAPI.agents.navigation.global_route_planner_dao \
+from macad_gym.core.sensors.camera_manager import CameraManager  # noqa: E402
+from macad_gym.core.sensors.derived_sensors import LaneInvasionSensor  # noqa: E402
+from macad_gym.core.sensors.derived_sensors import CollisionSensor  # noqa: E402
+from macad_gym.core.controllers.keyboard_control import KeyboardControl  # noqa: E402
+from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner_dao \
     import GlobalRoutePlannerDAO  # noqa:E402
 
 # The following imports depend on these paths being in sys path
-sys.path.append("env/carla")
-from env.core.maps.nav_utils import PathTracker  # noqa: E402
-from env.carla.PythonAPI.agents.navigation.global_route_planner \
+sys.path.append("macad_gym/carla")
+from macad_gym.core.maps.nav_utils import PathTracker  # noqa: E402
+from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner \
     import GlobalRoutePlanner  # noqa: E402
-from env.carla.PythonAPI.agents.navigation.local_planner \
+from macad_gym.carla.PythonAPI.agents.navigation.local_planner \
     import RoadOption  # noqa:E402
 
 # Set this where you want to save image outputs (or empty string to disable)
@@ -234,7 +234,7 @@ except ImportError as err:
 
 
 class MultiCarlaEnv(*MultiAgentEnvBases):
-    def __init__(self, configs=DEFAULT_MULTIENV_CONFIG):
+    def __init__(self, configs=None):
         """Carla environment implementation.
 
         The environment settings and scenarios are configure using env_config.
@@ -252,6 +252,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 "actor_id2": {"enable_planner": False)}}}
 
         """
+        if configs is None:
+            configs = DEFAULT_MULTIENV_CONFIG
 
         self.scenario_config = update_scenarios_parameter(configs)["scenarios"]
         self.env_config = configs["env"]
@@ -291,7 +293,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         pygame.font.init()  # for HUD
         self.hud = HUD(self.render_x_res, self.render_y_res)
 
-        # Needed by agents
+        # Needed by macad_agents
         if self.discrete_actions:
             self.action_space = Discrete(len(DISCRETE_ACTIONS))
         else:
@@ -346,7 +348,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.previous_actions = {}
         self.previous_rewards = {}
         self.last_reward = {}
-        self.agents = {}  # Dictionary of agents with agent_id as key
+        self.agents = {}  # Dictionary of macad_agents with agent_id as key
         self.actors = {}  # Dictionary of actors with actor_id as key
         self.path_trackers = {}
         self.collisions = {}
@@ -1190,7 +1192,7 @@ def print_measurements(measurements):
     message += "Collision: {{vehicles={col_cars:.0f}, "
     message += "pedestrians={col_ped:.0f}, other={col_other:.0f}}}, "
     message += "{other_lane:.0f}% other lane, {offroad:.0f}% off-road, "
-    message += "({agents_num:d} non-player agents in the scene)"
+    message += "({agents_num:d} non-player macad_agents in the scene)"
     message = message.format(
         pos_x=player_measurements.transform.location.x,
         pos_y=player_measurements.transform.location.y,

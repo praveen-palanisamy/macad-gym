@@ -27,7 +27,7 @@ class AgentState(Enum):
 
 class Agent(object):
     """
-    Base class to define agents in CARLA
+    Base class to define macad_agents in CARLA
     """
 
     def __init__(self, vehicle):

@@ -15,10 +15,10 @@ except ImportError:
     except IndexError:
         raise IndexError('CARLA PythonAPI egg file not found. Check the path')
 
-sys.path.append("env/carla/PythonAPI/")
-from env.carla.PythonAPI.agents.navigation.local_planner import \
+sys.path.append("macad_gym/carla/PythonAPI/")
+from macad_gym.carla.PythonAPI.agents.navigation.local_planner import \
     RoadOption  # noqa: E402
-from env.carla.PythonAPI.agents.tools.misc import vector  # noqa: E402
+from macad_gym.carla.PythonAPI.agents.tools.misc import vector  # noqa: E402
 
 
 def get_shortest_path_distance(world, planner, origin, destination):
@@ -27,7 +27,7 @@ def get_shortest_path_distance(world, planner, origin, destination):
     origin and destination using A* search with distance heuristic.
     Args:
         world: carla world object
-        planner: carla.agents.navigation's Global route planner object
+        planner: carla.macad_agents.navigation's Global route planner object
         origin (tuple): Origin (x, y, z) position on the map
         destination (tuple): Destination (x, y, z) position on the map
 
@@ -57,7 +57,7 @@ def get_shortest_path_waypoints(world, planner, origin, destination):
 
     Args:
         world: carla world object
-        planner: carla.agents.navigation's Global route planner object
+        planner: carla.macad_agents.navigation's Global route planner object
         origin (tuple): Origin (x, y, z) position on the map
         destination (tuple): Destination (x, y, z) position on the map
 
@@ -232,7 +232,7 @@ def get_shortest_path_waypoints_old(planner, origin, destination):
     Useful for trajectory planning and control or for drawing the waypoints.
 
     Args:
-        planner: carla.agents.navigation's Global route planner object
+        planner: carla.macad_agents.navigation's Global route planner object
         origin (tuple): Origin (x, y) position on the map
         destination (tuple): Destination (x, y) position on the map
 

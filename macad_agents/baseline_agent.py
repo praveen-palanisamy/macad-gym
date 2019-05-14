@@ -5,10 +5,10 @@ import datetime
 
 from tensorboardX import SummaryWriter
 
-from env.carla.multi_env import MultiCarlaEnv, DEFAULT_MULTIENV_CONFIG, \
+from macad_gym.carla.multi_env import MultiCarlaEnv, DEFAULT_MULTIENV_CONFIG, \
     DISCRETE_ACTIONS
-from env.carla.PythonAPI.agents.navigation.basic_agent import BasicAgent
-from env.core.maps.nav_utils import get_next_waypoint
+from macad_gym.carla.PythonAPI.agents.navigation.basic_agent import BasicAgent
+from macad_gym.core.maps.nav_utils import get_next_waypoint
 
 timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 writer = SummaryWriter("logs/" + timestamp)

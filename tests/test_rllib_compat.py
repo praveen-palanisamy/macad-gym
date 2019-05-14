@@ -1,6 +1,6 @@
 from gym.spaces import Box
-from env.carla.multi_env import MultiCarlaEnv
-from env.carla.multi_env import DEFAULT_MULTIENV_CONFIG
+from macad_gym.carla.multi_env import MultiCarlaEnv
+from macad_gym.carla.multi_env import DEFAULT_MULTIENV_CONFIG
 import ray
 from ray.rllib.evaluation.policy_evaluator import PolicyEvaluator
 from ray.rllib.agents.pg.pg_policy_graph import PGPolicyGraph

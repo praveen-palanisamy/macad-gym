@@ -6,16 +6,16 @@ import argparse
 from gym.spaces import Box, Discrete
 import ray
 from ray import tune
-from ray.rllib.agents.ppo.ppo_policy_graph import PPOPolicyGraph
+from ray.rllib.agents.impala.vtrace_policy_graph import VTracePolicyGraph
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.preprocessors import Preprocessor
 from ray.tune import run_experiments
 from ray.tune.registry import register_env
 
-from env.envs.intersection.stop_sign_urban_intersection_3c import \
+from macad_gym.envs.intersection.stop_sign_urban_intersection_3c import \
     StopSignUrbanIntersection3Car, SSUI3C_CONFIGS
-from agents.rllib.env_wrappers import wrap_deepmind
-from agents.rllib.models import register_mnih15_shared_weights_net
+from macad_agents.rllib.env_wrappers import wrap_deepmind
+from macad_agents.rllib.models import register_mnih15_shared_weights_net
 
 parser = argparse.ArgumentParser()
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
             # env_config to be passed to env_creator
             "env_config": env_actor_configs
         }
-        return (PPOPolicyGraph, obs_space, act_space, config)
+        return (VTracePolicyGraph, obs_space, act_space, config)
 
     policy_graphs = {
         a_id: gen_policy()
@@ -121,8 +121,8 @@ if __name__ == "__main__":
     }
 
     run_experiments({
-        "MA-PPO-SSUI3CCARLA": {
-            "run": "PPO",
+        "MA-IMPALA-SSUI3CCARLA": {
+            "run": "IMPALA",
             "env": env_name,
             "stop": {
                 "training_iteration": args.num_iters
@@ -142,5 +142,6 @@ if __name__ == "__main__":
             },
             "checkpoint_freq": 500,
             "checkpoint_at_end": True,
+            "max_failures": 5
         }
     })

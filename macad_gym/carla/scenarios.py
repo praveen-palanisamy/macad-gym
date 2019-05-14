@@ -362,8 +362,12 @@ local_map = locals()
 
 
 def update_scenarios_parameter(config_map):
-    if "scenarios" in config_map:
-        config_map["scenarios"] = local_map[config_map["scenarios"]]
+    if "scenarios" in config_map and isinstance(config_map["scenarios"], str):
+        try:
+            config_map["scenarios"] = local_map[config_map["scenarios"]]
+        except KeyError:
+            print(config_map["scenarios"] + " scenario is not defined")
+
     return config_map
 
 

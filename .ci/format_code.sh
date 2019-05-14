@@ -3,7 +3,7 @@
 # You are encouraged to run this locally before pushing changes for review.
 
 # The base branch to find the merge_base and run the diff against. Change as per the current branch
-BASE_BRANCH="agents-0.9.x"
+BASE_BRANCH="master"
 
 # Cause the script to exit if a single command fails
 set -eo pipefail
@@ -29,8 +29,8 @@ YAPF_FLAGS=(
 )
 
 YAPF_EXCLUDES=(
-    '--exclude' 'env/carla/PythonAPI/*'
-    '--exclude' 'env/carla/carla/*'
+    '--exclude' 'macad_gym/carla/PythonAPI/*'
+    '--exclude' 'macad_gym/carla/carla/*'
 )
 
 # Format specified files
@@ -54,7 +54,7 @@ format_changed() {
              yapf --in-place "${YAPF_EXCLUDES[@]}" "${YAPF_FLAGS[@]}"
         if which flake8 >/dev/null; then
             git diff --name-only --diff-filter=ACM "$MERGEBASE" -- '*.py' | xargs -P 5 \
-                 flake8 --max-line-length 80 --exclude=./env/carla/PythonAPI/*,./env/carla/carla/*,./env/carla/agents/*,.git,__pycache__ #\
+                 flake8 --max-line-length 80 --exclude=./macad_gym/carla/PythonAPI/*,.git,__pycache__ #\
                     #--ignore=C408,E121,E123,E126,E226,E24,E704,W503,W504,W605
         fi
     fi
@@ -64,7 +64,7 @@ format_changed() {
 # Run flake8 check on all files and report the result
 check_all() {
 if which flake8 >/dev/null; then
-    flake8 --max-line-length 80 --exclude=./env/carla/PythonAPI/*,./env/carla/carla/*,./env/carla/agents/*,.git,__pycache__
+    flake8 --max-line-length 80 --exclude=./macad_gym/carla/PythonAPI/*,./macad_gym/carla/carla/*,./macad_gym/carla/agents/*,.git,__pycache__
 fi
 
 }

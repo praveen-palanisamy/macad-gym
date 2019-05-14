@@ -1,4 +1,6 @@
+import os
 import argparse
+
 from gym.spaces import Box, Discrete
 import ray
 from ray.rllib.agents.impala import impala
@@ -6,16 +8,24 @@ from ray.rllib.models.preprocessors import Preprocessor
 from ray.rllib.models.catalog import ModelCatalog
 import ray.tune as tune
 from ray.tune import register_env
-from env.carla.multi_env import MultiCarlaEnv, DEFAULT_MULTIENV_CONFIG
-from agents.rllib.models import register_mnih15_net
-from agents.rllib.env_wrappers import wrap_deepmind
-from ray.rllib.agents.ppo.ppo_policy_graph import PPOPolicyGraph
+from ray.rllib.agents.impala.vtrace_policy_graph import VTracePolicyGraph
+
+# from env.carla.multi_env import MultiCarlaEnv
+# from env.envs.intersection.urban_2_car_1_ped import \
+# UrbanSignalIntersection2Car1Ped1Bike
+# from env.envs.urban_2car import Urban2Car
+# from env.envs.intersection.urban_signal_intersection_3c import \
+#    UrbanSignalIntersection3Car
+from macad_gym.envs.intersection.stop_sign_urban_intersection_3c import \
+    StopSignUrbanIntersection3Car, SSUI3C_CONFIGS
+from macad_agents.rllib.models import register_mnih15_net
+from macad_agents.rllib.env_wrappers import wrap_deepmind
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--env",
-    default="multi-carla",
-    help="Name Gym env. Used only in debug mode. Default=multi-carla")
+    default="PongNoFrameskip-v4",
+    help="Name Gym env. Used only in debug mode. Default=PongNoFrameskip-v4")
 parser.add_argument(
     "--checkpoint-path",
     default=None,
@@ -30,7 +40,7 @@ parser.add_argument(
     type=int,
     help="Num workers (CPU cores) to use")
 parser.add_argument(
-    "--num-gpus", default=2, type=int, help="Number of gpus to use. Default=2")
+    "--num-gpus", default=1, type=int, help="Number of gpus to use. Default=2")
 parser.add_argument(
     "--sample-bs-per-worker",
     default=50,
@@ -90,20 +100,23 @@ env_name = "Carla-v0"
 
 num_framestack = args.num_framestack
 
+env_actor_configs = SSUI3C_CONFIGS
+
+# env_config["env"]["render"] = False
+
 
 def env_creator(env_config):
     # NOTES: env_config.worker_index & vector_index are useful for
     # curriculum learning or joint training experiments
-    configs = DEFAULT_MULTIENV_CONFIG
-    configs["render"] = False
-    env = MultiCarlaEnv(configs)
+    # env = MultiCarlaEnv(env_config)  # (env_actor_configs)
+    env = StopSignUrbanIntersection3Car()  # Urban2Car()
     # Apply wrappers to: convert to Grayscale, resize to 84 x 84,
     # stack frames & some more op
     env = wrap_deepmind(env, dim=84, num_framestack=num_framestack)
     return env
 
 
-register_env("dm-" + env_name, env_creator)
+register_env("dm-" + env_name, lambda config: env_creator(config))
 
 
 # Placeholder to enable use of a custom pre-processor
@@ -120,6 +133,9 @@ class ImagePreproc(Preprocessor):
 
 ModelCatalog.register_custom_preprocessor("sq_im_84", ImagePreproc)
 
+# NOTE: The config def here is unused. See agent init args. Config is created
+# during agent init. The below config is just a placeholder for future quick
+# experiments.
 config = {
     # Model and preprocessor options.
     "model": {
@@ -142,7 +158,7 @@ config = {
     # "preprocessor_pref": "deepmind",
 
     # env_config to be passed to env_creator
-    "env_config": {}
+    "env_config": env_actor_configs
 }
 # Common Agent config
 config.update({
@@ -236,7 +252,7 @@ if args.debug:
         config={
             "multiagent": {
                 "policy_graphs": {
-                    "def_policy": (PPOPolicyGraph,
+                    "def_policy": (VTracePolicyGraph,
                                    Box(0.0, 255.0, shape=(84, 84, 3)),
                                    Discrete(9), {
                                        "gamma": 0.99
@@ -244,31 +260,45 @@ if args.debug:
                 },
                 "policy_mapping_fn": lambda agent_id: "def_policy",
             },
+            "env_config": env_actor_configs,
+            "num_workers": args.num_workers,
+            "num_envs_per_worker": args.envs_per_worker,
+            "sample_batch_size": args.sample_bs_per_worker,
+            "train_batch_size": args.train_bs
         })
+    if args.checkpoint_path and os.path.isfile(args.checkpoint_path):
+        trainer.restore(args.checkpoint_path)
+        print("Loaded checkpoint from:{}".format(args.checkpoint_path))
+
     for iter in tqdm(range(args.num_steps), desc="Iters"):
         results = trainer.train()
         if iter % 500 == 0:
             trainer.save("saved_models/multi-carla/" + args.model_arch)
         pprint(results)
 else:
-    config.update({
+    config = {
         "env": "dm-" + env_name,
         "log_level": "DEBUG",
         "multiagent": {
             "policy_graphs": {
-                "def_policy": (PPOPolicyGraph,
+                "def_policy": (VTracePolicyGraph,
                                Box(0.0, 255.0, shape=(84, 84, 3)), Discrete(9),
                                {
                                    "gamma": 0.99
                                })
             },
             "policy_mapping_fn": tune.function(lambda agent_id: "def_policy"),
-        }
-    })
+        },
+        "env_config": env_actor_configs,
+        "num_workers": args.num_workers,
+        "num_envs_per_worker": args.envs_per_worker,
+        "sample_batch_size": args.sample_bs_per_worker,
+        "train_batch_size": args.train_bs
+    }
 
     experiment_spec = tune.Experiment(
         "multi-carla/" + args.model_arch,
-        "PPO",
+        "IMPALA",
         # timesteps_total is init with None (not 0) which causes issue
         # stop={"timesteps_total": args.num_steps},
         stop={"timesteps_since_restore": args.num_steps},

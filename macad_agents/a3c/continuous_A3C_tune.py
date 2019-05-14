@@ -6,7 +6,7 @@ import ray
 from ray.tune import register_env, run_experiments, register_trainable
 
 from env.carla.multi_env import MultiCarlaEnv, DEFAULT_MULTIENV_CONFIG
-from agents.rllib.models import register_carla_model
+from macad_agents.rllib.models import register_carla_model
 from env.carla.scenarios import update_scenarios_parameter
 
 from .continuous_A3C_base import ContinuousA3CTune
@@ -30,7 +30,7 @@ if gpu_info is not None and len(gpu_info) > 0:
 env_name = "carla_env"
 env_config = DEFAULT_MULTIENV_CONFIG
 config_update = update_scenarios_parameter(
-    json.load(open("agents/a3c/env_config.json")))
+    json.load(open("macad_agents/a3c/env_config.json")))
 env_config.update(config_update)
 
 register_env(env_name, lambda env_config: MultiCarlaEnv(env_config))
