@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 import time
 
-from env.carla.multi_env import MultiCarlaEnv
+from macad_gym.carla.multi_env import MultiCarlaEnv
 
-# from env.carla.multi_env import get_next_actions
+# from macad_gym.carla.multi_env import get_next_actions
 
 # config_file = open("urban_2_car_1_ped.json")
 # configs = json.load(config_file)
+
 USI1B1C1P1T_CONFIGS = {
     "scenarios": "SUIB1C2P1_TOWN3",
     "env": {

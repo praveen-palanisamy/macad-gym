@@ -28,6 +28,7 @@ import numpy as np  # linalg.norm is used
 import GPUtil
 from gym.spaces import Box, Discrete, Tuple
 import pygame
+import carla
 
 from macad_gym.multi_actor_env import MultiActorEnv
 from macad_gym.core.sensors.utils import preprocess_image
@@ -66,7 +67,8 @@ from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner_dao \
     import GlobalRoutePlannerDAO  # noqa:E402
 
 # The following imports depend on these paths being in sys path
-sys.path.append("macad_gym/carla")
+# TODO: Fix this. This probably won't work after packaging/distribution
+sys.path.append("src/macad_gym/carla/PythonAPI")
 from macad_gym.core.maps.nav_utils import PathTracker  # noqa: E402
 from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner \
     import GlobalRoutePlanner  # noqa: E402
@@ -569,7 +571,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         if actor_type == "traffic_light":
             # Traffic lights already exist in the world & can't be spawned.
             # Find closest traffic light actor in world.actor_list and return
-            from env.core.controllers import traffic_lights
+            from macad_gym.core.controllers import traffic_lights
             loc = carla.Location(self.start_pos[actor_id][0],
                                  self.start_pos[actor_id][1],
                                  self.start_pos[actor_id][2])
@@ -1254,10 +1256,10 @@ if __name__ == "__main__":
         description='CARLA Manual Control Client')
     argparser.add_argument(
         '--scenario', default='3', help='print debug information')
-
+    # TODO: Fix the default path to the config.json;Should work after packaging
     argparser.add_argument(
         '--config',
-        default='env/carla/config.json',
+        default='src/macad_gym/carla/config.json',
         help='print debug information')
 
     argparser.add_argument(

@@ -3,8 +3,10 @@ multi_actor_env.py CARLA-Gym multi actor env interface
 __author__:PP
 """
 
+import gym
 
-class MultiActorEnv(object):
+
+class MultiActorEnv(gym.Env):
     """An environment that hosts multiple independent actors.
 
     Actor are identified by actor ids(string).
@@ -40,6 +42,8 @@ class MultiActorEnv(object):
         }
     """
 
+    _gym_disable_underscore_compat = True
+
     def reset(self):
         """Resets the env and returns observations from ready actors.
 
@@ -63,4 +67,13 @@ class MultiActorEnv(object):
                 "__all__" is used to indicate env termination.
             infos (dict): Info values for each ready actor.
         """
+        raise NotImplementedError
+
+    def render(self):
+        raise NotImplementedError
+
+    def close(self):
+        raise NotImplementedError
+
+    def seed(self):
         raise NotImplementedError
