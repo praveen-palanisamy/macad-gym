@@ -8,9 +8,8 @@ from macad_gym.envs.intersection.urban_signal_intersection_1b2c1p \
 from macad_gym.envs.intersection.urban_signal_intersection_3c \
     import UrbanSignalIntersection3Car
 
-
 __all__ = [
     'MultiCarlaEnv', 'StopSignUrbanIntersection3Car',
     'UrbanSignalIntersection3Car', 'UrbanSignalIntersection2Car1Ped1Bike',
-    'UrbanSignalIntersection3Car'
+    'UrbanSignalIntersection1Bike2Car1Ped'
 ]

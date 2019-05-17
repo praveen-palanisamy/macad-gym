@@ -15,8 +15,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 builtin cd "$ROOT" || exit 1
 
 # Add the upstream branch if it doesn't exist
-if ! [[ -e "$ROOT/.git/refs/remotes/upstream" ]]; then
-    git remote add 'upstream' 'git@bitbucket.org:carla-gym/carla_gym.git'
+if ! git ls-remote upstream; then
+    git remote add 'upstream' 'git@github.com:praveen-palanisamy/macad-gym.git'
 fi
 
 # Only fetch $BASE_BRANCH since that's the branch we're diffing against.
@@ -29,8 +29,7 @@ YAPF_FLAGS=(
 )
 
 YAPF_EXCLUDES=(
-    '--exclude' 'macad_gym/carla/PythonAPI/*'
-    '--exclude' 'macad_gym/carla/carla/*'
+    '--exclude' 'src/macad_gym/carla/PythonAPI/*'
 )
 
 # Format specified files
@@ -54,7 +53,7 @@ format_changed() {
              yapf --in-place "${YAPF_EXCLUDES[@]}" "${YAPF_FLAGS[@]}"
         if which flake8 >/dev/null; then
             git diff --name-only --diff-filter=ACM "$MERGEBASE" -- '*.py' | xargs -P 5 \
-                 flake8 --max-line-length 80 --exclude=./macad_gym/carla/PythonAPI/*,.git,__pycache__ #\
+                 flake8 --max-line-length 80 --exclude=./src/macad_gym/carla/PythonAPI/*,.git,__pycache__ #\
                     #--ignore=C408,E121,E123,E126,E226,E24,E704,W503,W504,W605
         fi
     fi
@@ -64,7 +63,7 @@ format_changed() {
 # Run flake8 check on all files and report the result
 check_all() {
 if which flake8 >/dev/null; then
-    flake8 --max-line-length 80 --exclude=./macad_gym/carla/PythonAPI/*,./macad_gym/carla/carla/*,./macad_gym/carla/agents/*,.git,__pycache__
+    flake8 --max-line-length 80 --exclude=./src/macad_gym/carla/PythonAPI/*,./src/macad_gym/carla/carla/*,./src/macad_gym/carla/agents/*,.git,__pycache__
 fi
 
 }
@@ -72,7 +71,7 @@ fi
 
 # Format all files, and print the diff to stdout for the CI log.
 format_all() {
-    yapf --diff "${YAPF_FLAGS[@]}" "${YAPF_EXCLUDES[@]}" env agents
+    yapf --diff "${YAPF_FLAGS[@]}" "${YAPF_EXCLUDES[@]}" src
 }
 
 # This flag formats individual files. --files *must* be the first command line
