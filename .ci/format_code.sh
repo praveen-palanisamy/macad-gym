@@ -63,7 +63,7 @@ format_changed() {
 # Run flake8 check on all files and report the result
 check_all() {
 if which flake8 >/dev/null; then
-    flake8 --max-line-length 80 --exclude=./src/macad_gym/carla/PythonAPI/*,./src/macad_gym/carla/carla/*,./src/macad_gym/carla/agents/*,.git,__pycache__
+    flake8 --max-line-length 80 --exclude=./src/macad_gym/carla/PythonAPI/*,.git,__pycache__
 fi
 
 }
