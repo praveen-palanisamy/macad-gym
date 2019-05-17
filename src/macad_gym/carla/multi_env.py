@@ -11,7 +11,6 @@ from __future__ import print_function
 import argparse
 import atexit
 from datetime import datetime
-import glob
 import logging
 import json
 import os
@@ -38,33 +37,13 @@ from macad_gym.carla.reward import Reward
 from macad_gym.core.sensors.hud import HUD
 from macad_gym.viz.render import multi_view_render
 from macad_gym.carla.scenarios import update_scenarios_parameter
-
-LOG_DIR = "logs"
-if not os.path.isdir(LOG_DIR):
-    os.mkdir(LOG_DIR)
-logging.basicConfig(filename=LOG_DIR + '/multi_env.log', level=logging.DEBUG)
-
-try:
-    import carla
-except ImportError:
-    try:
-        # Find and use the egg file for the latest API version
-        sys.path.append(
-            sorted(
-                glob.glob(
-                    f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
-                    f'{sys.version_info.minor}-linux-x86_64.egg')[-1]))
-        import carla  # noqa: E402
-    except IndexError:
-        raise IndexError('CARLA PythonAPI egg file not found. Check the path')
-
-# The following imports depend on carla. TODO: Can it be made better?
-from macad_gym.core.sensors.camera_manager import CameraManager  # noqa: E402
-from macad_gym.core.sensors.derived_sensors import LaneInvasionSensor  # noqa: E402
-from macad_gym.core.sensors.derived_sensors import CollisionSensor  # noqa: E402
-from macad_gym.core.controllers.keyboard_control import KeyboardControl  # noqa: E402
+# The following imports require carla to be imported already.
+from macad_gym.core.sensors.camera_manager import CameraManager
+from macad_gym.core.sensors.derived_sensors import LaneInvasionSensor
+from macad_gym.core.sensors.derived_sensors import CollisionSensor
+from macad_gym.core.controllers.keyboard_control import KeyboardControl
 from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner_dao \
-    import GlobalRoutePlannerDAO  # noqa:E402
+    import GlobalRoutePlannerDAO
 
 # The following imports depend on these paths being in sys path
 # TODO: Fix this. This probably won't work after packaging/distribution
@@ -74,6 +53,11 @@ from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner \
     import GlobalRoutePlanner  # noqa: E402
 from macad_gym.carla.PythonAPI.agents.navigation.local_planner \
     import RoadOption  # noqa:E402
+
+LOG_DIR = "logs"
+if not os.path.isdir(LOG_DIR):
+    os.mkdir(LOG_DIR)
+logging.basicConfig(filename=LOG_DIR + '/multi_env.log', level=logging.DEBUG)
 
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
