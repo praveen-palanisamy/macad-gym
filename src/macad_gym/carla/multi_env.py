@@ -25,7 +25,7 @@ import math
 
 import numpy as np  # linalg.norm is used
 import GPUtil
-from gym.spaces import Box, Discrete, Tuple
+from gym.spaces import Box, Discrete, Tuple, Dict
 import pygame
 import carla
 
@@ -281,9 +281,15 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         # Needed by macad_agents
         if self.discrete_actions:
-            self.action_space = Discrete(len(DISCRETE_ACTIONS))
+            self.action_space = Dict({
+                actor_id: Discrete(len(DISCRETE_ACTIONS))
+                for actor_id in self.actor_configs.keys()
+            })
         else:
-            self.action_space = Box(-1.0, 1.0, shape=(2, ))
+            self.action_space = Dict({
+                actor_id: Box(-1.0, 1.0, shape=(2, ))
+                for actor_id in self.actor_configs.keys()
+            })
 
         if self.use_depth_camera:
             image_space = Box(
