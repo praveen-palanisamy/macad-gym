@@ -14,9 +14,14 @@ builtin cd "$(dirname "${BASH_SOURCE:-$0}")"
 ROOT="$(git rev-parse --show-toplevel)"
 builtin cd "$ROOT" || exit 1
 
-# Add the upstream branch if it doesn't exist
-if ! git ls-remote upstream; then
-    git remote add 'upstream' 'git@github.com:praveen-palanisamy/macad-gym.git'
+# Add the upstream remote if it doesn't exist
+# Sometimes, an "upstream" remote might be set but may not have been fetched
+# 1. First check for previously fetched upstream (this should be quick)
+if ! [[ -e "$ROOT/.git/refs/remotes/upstream" ]]; then
+    # 2. Check if "upstream" is set/exists (this may take a few seconds)
+    if ! git ls-remote upstream > /dev/null; then
+        git remote add 'upstream' 'git@github.com:praveen-palanisamy/macad-gym.git'
+    fi
 fi
 
 # Only fetch $BASE_BRANCH since that's the branch we're diffing against.
