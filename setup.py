@@ -12,5 +12,8 @@ setup(
     author_email='praveen.palanisamy@outlook.com',
     packages=find_packages('src'),
     package_dir={'': 'src'},
-    install_requires=['gym', 'carla>=0.9.3'],
+    python_requires='>=3.0',
+    install_requires=[
+        'gym', 'carla>=0.9.3', 'GPUtil', 'pygame', 'opencv-python', 'networkx'
+    ],
     extras_require={'test': ['tox', 'pytest', 'pytest-xdist', 'tox']})
