@@ -1,19 +1,8 @@
 import math
 import numpy as np
 import sys
-import glob
 
-try:
-    import carla
-except ImportError:
-    try:
-        # Find and use the egg file for the latest API version
-        sys.path.append(
-            glob.glob(f'**/**/PythonAPI/lib/carla-*{sys.version_info.major}.'
-                      f'{sys.version_info.minor}-linux-x86_64.egg')[-1])
-        import carla  # noqa: E402
-    except IndexError:
-        raise IndexError('CARLA PythonAPI egg file not found. Check the path')
+import carla
 
 sys.path.append("macad_gym/carla/PythonAPI/")
 from macad_gym.carla.PythonAPI.agents.navigation.local_planner import \
