@@ -68,7 +68,8 @@ if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
 SERVER_BINARY = os.environ.get(
     "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.4/CarlaUE4.sh"))
 
-assert os.path.exists(SERVER_BINARY)
+assert os.path.exists(SERVER_BINARY), "Make sure SERVER_BINARY environment variable is set & is pointing" \
+                                      "to the CARLA server startup script (CarlaUE4.sh). Refer to the README file/docs."
 
 # TODO: Clean env & actor configs to have appropriate keys based on the nature
 # of env
