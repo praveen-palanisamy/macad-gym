@@ -2,7 +2,7 @@
 multi_env.py: Multi-actor environment interface for CARLA-Gym
 Should support two modes of operation. See CARLA-Gym developer guide for
 more information
-__author__: PP
+__author__: @Praveen-Palanisamy
 """
 
 from __future__ import absolute_import
@@ -292,23 +292,27 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             })
 
         if self.use_depth_camera:
-            image_space = Box(
+            self.image_space = Box(
                 -1.0, 1.0, shape=(self.y_res, self.x_res, 1 * self.framestack))
-        elif self.env_config["send_measurements"]:
-            image_space = Box(
+        else:  # Use RGB camera
+            self.image_space = Box(
                 0.0,
                 255.0,
                 shape=(self.y_res, self.x_res, 3 * self.framestack))
-            self.observation_space = Tuple([
-                image_space,
-                Discrete(len(COMMANDS_ENUM)),  # next_command
-                Box(-128.0, 128.0, shape=(2, ))
-            ])  # forward_speed, dist to goal
+        if self.env_config["send_measurements"]:
+            self.observation_space = Dict({
+                actor_id: Tuple([
+                    self.image_space,  # framestacked image
+                    Discrete(len(COMMANDS_ENUM)),  # next_command
+                    Box(-128.0, 128.0, shape=(2, ))
+                ])  # forward_speed, dist to goal
+                for actor_id in self.actor_configs.keys()
+            })
         else:
-            self.observation_space = Box(
-                0.0,
-                255.0,
-                shape=(self.y_res, self.x_res, 3 * self.framestack))
+            self.observation_space = Dict({
+                actor_id: self.image_space
+                for actor_id in self.actor_configs.keys()
+            })
 
         #: Set appropriate node-id to coordinate mappings for Town01 or Town02.
         if self.map == "Town01":
