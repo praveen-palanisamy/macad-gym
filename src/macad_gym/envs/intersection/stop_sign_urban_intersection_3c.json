@@ -1,5 +1,5 @@
 {
-            "scenarios": "SSUIC3_TOWN3",
+            "scenarios": "SSUI3C_TOWN3",
             "env": {
                 "server_map": "/Game/Carla/Maps/Town03",
                 "render": true,
@@ -22,7 +22,7 @@
                     "convert_images_to_video": false,
                     "early_terminate_on_collision": true,
                     "reward_function": "corl2017",
-                    "scenarios": "SSUIC3_TOWN3_CAR1",
+                    "scenarios": "SSUI3C_TOWN3_CAR1",
                     "manual_control": false,
                     "auto_control": false,
                     "camera_type": "rgb",
@@ -42,7 +42,7 @@
                     "convert_images_to_video": false,
                     "early_terminate_on_collision": true,
                     "reward_function": "corl2017",
-                    "scenarios": "SSUIC3_TOWN3_CAR2",
+                    "scenarios": "SSUI3C_TOWN3_CAR2",
                     "manual_control": false,
                     "auto_control": false,
                     "camera_type": "rgb",
@@ -62,7 +62,7 @@
                     "convert_images_to_video": false,
                     "early_terminate_on_collision": true,
                     "reward_function": "corl2017",
-                    "scenarios": "SSUIC3_TOWN3_CAR3",
+                    "scenarios": "SSUI3C_TOWN3_CAR3",
                     "manual_control": false,
                     "auto_control": false,
                     "camera_type": "rgb",

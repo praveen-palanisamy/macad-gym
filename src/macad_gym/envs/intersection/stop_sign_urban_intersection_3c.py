@@ -9,7 +9,7 @@ from macad_gym.carla.multi_env import MultiCarlaEnv
 # configs = json.load(config_file)
 
 SSUI3C_CONFIGS = {
-    "scenarios": "SSUIC3_TOWN3",
+    "scenarios": "SSUI3C_TOWN3",
     "env": {
         "server_map": "/Game/Carla/Maps/Town03",
         "render": True,
@@ -34,7 +34,7 @@ SSUI3C_CONFIGS = {
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "SSUIC3_TOWN3_CAR1",
+            "scenarios": "SSUI3C_TOWN3_CAR1",
             "manual_control": False,
             "auto_control": False,
             "camera_type": "rgb",
@@ -54,7 +54,7 @@ SSUI3C_CONFIGS = {
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "SSUIC3_TOWN3_CAR2",
+            "scenarios": "SSUI3C_TOWN3_CAR2",
             "manual_control": False,
             "auto_control": False,
             "camera_type": "rgb",
@@ -74,7 +74,7 @@ SSUI3C_CONFIGS = {
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "SSUIC3_TOWN3_CAR3",
+            "scenarios": "SSUI3C_TOWN3_CAR3",
             "manual_control": False,
             "auto_control": False,
             "camera_type": "rgb",

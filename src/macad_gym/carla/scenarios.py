@@ -65,9 +65,9 @@ def build_ma_scenario(map, actors, max_steps, weathers):
 
 
 """Stop Sign Urban Intersection scenario with 3 Cars passing through.
-TAG: SSUIC3
+TAG: SSUI3C
 """
-SSUIC3_TOWN3 = {
+SSUI3C_TOWN3 = {
     "map": "Town03",
     "actors": {
         "car1": {
@@ -86,7 +86,7 @@ SSUIC3_TOWN3 = {
     "weather_distribution": [0],
     "max_steps": 500
 }
-# End of TAG: SSUIC3
+# End of TAG: SSUI3C
 """Signalized Urban Intersection scenario with 3 Cars passing through.
 CAR1: Starts almost inside the intersection, goes straight
 CAR2: Starts 90 wrt CAR1 close to intersection, turns right to merge

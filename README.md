@@ -59,7 +59,7 @@ Autonomous Driving simulator.
                 "convert_images_to_video": false,
                 "early_terminate_on_collision": true,
                 "reward_function": "corl2017",
-                "scenarios": "SSUIC3_TOWN3_CAR1",
+                "scenarios": "SSUI3C_TOWN3_CAR1",
                 "manual_control": false,
                 "auto_control": false,
                 "camera_type": "rgb",
