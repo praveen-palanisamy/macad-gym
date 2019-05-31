@@ -30,6 +30,7 @@ import pygame
 import carla
 
 from macad_gym.multi_actor_env import MultiActorEnv
+from macad_gym import LOG_DIR
 from macad_gym.core.sensors.utils import preprocess_image
 from macad_gym.core.maps.nodeid_coord_map import TOWN01, TOWN02
 # from macad_gym.core.sensors.utils import get_transform_from_nearest_way_point
@@ -54,11 +55,7 @@ from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner \
 from macad_gym.carla.PythonAPI.agents.navigation.local_planner \
     import RoadOption  # noqa:E402
 
-LOG_DIR = "logs"
-if not os.path.isdir(LOG_DIR):
-    os.mkdir(LOG_DIR)
-logging.basicConfig(filename=LOG_DIR + '/multi_env.log', level=logging.DEBUG)
-
+logger = logging.getLogger(__name__)
 # Set this where you want to save image outputs (or empty string to disable)
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
 if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
@@ -68,7 +65,7 @@ if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
 SERVER_BINARY = os.environ.get(
     "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.4/CarlaUE4.sh"))
 
-assert os.path.exists(SERVER_BINARY), "Make sure SERVER_BINARY environment" \
+assert os.path.exists(SERVER_BINARY), "Make sure CARLA_SERVER environment" \
                                       " variable is set & is pointing to the" \
                                       " CARLA server startup script (Carla" \
                                       "UE4.sh). Refer to the README file/docs."
@@ -217,8 +214,8 @@ MultiAgentEnvBases = [MultiActorEnv]
 try:
     from ray.rllib.env import MultiAgentEnv
     MultiAgentEnvBases.append(MultiAgentEnv)
-except ImportError as err:
-    logging.warning(err, "\n Disabling RLlib support.")
+except ImportError:
+    logger.warning("\n Disabling RLlib support.", exc_info=True)
     pass
 
 
@@ -419,7 +416,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                                                            log_file, 'w'))
                 print("Running simulation in single-GPU mode")
             except Exception as e:
-                logging.debug(e)
+                logger.debug(e)
                 print("FATAL ERROR while launching server:", sys.exc_info()[0])
 
         live_carla_processes.add(os.getpgid(self.server_process.pid))
@@ -974,7 +971,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             # pygame
             self._display = pygame.display.set_mode(
                 (800, 600), pygame.HWSURFACE | pygame.DOUBLEBUF)
-            logging.debug('pygame started')
+            logger.debug('pygame started')
             controller = KeyboardControl(self, False)
             controller.actor_id = actor_id
             controller.parse_events(self, clock)
