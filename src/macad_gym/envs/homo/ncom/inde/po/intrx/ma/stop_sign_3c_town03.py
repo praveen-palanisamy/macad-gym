@@ -3,12 +3,7 @@ import time
 
 from macad_gym.carla.multi_env import MultiCarlaEnv
 
-# from macad_gym.carla.multi_env import get_next_actions
-
-# config_file = open("urban_2_car_1_ped.json")
-# configs = json.load(config_file)
-
-SSUI3C_CONFIGS = {
+CONFIGS = {
     "scenarios": "SSUI3C_TOWN3",
     "env": {
         "server_map": "/Game/Carla/Maps/Town03",
@@ -92,17 +87,17 @@ SSUI3C_CONFIGS = {
 }
 
 
-class StopSignUrbanIntersection3Car(MultiCarlaEnv):
+class StopSign3CarTown03(MultiCarlaEnv):
     """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
 
     def __init__(self):
-        self.configs = SSUI3C_CONFIGS
-        super(StopSignUrbanIntersection3Car, self).__init__(self.configs)
+        self.configs = CONFIGS
+        super(StopSign3CarTown03, self).__init__(self.configs)
 
 
 if __name__ == "__main__":
-    env = StopSignUrbanIntersection3Car()
-    configs = env.configs
+    env = StopSign3CarTown03()
+    configs = CONFIGS
     for ep in range(2):
         obs = env.reset()
 
