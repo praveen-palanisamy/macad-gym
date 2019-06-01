@@ -115,7 +115,7 @@ SUIC3_TOWN3 = {
 }
 # End of TAG: SUIC3
 
-SUIB1C2P1_TOWN3 = {
+SUI1B2C1P_TOWN3 = {
     "map": "Town03",
     "actors": {
         "car1": {

@@ -14,3 +14,8 @@ register(
     id='HomoNcomIndePOIntrxMASS3CTWN3-v0',
     entry_point="macad_gym.envs:HomoNcomIndePOIntrxMASS3CTWN3",
 )
+
+register(
+    id='HeteNcomIndePOIntrxMATLS1B2C1PTWN3-v0',
+    entry_point="macad_gym.envs:HeteNcomIndePOIntrxMATLS1B2C1PTWN3",
+)
