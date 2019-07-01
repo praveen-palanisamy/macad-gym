@@ -717,11 +717,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         (self.end_pos[actor_id][0], self.end_pos[actor_id][1],
                          self.end_pos[actor_id][2]), self.actors[actor_id])
 
-                print('Agent spawned at ',
-                      self.actors[actor_id].get_location().x,
-                      self.actors[actor_id].get_location().y,
-                      self.actors[actor_id].get_location().z)
-
                 # Spawn collision and lane sensors if necessary
                 if actor_config["collision_sensor"] == "on":
                     collision_sensor = CollisionSensor(self.actors[actor_id],
@@ -761,8 +756,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     ]
                 })
 
-                print("Actor: {} start_pos(coord): {} ({}), "
-                      "end_pos(coord) {} ({})".format(
+                print("Actor: {} start_pos_xyz(coordID): {} ({}), "
+                      "end_pos_xyz(coordID) {} ({})".format(
                           actor_id, self.start_pos[actor_id],
                           self.start_coord[actor_id], self.end_pos[actor_id],
                           self.end_coord[actor_id]))
