@@ -106,7 +106,7 @@ if __name__ == "__main__":
         actor_configs = configs["actors"]
         for actor_id in actor_configs.keys():
             total_reward_dict[actor_id] = 0
-            if env.discrete_actions:
+            if env._discrete_actions:
                 action_dict[actor_id] = 3  # Forward
             else:
                 action_dict[actor_id] = [1, 0]  # test values
