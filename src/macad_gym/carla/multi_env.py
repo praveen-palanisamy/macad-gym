@@ -1179,6 +1179,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         return py_measurements
 
+    def close(self):
+        """Clean-up the world, clear server state & close the Env"""
+        self._clean_world()
+        self._clear_server_state()
+
 
 def print_measurements(measurements):
     number_of_agents = len(measurements.non_player_agents)
