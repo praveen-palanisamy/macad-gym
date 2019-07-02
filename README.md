@@ -1,7 +1,6 @@
 ### MACAD-Gym
 
-Multi-Agent Connected Autonomous Driving (MACAD) RL learning platform using CARLA
-Autonomous Driving simulator.
+Multi-Agent Connected Autonomous Driving (MACAD) learning platform using CARLA Autonomous Driving simulator.
 
 ### Usage guide
 
@@ -18,13 +17,9 @@ Autonomous Driving simulator.
 1. Install the system requirements:
 	- Miniconda/Anaconda 3.x
 		- `wget -P ~ https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; bash ~/Miniconda3-latest-Linux-x86_64.sh`
-	- cmake (`sudo apt-get install cmake`)
-	- zlib (`sudo apt-get install zlib1g-dev`)
-	- [optional] ffmpeg (`sudo apt-get install ffmpeg`)
-	
-2. Create a new conda env named "macad-gym" and install the required packages using the `conda_env.yaml` file:
-
-    `conda env create -f conda_env.yaml`
+	- cmake (`sudo apt install cmake`)
+	- zlib (`sudo apt install zlib1g-dev`)
+	- [optional] ffmpeg (`sudo apt install ffmpeg`)
     
 3. Setup CARLA (0.9.x)
 
@@ -35,12 +30,22 @@ Autonomous Driving simulator.
     
     3.3 `echo "export CARLA_SERVER=${HOME}/software/CARLA_0.9.4/CarlaUE4.sh" >> ~/.bashrc`
     
-    3.4 `source activate macad-gym` and `pip install carla==0.9.4` (or `easy_install carla*.egg`)
-
+	
 ### Installation
 
-`pip install git+https://github.com/praveen-palanisamy/macad-gym.git`
-    
+ - Option1 for users: `pip install git+https://github.com/praveen-palanisamy/macad-gym.git`
+ - Option2 for developers:
+     - Fork/Clone the repository to your workspace:
+    `git clone https://github.com/praveen-palanisamy/macad-gym.git`
+    `cd macad-gym`
+     - Create a new conda env named "macad-gym" and install the required packages:
+      `conda env create -f conda_env.yaml`
+     - Activate the `macad-gym` conda python env:
+      `source activate carla-gym`
+     - Install CARLA PythonAPI:
+     > NOTE: Change the carla pip package version number below to match with your CARLA server version
+      `pip install carla==0.9.4` (or `easy_install carla*.egg`)
+
 
 #### Running scenarios (standalone)
 
@@ -74,7 +79,7 @@ Autonomous Driving simulator.
 }
 ```
 
-### Developer Contribution Guide
+### Contribution Guide
 
 - Be sure to `source activate macad-gym` before developing/testing
 - Be sure to `git pull` often to make sure you are working on the latest copy
