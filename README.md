@@ -6,7 +6,7 @@ Multi-Agent Connected Autonomous Driving (MACAD) learning platform using CARLA A
 
 1. [Getting Started](#getting-started)
 1. [Installation](#installation)
-1. [Developer Contribution Guide](README.md#developer-contribution-guide)
+1. [Developer Contribution Guide](CONTRIBUTING.md)
 1. [Notes for Gym wrappers for CARLA 0.8.x (stable) versions](README.md#notes)
 
 
@@ -101,14 +101,6 @@ Dict(car1:Box(168, 168, 3), car2:Box(168, 168, 3), car3:Box(168, 168, 3))
 >>> print(env.action_space)
 Dict(car1:Discrete(9), car2:Discrete(9), car3:Discrete(9))
 ```
-
-### Contribution Guide
-
-- Be sure to `source activate macad-gym` before developing/testing
-- Be sure to `git pull` often to make sure you are working on the latest copy
-- Follow [PEP8 coding standards](https://www.python.org/dev/peps/pep-0008/) and [Google style](http://google.github.io/styleguide/pyguide.html). Before pushing your local commits, Run `bash .ci/format_code.sh`, this will reformat the files you have changed to automatically make them follow the recommended standard and show you the list of updated file. Review the changes and if all looks good, stage them again and then push
-  - You can also auto format specific files using this command: `bash .ci/format_code.sh --files <PATH_TO_FILE1> <PATH_TO_FILE2>`
-- Make sure the CI pipeline reports success. If not, please look at the CI run's log file, fix the reported errors
 
 ### **NOTEs**:
 > MACAD-Gym is for CARLA 0.9.x . If you are
