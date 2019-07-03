@@ -42,41 +42,64 @@ Multi-Agent Connected Autonomous Driving (MACAD) learning platform using CARLA A
       `conda env create -f conda_env.yaml`
      - Activate the `macad-gym` conda python env:
       `source activate carla-gym`
-     - Install CARLA PythonAPI:
-     > NOTE: Change the carla pip package version number below to match with your CARLA server version
-      `pip install carla==0.9.4` (or `easy_install carla*.egg`)
+     - Install CARLA PythonAPI: `pip install carla==0.9.4`
+     > NOTE: Change the carla client PyPI package version number to match with your CARLA server version
+       
 
+#### Learning Platform and Agent Interface
 
-#### Running scenarios (standalone)
+The MACAD-Gym platform provides learning environments for training agents in 
+single-agent and multi-agent settings for various autonomous driving tasks and 
+scenarios.
+The learning environments following a naming convention for the ID to be consistent
+and to support versioned benchmarking of agent algorithms.
+The number of training environments in MACAD-Gym is expected to grow over time
+(PRs are very welcome!). 
+The Environment-Agent interface is fully compatible with the OpenAI-Gym interface
+thus, allowing for easy experimentation with existing RL agent algorithm 
+implementations and libraries.
 
-`python env/envs/intersection/urban_signal_intersection_1b2c1p.py`
+##### Environments
+To get a list of available environments, you can use
+the `get_available_envs()` function as shown in the code snippet below:
 
-##### Config docs:
-```json
-{
-    "actors": {
-            "car1": {
-                "type": "vehicle_4W",
-                "enable_planner": true,
-                "convert_images_to_video": false,
-                "early_terminate_on_collision": true,
-                "reward_function": "corl2017",
-                "scenarios": "SSUI3C_TOWN3_CAR1",
-                "manual_control": false,
-                "auto_control": false,
-                "camera_type": "rgb",
-                "collision_sensor": "on",
-                "lane_sensor": "on",
-                "log_images": false,
-                "log_measurements": false,
-                "render": true,
-                "x_res": 84,  --> Observation dimension along x (height)
-                "y_res": 84,  --> Observation dimension along y (width)
-                "use_depth_camera": false,
-                "send_measurements": false
-            }
-            }
-}
+```python
+import gym
+import macad_gym
+macad_gym.get_available_envs()
+``` 
+This will print the available environments. Sample output is provided below for reference:
+
+```bash
+Environment-ID: Short description
+{'HeteNcomIndePOIntrxMATLS1B2C1PTWN3-v0': 'Heterogeneous, Non-communicating, '
+                                          'Independent,Partially-Observable '
+                                          'Intersection Multi-Agent scenario '
+                                          'with Traffic-Light Signal, 1-Bike, '
+                                          '2-Car,1-Pedestrian in Town3, '
+                                          'version 0',
+ 'HomoNcomIndePOIntrxMASS3CTWN3-v0': 'Homogenous, Non-communicating, '
+                                     'Independed, Partially-Observable '
+                                     'Intersection Multi-Agent scenario with '
+                                     'Stop-Sign, 3 Cars in Town3, version 0'}
+```
+
+The environment interface is simple and follows the widely adopted OpenAI-Gym
+interface. You can create an instance of a learning environment using the 
+following 3 lines of code:
+
+```python
+import gym
+import macad_gym
+env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
+```
+Like any OpenAI-Gym environment, you can obtain the observation space and action
+space using the following attributes:
+```bash
+>>> print(env.observation_space)
+Dict(car1:Box(168, 168, 3), car2:Box(168, 168, 3), car3:Box(168, 168, 3))
+>>> print(env.action_space)
+Dict(car1:Discrete(9), car2:Discrete(9), car3:Discrete(9))
 ```
 
 ### Contribution Guide
