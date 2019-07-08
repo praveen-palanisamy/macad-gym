@@ -226,18 +226,19 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         The environment settings and scenarios are configure using env_config.
         Actors in the simulation that can be controlled are configured through
         the actor_configs (TODO: Separate env & actor configs).
+
         Args:
             configs (dict): Configuration for environment specified under the
-            `env` key and configurations for each actor specified as dict under
-            `actor`.
-            Example:
-                >>> configs = {
-                "env": {"server_map": "/Game/Carla/Maps/Town02",
-                "render": True,}, "actor": {"actor_id1":
-                {"enable_planner": True},
-                "actor_id2": {"enable_planner": False)}}}
-
+                `env` key and configurations for each actor specified as dict
+                under `actor`.
+                Example:
+                    >>> configs = {
+                    "env": {"server_map": "/Game/Carla/Maps/Town02",
+                    "render": True,}, "actor": {"actor_id1":
+                    {"enable_planner": True},
+                    "actor_id2": {"enable_planner": False)}}}
         """
+
         if configs is None:
             configs = DEFAULT_MULTIENV_CONFIG
 
@@ -871,7 +872,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             obs (dict): Observations for each actor.
             rewards (dict): Reward values for each actor. None for first step
             dones (dict): Done values for each actor. Special key "__all__" is
-                set when all actors are done and the env terminates
+            set when all actors are done and the env terminates
             info (dict): Info for each actor.
 
         Raises
