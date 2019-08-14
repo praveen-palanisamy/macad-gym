@@ -42,6 +42,8 @@ Multi-Agent Connected Autonomous Driving (MACAD) learning platform using CARLA A
       `conda env create -f conda_env.yaml`
      - Activate the `macad-gym` conda python env:
       `source activate carla-gym`
+     - Install the `macad-gym` package:
+	`pip install -e .`
      - Install CARLA PythonAPI: `pip install carla==0.9.4`
      > NOTE: Change the carla client PyPI package version number to match with your CARLA server version
        
@@ -61,12 +63,12 @@ implementations and libraries.
 
 ##### Environments
 To get a list of available environments, you can use
-the `get_available_envs()` function as shown in the code snippet below:
+the `list_available_envs()` function as shown in the code snippet below:
 
 ```python
 import gym
 import macad_gym
-macad_gym.get_available_envs()
+macad_gym.list_available_envs()
 ``` 
 This will print the available environments. Sample output is provided below for reference:
 
