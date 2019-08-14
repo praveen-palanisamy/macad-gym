@@ -36,8 +36,7 @@ Multi-Agent Connected Autonomous Driving (MACAD) learning platform using CARLA A
  - Option1 for users: `pip install git+https://github.com/praveen-palanisamy/macad-gym.git`
  - Option2 for developers:
      - Fork/Clone the repository to your workspace:
-    `git clone https://github.com/praveen-palanisamy/macad-gym.git`
-    `cd macad-gym`
+        `git clone https://github.com/praveen-palanisamy/macad-gym.git && cd macad-gym`
      - Create a new conda env named "macad-gym" and install the required packages:
       `conda env create -f conda_env.yaml`
      - Activate the `macad-gym` conda python env:
