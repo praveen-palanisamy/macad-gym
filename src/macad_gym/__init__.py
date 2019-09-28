@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 
 from gym.envs.registration import register
@@ -7,9 +8,16 @@ os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "yes please"
 LOG_DIR = "logs"
 if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
+
 # Init and setup the root logger
 logging.basicConfig(filename=LOG_DIR + '/macad-gym.log', level=logging.DEBUG)
 
+# Fix path issues with included CARLA API
+sys.path.append(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "carla/PythonAPI"))
+
+# Declare available environments with a brief description
 _AVAILABLE_ENVS = {
     'HomoNcomIndePOIntrxMASS3CTWN3-v0': {
         "entry_point":
@@ -30,8 +38,8 @@ _AVAILABLE_ENVS = {
     }
 }
 
-for id, val in _AVAILABLE_ENVS.items():
-    register(id=id, entry_point=val.get("entry_point"))
+for env_id, val in _AVAILABLE_ENVS.items():
+    register(id=env_id, entry_point=val.get("entry_point"))
 
 
 def list_available_envs():
