@@ -10,6 +10,7 @@ from __future__ import division
 from __future__ import print_function
 import argparse
 import atexit
+import shutil
 from datetime import datetime
 import logging
 import json
@@ -382,29 +383,51 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         gpus = GPUtil.getGPUs()
         log_file = os.path.join(LOG_DIR,
                                 "server_" + str(self._server_port) + ".log")
-        # TODO: Make the try-except style handling work with Popen
+
         if not self._render and (gpus is not None and len(gpus)) > 0:
             try:
                 min_index = random.randint(0, len(gpus) - 1)
                 for i, gpu in enumerate(gpus):
                     if gpu.load < gpus[min_index].load:
                         min_index = i
-                self._server_process = subprocess.Popen(
-                    ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=20"
-                     "-carla-server ",
-                     "-carla-world-port={} -carla-streaming-port=0").format(
-                         min_index, SERVER_BINARY, self._server_map,
-                         self._server_port),
-                    shell=True,
-                    preexec_fn=os.setsid,
-                    stdout=open(log_file, 'w'))
-                multigpu_success = True
-                print("Running simulation in multi-GPU mode")
+                # Check if vglrun is setup to launch sim on multipl GPUs
+                if shutil.which("vglrun") is not None:
+                    self._server_process = subprocess.Popen(
+                        ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=20"
+                         " -carla-server -world-port={}"
+                         " -carla-streaming-port=0".format(
+                             min_index, SERVER_BINARY, self._server_map,
+                             self._server_port)),
+                        shell=True,
+                        preexec_fn=os.setsid,
+                        stdout=open(log_file, 'w'))
+
+                # Else, run in headless mode and try the SDL CUDA hint
+                else:
+                    self._server_process = subprocess.Popen(
+                        ("SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE={}"
+                         " {} {} -benchmark -fps=20 -carla-server"
+                         " -world-port={} -carla-streaming-port=0".format(
+                             min_index, SERVER_BINARY, self._server_map,
+                             self._server_port)),
+                        shell=True,
+                        preexec_fn=os.setsid,
+                        stdout=open(log_file, 'w'))
+            # TODO: Make the try-except style handling work with Popen
+            # exceptions after launching the server procs are not caught
             except Exception as e:
                 print(e)
+            # Temporary soln to check if CARLA server proc started and wrote
+            # something to stdout which is the usual case during startup
+            if os.path.isfile(log_file):
+                multigpu_success = True
+            else:
+                multigpu_success = False
 
-        # Single GPU and also fallback if multi-GPU doesn't work
-        # TODO: Use env_config values for setting ResX, ResY params
+            if multigpu_success:
+                print("Running sim servers in headless/multi-GPU mode")
+
+        # Rendering mode and also a fallback if headless/multi-GPU doesn't work
         if multigpu_success is False:
             try:
                 self._server_process = subprocess.Popen([

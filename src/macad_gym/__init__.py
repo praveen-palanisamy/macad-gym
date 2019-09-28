@@ -5,7 +5,7 @@ import logging
 from gym.envs.registration import register
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "yes please"
-LOG_DIR = "logs"
+LOG_DIR = os.path.join(os.getcwd(), "logs")
 if not os.path.isdir(LOG_DIR):
     os.mkdir(LOG_DIR)
 
