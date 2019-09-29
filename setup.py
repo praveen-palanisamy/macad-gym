@@ -5,8 +5,8 @@ from setuptools import setup, find_packages
 setup(
     name="macad-gym",
     description='Learning environments for Multi-Agent Connected Autonomous'
-    'Driving (MACAD)',
-    version='0.0.1-0',
+    'Driving (MACAD) with OpenAI Gym compatible interfaces, built using CARLA',
+    version='0.1.0',
     url='https://github.com/praveen-palanisamy/macad-gym',
     author='Praveen Palanisamy',
     author_email='praveen.palanisamy@outlook.com',
