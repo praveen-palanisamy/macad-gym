@@ -222,22 +222,26 @@ except ImportError:
 
 class MultiCarlaEnv(*MultiAgentEnvBases):
     def __init__(self, configs=None):
-        """Carla environment implementation.
+        """MACAD-Gym environment implementation.
 
-        The environment settings and scenarios are configure using env_config.
-        Actors in the simulation that can be controlled are configured through
-        the actor_configs (TODO: Separate env & actor configs).
+        Provides a generic MACAD-Gym environment implementation that can be
+        customized further to create new or variations of existing
+        multi-agent learning environments. The environment settings, scenarios
+        and the actors in the environment can all be configured using
+        the `configs` dict.
 
         Args:
             configs (dict): Configuration for environment specified under the
                 `env` key and configurations for each actor specified as dict
                 under `actor`.
                 Example:
-                    >>> configs = {
-                    "env": {"server_map": "/Game/Carla/Maps/Town02",
-                    "render": True,}, "actor": {"actor_id1":
-                    {"enable_planner": True},
-                    "actor_id2": {"enable_planner": False)}}}
+                    >>> configs = {"env":{
+                    "server_map":"/Game/Carla/Maps/Town05",
+                    "discrete_actions":True,...},
+                    "actor":{
+                    "actor_id1":{"enable_planner":True,...},
+                    "actor_id2":{"enable_planner":False,...}
+                    }}
         """
 
         if configs is None:

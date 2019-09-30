@@ -1,14 +1,33 @@
-### MACAD-Gym
+![MACAD-Gym learning environment 1](docs/images/macad-gym-urban_4way_intrx_2c1p1m.png)
+MACAD-Gym is a training platform for Multi-Agent Connected Autonomous
+ Driving (MACAD) built on top of the CARLA Autonomous Driving simulator.
 
-Multi-Agent Connected Autonomous Driving (MACAD) learning platform using CARLA Autonomous Driving simulator.
+MACAD-Gym provides OpenAI Gym-compatible learning environments for various
+driving scenarios for training Deep RL algorithms in homogeneous/heterogenous,
+communicating/non-communicating and other multi-agent settings. New environments and scenarios
+ can be easily added using a simple, JSON-like configuration.
+
+### Quick Start
+
+Install MACAD-Gym using `pip install git+https://github.com/praveen-palanisamy/macad-gym.git`.
+ If you have CARLA installed, you can get going using the following 3 lines of code. If not, follow the
+[Getting started steps](#getting-started).
+
+```python
+import gym
+import macad_gym
+env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
+
+# Your agent code here
+```
+
+ Any RL library that supports the OpenAI-Gym API can be used to train agents in MACAD-Gym. The MACAD-Agents repository provides sample agents as a starter.
 
 ### Usage guide
 
 1. [Getting Started](#getting-started)
-1. [Installation](#installation)
+1. [Learning platform & agent interface](#learning-platform-and-agent-interface)
 1. [Developer Contribution Guide](CONTRIBUTING.md)
-1. [Notes for Gym wrappers for CARLA 0.8.x (stable) versions](README.md#notes)
-
 
 ### Getting Started
 
@@ -20,8 +39,8 @@ Multi-Agent Connected Autonomous Driving (MACAD) learning platform using CARLA A
 	- cmake (`sudo apt install cmake`)
 	- zlib (`sudo apt install zlib1g-dev`)
 	- [optional] ffmpeg (`sudo apt install ffmpeg`)
-    
-3. Setup CARLA (0.9.x)
+   
+1. Setup CARLA (0.9.x)
 
     3.1 `mkdir ~/software && cd ~/software`
 
@@ -29,12 +48,10 @@ Multi-Agent Connected Autonomous Driving (MACAD) learning platform using CARLA A
     Extract it into `~/software/CARLA_0.9.4`
     
     3.3 `echo "export CARLA_SERVER=${HOME}/software/CARLA_0.9.4/CarlaUE4.sh" >> ~/.bashrc`
-    
-	
-### Installation
 
- - Option1 for users: `pip install git+https://github.com/praveen-palanisamy/macad-gym.git`
- - Option2 for developers:
+1. Install MACAD-Gym:
+   - **Option1 for users** : `pip install git+https://github.com/praveen-palanisamy/macad-gym.git`
+   - **Option2 for developers**:
      - Fork/Clone the repository to your workspace:
         `git clone https://github.com/praveen-palanisamy/macad-gym.git && cd macad-gym`
      - Create a new conda env named "macad-gym" and install the required packages:
@@ -42,25 +59,46 @@ Multi-Agent Connected Autonomous Driving (MACAD) learning platform using CARLA A
      - Activate the `macad-gym` conda python env:
       `source activate carla-gym`
      - Install the `macad-gym` package:
-	`pip install -e .`
+	  `pip install -e .`
      - Install CARLA PythonAPI: `pip install carla==0.9.4`
      > NOTE: Change the carla client PyPI package version number to match with your CARLA server version
-       
+     
 
-#### Learning Platform and Agent Interface
+### Learning Platform and Agent Interface
 
-The MACAD-Gym platform provides learning environments for training agents in 
+The MACAD-Gym platform provides learning environments for training agents in both,
 single-agent and multi-agent settings for various autonomous driving tasks and 
-scenarios.
-The learning environments following a naming convention for the ID to be consistent
+scenarios that enables training agents in homogeneous/heterogeneous
+The learning environments follows naming convention for the ID to be consistent
 and to support versioned benchmarking of agent algorithms.
+The naming convention is illustrated below with `HeteCommCoopPOUrbanMgoalMAUSID`
+as an example:
+![MACAD-Gym Naming Conventions](docs/images/macad-gym-naming-conventions.png)
 The number of training environments in MACAD-Gym is expected to grow over time
 (PRs are very welcome!). 
-The Environment-Agent interface is fully compatible with the OpenAI-Gym interface
-thus, allowing for easy experimentation with existing RL agent algorithm 
-implementations and libraries.
 
-##### Environments
+#### Environments
+
+The environment interface is simple and follows the widely adopted OpenAI-Gym
+interface. You can create an instance of a learning environment using the 
+following 3 lines of code:
+
+```python
+import gym
+import macad_gym
+env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
+```
+
+Like any OpenAI Gym environment, you can obtain the observation space and action
+spaces as shown below:
+
+```bash
+>>> print(env.observation_space)
+Dict(car1:Box(168, 168, 3), car2:Box(168, 168, 3), car3:Box(168, 168, 3))
+>>> print(env.action_space)
+Dict(car1:Discrete(9), car2:Discrete(9), car3:Discrete(9))
+```
+
 To get a list of available environments, you can use
 the `list_available_envs()` function as shown in the code snippet below:
 
@@ -68,7 +106,7 @@ the `list_available_envs()` function as shown in the code snippet below:
 import gym
 import macad_gym
 macad_gym.list_available_envs()
-``` 
+```
 This will print the available environments. Sample output is provided below for reference:
 
 ```bash
@@ -85,25 +123,59 @@ Environment-ID: Short description
                                      'Stop-Sign, 3 Cars in Town3, version 0'}
 ```
 
-The environment interface is simple and follows the widely adopted OpenAI-Gym
-interface. You can create an instance of a learning environment using the 
-following 3 lines of code:
+#### Agent interface
+The Agent-Environment interface is compatible with the OpenAI-Gym interface
+thus, allowing for easy experimentation with existing RL agent algorithm 
+implementations and libraries. You can use any existing Deep RL library that supports the Open AI Gym API to train your agents.
+
+The basic agent-environment interaction loop is as follows:
+
 
 ```python
 import gym
 import macad_gym
-env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
-```
-Like any OpenAI-Gym environment, you can obtain the observation space and action
-space using the following attributes:
-```bash
->>> print(env.observation_space)
-Dict(car1:Box(168, 168, 3), car2:Box(168, 168, 3), car3:Box(168, 168, 3))
->>> print(env.action_space)
-Dict(car1:Discrete(9), car2:Discrete(9), car3:Discrete(9))
+
+
+env = gym.make("HomoNComIndePOIntrxMASS3CTWN3-v0")
+configs = env.configs()
+env_config = configs["env"]
+actor_configs = configs["actors"]
+
+
+class SimpleAgent(object):
+    def __init__(self, actor_configs):
+        """A simple, deterministic agent for an example
+        Args:
+            actor_configs: Actor config dict
+        """
+        self.actor_configs = actor_configs
+        self.action_dict = {}
+
+
+    def get_action(self, obs):
+        """ Returns `action_dict` containing actions for each agent in the env
+        """
+        for actor_id in self.actor_configs.keys():
+            # ... Process obs of each agent and generate action ...
+            if env_config["discrete_actions"]:
+                self.action_dict[actor_id] = 3  # Drive forward
+            else:
+                self.action_dict[actor_id] = [1, 0]  # Full-throttle 
+        return self.action_dict
+
+
+agent = SimpleAgent(actor_configs)  # Plug-in your agent or use MACAD-Agents
+for ep in range(2):
+    obs = env.reset()
+    done = {"__all__": False}
+    step = 0
+    while not done["__all__"]:
+        obs, reward, done, info = env.step(agent.get_action(obs))
+        print(f"Step#:{step}  Rew:{reward}  Done:{done}")
+        step += 1
 ```
 
-### **NOTEs**:
+###### **NOTEs**:
 > MACAD-Gym is for CARLA 0.9.x . If you are
 looking for an OpenAI Gym-compatible agent learning environment for CARLA 0.8.x (stable release),
 use [this carla_gym environment](https://github.com/PacktPublishing/Hands-On-Intelligent-Agents-with-OpenAI-Gym/tree/master/ch8/environment).
