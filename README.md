@@ -74,6 +74,7 @@ and to support versioned benchmarking of agent algorithms.
 The naming convention is illustrated below with `HeteCommCoopPOUrbanMgoalMAUSID`
 as an example:
 ![MACAD-Gym Naming Conventions](docs/images/macad-gym-naming-conventions.png)
+
 The number of training environments in MACAD-Gym is expected to grow over time
 (PRs are very welcome!). 
 
