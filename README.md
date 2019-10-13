@@ -9,7 +9,7 @@ communicating/non-communicating and other multi-agent settings. New environments
 
 ### Quick Start
 
-Install MACAD-Gym using `pip install git+https://github.com/praveen-palanisamy/macad-gym.git`.
+Install MACAD-Gym using `pip install macad-gym`.
  If you have CARLA installed, you can get going using the following 3 lines of code. If not, follow the
 [Getting started steps](#getting-started).
 
@@ -50,7 +50,7 @@ env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
     3.3 `echo "export CARLA_SERVER=${HOME}/software/CARLA_0.9.4/CarlaUE4.sh" >> ~/.bashrc`
 
 1. Install MACAD-Gym:
-   - **Option1 for users** : `pip install git+https://github.com/praveen-palanisamy/macad-gym.git`
+   - **Option1 for users** : `pip install macad-gym`
    - **Option2 for developers**:
      - Fork/Clone the repository to your workspace:
         `git clone https://github.com/praveen-palanisamy/macad-gym.git && cd macad-gym`

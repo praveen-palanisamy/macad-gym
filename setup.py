@@ -19,7 +19,7 @@ long_description = long_description.replace(
 
 setup(
     name="macad-gym",
-    version='0.1.0',
+    version='0.1.1',
     description='Learning environments for Multi-Agent Connected Autonomous'
     'Driving (MACAD) with OpenAI Gym compatible interfaces',
     long_description=long_description,
@@ -33,4 +33,25 @@ setup(
     install_requires=[
         'gym', 'carla>=0.9.3', 'GPUtil', 'pygame', 'opencv-python', 'networkx'
     ],
-    extras_require={'test': ['tox', 'pytest', 'pytest-xdist', 'tox']})
+    extras_require={'test': ['tox', 'pytest', 'pytest-xdist', 'tox']},
+    keywords='multi-agent learning environments connected autonomous driving '
+    'OpenAI Gym CARLA',
+    project_urls={
+        'Source': 'https://github.com/praveen-palanisamy/macad-gym',
+        'Report bug': 'https://github.com/praveen-palanisamy/macad-gym/issues',
+        'Author website': 'https://praveenp.com'
+    },
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Intended Audience :: Science/Research',
+        'Intended Audience:: Developers', 'Intended Audience :: Education',
+        'License :: OSI Approved :: MIT License',
+        'Topic :: Scientific/Engineering',
+        'Topic :: Scientific/Engineering :: Artificial Intelligence'
+    ])

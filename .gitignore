@@ -11,3 +11,5 @@ saved_models
 _build
 _static
 _templates
+build
+dist
