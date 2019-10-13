@@ -21,7 +21,7 @@ setup(
     name="macad-gym",
     version='0.1.1',
     description='Learning environments for Multi-Agent Connected Autonomous'
-    'Driving (MACAD) with OpenAI Gym compatible interfaces',
+    ' Driving (MACAD) with OpenAI Gym compatible interfaces',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/praveen-palanisamy/macad-gym',
@@ -50,7 +50,7 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Intended Audience :: Science/Research',
-        'Intended Audience:: Developers', 'Intended Audience :: Education',
+        'Intended Audience :: Developers', 'Intended Audience :: Education',
         'License :: OSI Approved :: MIT License',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Artificial Intelligence'
