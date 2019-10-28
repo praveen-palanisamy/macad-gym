@@ -23,7 +23,7 @@ _AVAILABLE_ENVS = {
         "entry_point":
         "macad_gym.envs:HomoNcomIndePOIntrxMASS3CTWN3",
         "description":
-        "Homogenous, Non-communicating, Independed, Partially-"
+        "Homogeneous, Non-communicating, Independent, Partially-"
         "Observable Intersection Multi-Agent scenario with "
         "Stop-Sign, 3 Cars in Town3, version 0"
     },

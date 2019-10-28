@@ -1,5 +1,5 @@
 """
-multi_actor_env.py CARLA-Gym multi actor env interface
+multi_actor_env.py MACAD-Gym multi actor env interface
 __author__:PP
 """
 
