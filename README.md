@@ -1,5 +1,5 @@
 ![MACAD-Gym learning environment 1](docs/images/macad-gym-urban_4way_intrx_2c1p1m.png)
-MACAD-Gym is a training platform for Multi-Agent Connected Autonomous
+[MACAD-Gym](https://arxiv.org/abs/1911.04175) is a training platform for Multi-Agent Connected Autonomous
  Driving (MACAD) built on top of the CARLA Autonomous Driving simulator.
 
 MACAD-Gym provides OpenAI Gym-compatible learning environments for various
@@ -27,6 +27,7 @@ env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
 
 1. [Getting Started](#getting-started)
 1. [Learning platform & agent interface](#learning-platform-and-agent-interface)
+1. [Citing MACAD-Gym](#citing)
 1. [Developer Contribution Guide](CONTRIBUTING.md)
 
 ### Getting Started
@@ -175,6 +176,27 @@ for ep in range(2):
         print(f"Step#:{step}  Rew:{reward}  Done:{done}")
         step += 1
 ```
+
+### Citing:
+
+If you find this work useful in your research, please cite:
+
+```bibtex
+@misc{palanisamy2019multiagent,
+    title={Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning},
+    author={Praveen Palanisamy},
+    year={2019},
+    eprint={1911.04175},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+}
+```
+
+<details><summary>Citation in other Formats: (Click to View)</summary>
+<p>
+<div id="gs_citt"><table><tbody><tr><th scope="row" class="gs_cith">MLA</th><td><div tabindex="0" class="gs_citr">Palanisamy, Praveen. "Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning." <i>arXiv preprint arXiv:1911.04175</i> (2019).</div></td></tr><tr><th scope="row" class="gs_cith">APA</th><td><div tabindex="0" class="gs_citr">Palanisamy, P. (2019). Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning. <i>arXiv preprint arXiv:1911.04175</i>.</div></td></tr><tr><th scope="row" class="gs_cith">Chicago</th><td><div tabindex="0" class="gs_citr">Palanisamy, Praveen. "Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning." <i>arXiv preprint arXiv:1911.04175</i> (2019).</div></td></tr><tr><th scope="row" class="gs_cith">Harvard</th><td><div tabindex="0" class="gs_citr">Palanisamy, P., 2019. Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning. <i>arXiv preprint arXiv:1911.04175</i>.</div></td></tr><tr><th scope="row" class="gs_cith">Vancouver</th><td><div tabindex="0" class="gs_citr">Palanisamy P. Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning. arXiv preprint arXiv:1911.04175. 2019 Nov 11.</div></td></tr></tbody></table></div><div id="gs_citi"><a class="gs_citi" href="https://scholar.googleusercontent.com/scholar.bib?q=info:xm26aHYhVDgJ:scholar.google.com/&amp;output=citation&amp;scisdr=CgXTGHMuEN628ARjSCI:AAGBfm0AAAAAXetmUCK7vBmr1OtOq0KVG6IXDlyHhBdl&amp;scisig=AAGBfm0AAAAAXetmUIGOLisMm--ltk35iSX92VU3dlmg&amp;scisf=4&amp;ct=citation&amp;cd=-1&amp;hl=en">BibTeX</a> <a class="gs_citi" href="https://scholar.googleusercontent.com/scholar.enw?q=info:xm26aHYhVDgJ:scholar.google.com/&amp;output=citation&amp;scisdr=CgXTGHMuEN628ARjSCI:AAGBfm0AAAAAXetmUCK7vBmr1OtOq0KVG6IXDlyHhBdl&amp;scisig=AAGBfm0AAAAAXetmUIGOLisMm--ltk35iSX92VU3dlmg&amp;scisf=3&amp;ct=citation&amp;cd=-1&amp;hl=en">EndNote</a> <a class="gs_citi" href="https://scholar.googleusercontent.com/scholar.ris?q=info:xm26aHYhVDgJ:scholar.google.com/&amp;output=citation&amp;scisdr=CgXTGHMuEN628ARjSCI:AAGBfm0AAAAAXetmUCK7vBmr1OtOq0KVG6IXDlyHhBdl&amp;scisig=AAGBfm0AAAAAXetmUIGOLisMm--ltk35iSX92VU3dlmg&amp;scisf=2&amp;ct=citation&amp;cd=-1&amp;hl=en">RefMan</a> <a class="gs_citi" href="https://scholar.googleusercontent.com/scholar.rfw?q=info:xm26aHYhVDgJ:scholar.google.com/&amp;output=citation&amp;scisdr=CgXTGHMuEN628ARjSCI:AAGBfm0AAAAAXetmUCK7vBmr1OtOq0KVG6IXDlyHhBdl&amp;scisig=AAGBfm0AAAAAXetmUIGOLisMm--ltk35iSX92VU3dlmg&amp;scisf=1&amp;ct=citation&amp;cd=-1&amp;hl=en" target="RefWorksMain">RefWorks</a> </div>
+</p>
+</details>
 
 ###### **NOTEs**:
 > MACAD-Gym is for CARLA 0.9.x . If you are
