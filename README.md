@@ -21,7 +21,7 @@ env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
 # Your agent code here
 ```
 
- Any RL library that supports the OpenAI-Gym API can be used to train agents in MACAD-Gym. The MACAD-Agents repository provides sample agents as a starter.
+ Any RL library that supports the OpenAI-Gym API can be used to train agents in MACAD-Gym. The [MACAD-Agents](https://github.com/praveen-palanisamy/macad-agents) repository provides sample agents as a starter.
 
 ### Usage guide
 
