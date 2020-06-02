@@ -138,8 +138,8 @@ import gym
 import macad_gym
 
 
-env = gym.make("HomoNComIndePOIntrxMASS3CTWN3-v0")
-configs = env.configs()
+env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
+configs = env.configs
 env_config = configs["env"]
 actor_configs = configs["actors"]
 
@@ -162,7 +162,7 @@ class SimpleAgent(object):
             if env_config["discrete_actions"]:
                 self.action_dict[actor_id] = 3  # Drive forward
             else:
-                self.action_dict[actor_id] = [1, 0]  # Full-throttle 
+                self.action_dict[actor_id] = [1, 0]  # Full-throttle
         return self.action_dict
 
 
