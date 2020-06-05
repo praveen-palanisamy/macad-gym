@@ -6,7 +6,6 @@ from macad_gym.carla.multi_env import MultiCarlaEnv
 
 class TrafficLightSignal1B2C1PTown03(MultiCarlaEnv):
     """A 4-way signalized intersection with 1 Bike, 2 Cars, 1 Pedestrian"""
-
     def __init__(self):
         self.configs = {
             "scenarios": "SUI1B2C1P_TOWN3",
@@ -25,7 +24,8 @@ class TrafficLightSignal1B2C1PTown03(MultiCarlaEnv):
                 "send_measurements": False,
                 "enable_planner": False,
                 "spectator_loc": [70, -125, 9],
-                "sync_server": True
+                "sync_server": True,
+                "fixed_delta_seconds": 0.05,
             },
             "actors": {
                 "car1": {
@@ -47,7 +47,7 @@ class TrafficLightSignal1B2C1PTown03(MultiCarlaEnv):
                     "x_res": 168,
                     "y_res": 168,
                     "use_depth_camera": False,
-                    "send_measurements": False
+                    "send_measurements": False,
                 },
                 "car2": {
                     "type": "vehicle_4w",
@@ -68,7 +68,7 @@ class TrafficLightSignal1B2C1PTown03(MultiCarlaEnv):
                     "x_res": 168,
                     "y_res": 168,
                     "use_depth_camera": False,
-                    "send_measurements": False
+                    "send_measurements": False,
                 },
                 "pedestrian1": {
                     "type": "pedestrian",
@@ -89,7 +89,7 @@ class TrafficLightSignal1B2C1PTown03(MultiCarlaEnv):
                     "x_res": 168,
                     "y_res": 168,
                     "use_depth_camera": False,
-                    "send_measurements": False
+                    "send_measurements": False,
                 },
                 "bike1": {
                     "type": "vehicle_2W",
@@ -110,9 +110,9 @@ class TrafficLightSignal1B2C1PTown03(MultiCarlaEnv):
                     "x_res": 168,
                     "y_res": 168,
                     "use_depth_camera": False,
-                    "send_measurements": False
-                }
-            }
+                    "send_measurements": False,
+                },
+            },
         }
         super(TrafficLightSignal1B2C1PTown03, self).__init__(self.configs)
 
@@ -145,8 +145,9 @@ if __name__ == "__main__":
             # action_dict = get_next_actions(info, env.discrete_actions)
             for actor_id in total_reward_dict.keys():
                 total_reward_dict[actor_id] += reward[actor_id]
-            print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
-                i, reward, total_reward_dict, done))
+            print(":{}\n\t".join(["Step#", "rew", "ep_rew",
+                                  "done{}"]).format(i, reward,
+                                                    total_reward_dict, done))
 
             time.sleep(0.1)
 

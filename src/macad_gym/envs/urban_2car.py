@@ -23,7 +23,8 @@ U2C_CONFIGS = {
         "verbose": False,
         "use_depth_camera": False,
         "send_measurements": False,
-        "sync_server": True
+        "sync_server": True,
+        "fixed_delta_seconds": 0.05,
     },
     "actors": {
         "vehicle1": {
@@ -45,7 +46,7 @@ U2C_CONFIGS = {
             "x_res": 84,
             "y_res": 84,
             "use_depth_camera": False,
-            "send_measurements": False
+            "send_measurements": False,
         },
         "vehicle2": {
             "enable_planner": True,
@@ -66,15 +67,14 @@ U2C_CONFIGS = {
             "x_res": 84,
             "y_res": 84,
             "use_depth_camera": False,
-            "send_measurements": False
-        }
-    }
+            "send_measurements": False,
+        },
+    },
 }
 
 
 class Urban2Car(MultiCarlaEnv):
     """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
-
     def __init__(self):
         self.configs = U2C_CONFIGS
         super(Urban2Car, self).__init__(self.configs)
@@ -109,8 +109,9 @@ if __name__ == "__main__":
             # action_dict = get_next_actions(info, env.discrete_actions)
             for actor_id in total_reward_dict.keys():
                 total_reward_dict[actor_id] += reward[actor_id]
-            print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
-                i, reward, total_reward_dict, done))
+            print(":{}\n\t".join(["Step#", "rew", "ep_rew",
+                                  "done{}"]).format(i, reward,
+                                                    total_reward_dict, done))
 
             time.sleep(0.1)
 

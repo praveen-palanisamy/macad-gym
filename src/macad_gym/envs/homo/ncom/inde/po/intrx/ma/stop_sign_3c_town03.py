@@ -6,7 +6,6 @@ from macad_gym.carla.multi_env import MultiCarlaEnv
 
 class StopSign3CarTown03(MultiCarlaEnv):
     """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
-
     def __init__(self):
         self.configs = {
             "scenarios": "SSUI3C_TOWN3",
@@ -25,7 +24,8 @@ class StopSign3CarTown03(MultiCarlaEnv):
                 "send_measurements": False,
                 "enable_planner": True,
                 "spectator_loc": [140, 68, 9],
-                "sync_server": True
+                "sync_server": True,
+                "fixed_delta_seconds": 0.05,
             },
             "actors": {
                 "car1": {
@@ -46,7 +46,7 @@ class StopSign3CarTown03(MultiCarlaEnv):
                     "x_res": 168,
                     "y_res": 168,
                     "use_depth_camera": False,
-                    "send_measurements": False
+                    "send_measurements": False,
                 },
                 "car2": {
                     "type": "vehicle_4W",
@@ -66,7 +66,7 @@ class StopSign3CarTown03(MultiCarlaEnv):
                     "x_res": 168,
                     "y_res": 168,
                     "use_depth_camera": False,
-                    "send_measurements": False
+                    "send_measurements": False,
                 },
                 "car3": {
                     "type": "vehicle_4W",
@@ -86,9 +86,9 @@ class StopSign3CarTown03(MultiCarlaEnv):
                     "x_res": 168,
                     "y_res": 168,
                     "use_depth_camera": False,
-                    "send_measurements": False
-                }
-            }
+                    "send_measurements": False,
+                },
+            },
         }
         super(StopSign3CarTown03, self).__init__(self.configs)
 
@@ -121,8 +121,9 @@ if __name__ == "__main__":
             # action_dict = get_next_actions(info, env.discrete_actions)
             for actor_id in total_reward_dict.keys():
                 total_reward_dict[actor_id] += reward[actor_id]
-            print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
-                i, reward, total_reward_dict, done))
+            print(":{}\n\t".join(["Step#", "rew", "ep_rew",
+                                  "done{}"]).format(i, reward,
+                                                    total_reward_dict, done))
 
             time.sleep(0.1)
 

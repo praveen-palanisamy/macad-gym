@@ -14,9 +14,9 @@
         "verbose": false,
         "use_depth_camera": false,
         "send_measurements": false,
-        "sync_server": true
+        "sync_server": true,
+        "fixed_delta_seconds": 0.05
     },
-
     "actors": {
         "vehicle1": {
             "enable_planner": true,
