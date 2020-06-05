@@ -24,7 +24,8 @@ USI3C_CONFIGS = {
         "send_measurements": False,
         "enable_planner": True,
         "spectator_loc": [70, -125, 9],
-        "sync_server": True
+        "sync_server": True,
+        "fixed_delta_seconds": 0.05,
     },
     "actors": {
         "car1": {
@@ -47,7 +48,7 @@ USI3C_CONFIGS = {
             "x_res": 168,
             "y_res": 168,
             "use_depth_camera": False,
-            "send_measurements": False
+            "send_measurements": False,
         },
         "car2": {
             "type": "vehicle_4W",
@@ -69,7 +70,7 @@ USI3C_CONFIGS = {
             "x_res": 168,
             "y_res": 168,
             "use_depth_camera": False,
-            "send_measurements": False
+            "send_measurements": False,
         },
         "car3": {
             "type": "vehicle_4W",
@@ -91,15 +92,14 @@ USI3C_CONFIGS = {
             "x_res": 168,
             "y_res": 168,
             "use_depth_camera": False,
-            "send_measurements": False
-        }
-    }
+            "send_measurements": False,
+        },
+    },
 }
 
 
 class UrbanSignalIntersection3Car(MultiCarlaEnv):
     """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
-
     def __init__(self):
         self.configs = USI3C_CONFIGS
         super(UrbanSignalIntersection3Car, self).__init__(self.configs)
@@ -133,8 +133,9 @@ if __name__ == "__main__":
             # action_dict = get_next_actions(info, env.discrete_actions)
             for actor_id in total_reward_dict.keys():
                 total_reward_dict[actor_id] += reward[actor_id]
-            print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
-                i, reward, total_reward_dict, done))
+            print(":{}\n\t".join(["Step#", "rew", "ep_rew",
+                                  "done{}"]).format(i, reward,
+                                                    total_reward_dict, done))
 
             time.sleep(0.1)
 

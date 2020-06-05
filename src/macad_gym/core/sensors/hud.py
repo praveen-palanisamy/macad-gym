@@ -54,8 +54,8 @@ class HUD(object):
         self._info_text = [
             'Server:  % 16d FPS' % self.server_fps,
             'Client:  % 16d FPS' % clock.get_fps(), '',
-            'Vehicle: % 20s' % get_actor_display_name(
-                world.vehicle, truncate=20),
+            'Vehicle: % 20s' %
+            get_actor_display_name(world.vehicle, truncate=20),
             'Map:     % 20s' % world.world.map_name,
             'Simulation time: % 12s' %
             datetime.timedelta(seconds=int(self.simulation_time)), '',
@@ -85,7 +85,7 @@ class HUD(object):
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
         self._notifications.tick(world, clock)
 
-    def distance(self, l, t):
+    def distance(self, l, t):  # noqa: E741
         return math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 +
                          (l.z - t.location.z)**2)
 
@@ -130,9 +130,9 @@ class HUD(object):
                                          1)
                         f = (item[1] - item[2]) / (item[3] - item[2])
                         if item[2] < 0.0:
-                            rect = pygame.Rect(
-                                (bar_h_offset + f * (bar_width - 6),
-                                 v_offset + 8), (6, 6))
+                            rect = pygame.Rect((bar_h_offset + f *
+                                                (bar_width - 6), v_offset + 8),
+                                               (6, 6))
                         else:
                             rect = pygame.Rect((bar_h_offset, v_offset + 8),
                                                (f * bar_width, 6))

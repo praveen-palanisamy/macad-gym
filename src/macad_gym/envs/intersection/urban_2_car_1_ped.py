@@ -24,7 +24,8 @@ USI2C1P1B_CONFIGS = {
         "send_measurements": False,
         "enable_planner": True,
         "spectator_loc": [70, -125, 9],
-        "sync_server": True
+        "sync_server": True,
+        "fixed_delta_seconds": 0.05,
     },
     "actors": {
         "car1": {
@@ -45,7 +46,7 @@ USI2C1P1B_CONFIGS = {
             "x_res": 84,
             "y_res": 84,
             "use_depth_camera": False,
-            "send_measurements": False
+            "send_measurements": False,
         },
         "car2": {
             "type": "vehicle_4W",
@@ -65,7 +66,7 @@ USI2C1P1B_CONFIGS = {
             "x_res": 84,
             "y_res": 84,
             "use_depth_camera": False,
-            "send_measurements": False
+            "send_measurements": False,
         },
         "pedestrian1": {
             "type": "pedestrian",
@@ -85,7 +86,7 @@ USI2C1P1B_CONFIGS = {
             "x_res": 84,
             "y_res": 84,
             "use_depth_camera": False,
-            "send_measurements": False
+            "send_measurements": False,
         },
         "bike1": {
             "type": "vehicle_2W",
@@ -105,15 +106,14 @@ USI2C1P1B_CONFIGS = {
             "x_res": 84,
             "y_res": 84,
             "use_depth_camera": False,
-            "send_measurements": False
-        }
-    }
+            "send_measurements": False,
+        },
+    },
 }
 
 
 class UrbanSignalIntersection2Car1Ped1Bike(MultiCarlaEnv):
     """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
-
     def __init__(self):
         self.configs = USI2C1P1B_CONFIGS
         super(UrbanSignalIntersection2Car1Ped1Bike,
@@ -148,8 +148,9 @@ if __name__ == "__main__":
             # action_dict = get_next_actions(info, env.discrete_actions)
             for actor_id in total_reward_dict.keys():
                 total_reward_dict[actor_id] += reward[actor_id]
-            print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
-                i, reward, total_reward_dict, done))
+            print(":{}\n\t".join(["Step#", "rew", "ep_rew",
+                                  "done{}"]).format(i, reward,
+                                                    total_reward_dict, done))
 
             time.sleep(0.1)
 
