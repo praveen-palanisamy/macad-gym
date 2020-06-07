@@ -4,7 +4,6 @@ import numpy as np
 import pygame
 import weakref
 import carla
-from carla import ColorConverter as cc
 
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
 if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
@@ -14,7 +13,6 @@ if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
 class CameraManager(object):
     """This class from carla, manual_control.py
     """
-
     def __init__(self, parent_actor, hud):
         self.image = None  # need image to encode obs.
         self.image_list = []  # for save images later.
@@ -28,25 +26,32 @@ class CameraManager(object):
         # supported through toggle_camera
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.6, z=1.7)),
-            carla.Transform(
-                carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15))
+            carla.Transform(carla.Location(x=-5.5, z=2.8),
+                            carla.Rotation(pitch=-15))
         ]
         # 0 is dashcam view; 1 is tethered view
         self._transform_index = 0
         self._sensors = [
-            ['sensor.camera.rgb', cc.Raw, 'Camera RGB'],
-            ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)'],
-            ['sensor.camera.depth', cc.Depth, 'Camera Depth (Gray Scale)'],
+            ['sensor.camera.rgb', carla.ColorConverter.Raw, 'Camera RGB'],
             [
-                'sensor.camera.depth', cc.LogarithmicDepth,
+                'sensor.camera.depth', carla.ColorConverter.Raw,
+                'Camera Depth (Raw)'
+            ],
+            [
+                'sensor.camera.depth', carla.ColorConverter.Depth,
+                'Camera Depth (Gray Scale)'
+            ],
+            [
+                'sensor.camera.depth', carla.ColorConverter.LogarithmicDepth,
                 'Camera Depth (Logarithmic Gray Scale)'
             ],
             [
-                'sensor.camera.semantic_segmentation', cc.Raw,
-                'Camera Semantic Segmentation (Raw)'
+                'sensor.camera.semantic_segmentation',
+                carla.ColorConverter.Raw, 'Camera Semantic Segmentation (Raw)'
             ],
             [
-                'sensor.camera.semantic_segmentation', cc.CityScapesPalette,
+                'sensor.camera.semantic_segmentation',
+                carla.ColorConverter.CityScapesPalette,
                 'Camera Semantic Segmentation (CityScapes Palette)'
             ], ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)']
         ]
@@ -119,8 +124,8 @@ class CameraManager(object):
 
     def toggle_recording(self):
         self._recording = not self._recording
-        self._hud.notification(
-            'Recording %s' % ('On' if self._recording else 'Off'))
+        self._hud.notification('Recording %s' %
+                               ('On' if self._recording else 'Off'))
 
     def render(self, display):
         if self._surface is not None:
