@@ -1,4 +1,4 @@
-name: PyPI
+name: Publish package to PyPI
 on:
   release:
     types: [created]
@@ -22,7 +22,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN}}
-          repository_url: https://test.pypi.org/legacy
+          repository_url: https://test.pypi.org/legacy/
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
