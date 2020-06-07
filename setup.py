@@ -19,7 +19,7 @@ long_description = long_description.replace(
 
 setup(
     name="macad-gym",
-    version='0.1.2',
+    version='0.1.3',
     description='Learning environments for Multi-Agent Connected Autonomous'
     ' Driving (MACAD) with OpenAI Gym compatible interfaces',
     long_description=long_description,
