@@ -210,11 +210,12 @@ class Reward(object):
         prev_dist = self.prev["distance_to_goal"]
         self.reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
         self.reward += np.clip(self.curr["forward_speed"], 0.0, 30.0) / 10
-        new_damage = (
-            self.curr["collision_vehicles"] +
-            self.curr["collision_pedestrians"] + self.curr["collision_other"] -
-            self.prev["collision_vehicles"] -
-            self.prev["collision_pedestrians"] - self.prev["collision_other"])
+        new_damage = (self.curr["collision_vehicles"] +
+                      self.curr["collision_pedestrians"] +
+                      self.curr["collision_other"] -
+                      self.prev["collision_vehicles"] -
+                      self.prev["collision_pedestrians"] -
+                      self.prev["collision_other"])
         if new_damage:
             self.reward -= 100.0
 
@@ -233,8 +234,8 @@ class Reward(object):
         # Distance travelled toward the goal in m
         self.reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
         # Change in speed (km/h)
-        self.reward += 0.05 * (
-            self.curr["forward_speed"] - self.prev["forward_speed"])
+        self.reward += 0.05 * (self.curr["forward_speed"] -
+                               self.prev["forward_speed"])
         # New collision damage
         self.reward -= .00002 * (
             self.curr["collision_vehicles"] +
@@ -257,11 +258,12 @@ class Reward(object):
         # Speed reward, up 30.0 (km/h)
         self.reward += np.clip(self.curr["forward_speed"], 0.0, 30.0) / 10
         # New collision damage
-        new_damage = (
-            self.curr["collision_vehicles"] +
-            self.curr["collision_pedestrians"] + self.curr["collision_other"] -
-            self.prev["collision_vehicles"] -
-            self.prev["collision_pedestrians"] - self.prev["collision_other"])
+        new_damage = (self.curr["collision_vehicles"] +
+                      self.curr["collision_pedestrians"] +
+                      self.curr["collision_other"] -
+                      self.prev["collision_vehicles"] -
+                      self.prev["collision_pedestrians"] -
+                      self.prev["collision_other"])
         if new_damage:
             self.reward -= 100.0
         # Sidewalk intersection
@@ -640,7 +642,8 @@ class Detecter(object):
 
 def find_weather_presets():
     rgx = re.compile('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)')
-    name = lambda x: ' '.join(m.group(0) for m in rgx.finditer(x))  # noqa: E731
+    name = lambda x: ' '.join(  # noqa: E731
+        m.group(0) for m in rgx.finditer(x))
     presets = [
         x for x in dir(carla.WeatherParameters) if re.match('[A-Z].+', x)
     ]
@@ -809,8 +812,7 @@ class World(object):
             if actor is not None:
                 actor.destroy()
         # TODO: self.world.try_delete_actor(), expecting this API in future
-        tmp_vm = self.vehicle_manager_list.pop(vehicle_idx)
-        del tmp_vm
+        _ = self.vehicle_manager_list.pop(vehicle_idx)
 
     def spawn_new_vehicle(self, vehicle_m):
         wps = self.map.get_waypoint(vehicle_m.get_location())
@@ -838,9 +840,9 @@ class World(object):
         if vehicle is not None:
             self.vehicle_list.append(vehicle)
             vmanager = VehicleManager(vehicle)
-            self.prev_measurements[self.
-                                   num_vehicles] = vmanager.read_observation(
-                                       self.scenario, self.config)
+            self.prev_measurements[
+                self.num_vehicles] = vmanager.read_observation(
+                    self.scenario, self.config)
             self.num_vehicles += 1
             self.done.append(False)
             self.vehicle_manager_list.append(vmanager)
@@ -1123,32 +1125,38 @@ class TrafficLight(object):
                                                    y_agent, depth + 1)
                 if result is not None:
                     return result
-                result = search_closest_lane_point(
-                    x_agent, y_agent + step_size, depth + 1)
+                result = search_closest_lane_point(x_agent,
+                                                   y_agent + step_size,
+                                                   depth + 1)
                 if result is not None:
                     return result
-                result = search_closest_lane_point(
-                    x_agent + step_size, y_agent + step_size, depth + 1)
+                result = search_closest_lane_point(x_agent + step_size,
+                                                   y_agent + step_size,
+                                                   depth + 1)
                 if result is not None:
                     return result
-                result = search_closest_lane_point(
-                    x_agent + step_size, y_agent - step_size, depth + 1)
+                result = search_closest_lane_point(x_agent + step_size,
+                                                   y_agent - step_size,
+                                                   depth + 1)
                 if result is not None:
                     return result
-                result = search_closest_lane_point(
-                    x_agent - step_size, y_agent + step_size, depth + 1)
+                result = search_closest_lane_point(x_agent - step_size,
+                                                   y_agent + step_size,
+                                                   depth + 1)
                 if result is not None:
                     return result
                 result = search_closest_lane_point(x_agent - step_size,
                                                    y_agent, depth + 1)
                 if result is not None:
                     return result
-                result = search_closest_lane_point(
-                    x_agent, y_agent - step_size, depth + 1)
+                result = search_closest_lane_point(x_agent,
+                                                   y_agent - step_size,
+                                                   depth + 1)
                 if result is not None:
                     return result
-                result = search_closest_lane_point(
-                    x_agent - step_size, y_agent - step_size, depth + 1)
+                result = search_closest_lane_point(x_agent - step_size,
+                                                   y_agent - step_size,
+                                                   depth + 1)
                 if result is not None:
                     return result
             else:
@@ -1174,7 +1182,6 @@ class TrafficLight(object):
             returnning 'green' if it crossed a green light
             or none otherwise
         """
-
         def is_on_burning_point(_map, location):  # location of vehicle
             # We get the current lane orientation
             ori_x, ori_y = _map.get_lane_orientation(
@@ -1238,8 +1245,9 @@ class LaneInvasionSensor(object):
         self._hud = hud
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.lane_detector')
-        self.sensor = world.spawn_actor(
-            bp, carla.Transform(), attach_to=self._parent)
+        self.sensor = world.spawn_actor(bp,
+                                        carla.Transform(),
+                                        attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
@@ -1290,8 +1298,9 @@ class CollisionSensor(object):
         self.collision_type_id_set = set()
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.collision')
-        self.sensor = world.spawn_actor(
-            bp, carla.Transform(), attach_to=self._parent)
+        self.sensor = world.spawn_actor(bp,
+                                        carla.Transform(),
+                                        attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
@@ -1368,11 +1377,10 @@ class CameraManager(object):
         self._recording = False
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.6, z=1.7)),
-            carla.Transform(
-                carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
-            carla.Transform(
-                carla.Location(x=24, z=28.0),
-                carla.Rotation(roll=-90, pitch=-90)), transform
+            carla.Transform(carla.Location(x=-5.5, z=2.8),
+                            carla.Rotation(pitch=-15)),
+            carla.Transform(carla.Location(x=24, z=28.0),
+                            carla.Rotation(roll=-90, pitch=-90)), transform
         ]
         if transform is not None:
             self._transform_index = 3
@@ -1448,8 +1456,8 @@ class CameraManager(object):
 
     def toggle_recording(self):
         self._recording = not self._recording
-        self._hud.notification(
-            'Recording %s' % ('On' if self._recording else 'Off'))
+        self._hud.notification('Recording %s' %
+                               ('On' if self._recording else 'Off'))
 
     def render(self, display):
         if self._surface is not None:
@@ -1536,34 +1544,29 @@ def game_loop(args):
 def main():
     argparser = argparse.ArgumentParser(
         description='CARLA Manual Control Client')
-    argparser.add_argument(
-        '-v',
-        '--verbose',
-        action='store_true',
-        dest='debug',
-        help='print debug information')
-    argparser.add_argument(
-        '--host',
-        metavar='H',
-        default='127.0.0.1',
-        help='IP of the host server (default: 127.0.0.1)')
-    argparser.add_argument(
-        '-p',
-        '--port',
-        metavar='P',
-        default=2000,
-        type=int,
-        help='TCP port to listen to (default: 2000)')
-    argparser.add_argument(
-        '-a',
-        '--autopilot',
-        action='store_true',
-        help='enable autopilot at spawn')
-    argparser.add_argument(
-        '--res',
-        metavar='WIDTHxHEIGHT',
-        default='1280x720',
-        help='window resolution (default: 1280x720)')
+    argparser.add_argument('-v',
+                           '--verbose',
+                           action='store_true',
+                           dest='debug',
+                           help='print debug information')
+    argparser.add_argument('--host',
+                           metavar='H',
+                           default='127.0.0.1',
+                           help='IP of the host server (default: 127.0.0.1)')
+    argparser.add_argument('-p',
+                           '--port',
+                           metavar='P',
+                           default=2000,
+                           type=int,
+                           help='TCP port to listen to (default: 2000)')
+    argparser.add_argument('-a',
+                           '--autopilot',
+                           action='store_true',
+                           help='enable autopilot at spawn')
+    argparser.add_argument('--res',
+                           metavar='WIDTHxHEIGHT',
+                           default='1280x720',
+                           help='window resolution (default: 1280x720)')
     args = argparser.parse_args()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
