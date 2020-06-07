@@ -7,6 +7,9 @@ driving scenarios for training Deep RL algorithms in homogeneous/heterogenous,
 communicating/non-communicating and other multi-agent settings. New environments and scenarios
  can be easily added using a simple, JSON-like configuration.
 
+[![PyPI version fury.io](https://badge.fury.io/py/macad-gym.svg)](https://pypi.python.org/pypi/macad-gym/)
+[![PyPI format](https://img.shields.io/pypi/pyversions/macad-gym.svg)](https://pypi.python.org/pypi/macad-gym/)
+[![PyPI download month](https://img.shields.io/pypi/dm/macad-gym.svg)](https://pypi.python.org/pypi/macad-gym/)
 ### Quick Start
 
 Install MACAD-Gym using `pip install macad-gym`.
