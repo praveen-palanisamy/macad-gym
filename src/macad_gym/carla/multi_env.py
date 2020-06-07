@@ -222,7 +222,6 @@ try:
     MultiAgentEnvBases.append(MultiAgentEnv)
 except ImportError:
     logger.warning("\n Disabling RLlib support.", exc_info=True)
-    pass
 
 
 class MultiCarlaEnv(*MultiAgentEnvBases):
@@ -460,7 +459,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         str(self._env_config["render_x_res"]),
                         "-ResY=",
                         str(self._env_config["render_y_res"]),
-                        "-benchmark -fps=20"
+                        "-benchmark -fps=20",
                         "-carla-server",
                         "-carla-world-port={} -carla-streaming-port=0".format(
                             self._server_port),
@@ -558,7 +557,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self._client = None
         except Exception as e:
             print("Error disconnecting client: {}".format(e))
-            pass
         if self._server_process:
             pgid = os.getpgid(self._server_process.pid)
             os.killpg(pgid, signal.SIGKILL)
@@ -586,7 +584,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                                                        RETRIES_ON_ERROR))
                 self._clear_server_state()
                 error = e
-        raise error
+                raise error
 
     # TODO: Is this function required?
     # TODO: Thought: Run server in headless mode always. Use pygame win on
@@ -863,7 +861,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     if self._sync_server:
                         self.world.tick()
                         self.world.wait_for_tick()
-                    pass
                 if cam.image is None:
                     print("callback_count:", actor_id, ":", cam.callback_count)
                 image = preprocess_image(cam.image, actor_config)
