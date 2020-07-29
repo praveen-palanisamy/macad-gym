@@ -9,7 +9,7 @@ communicating/non-communicating and other multi-agent settings. New environments
 
 [![PyPI version fury.io](https://badge.fury.io/py/macad-gym.svg)](https://pypi.python.org/pypi/macad-gym/)
 [![PyPI format](https://img.shields.io/pypi/pyversions/macad-gym.svg)](https://pypi.python.org/pypi/macad-gym/)
-[![PyPI download month](https://img.shields.io/pypi/dm/macad-gym.svg)](https://pypi.python.org/pypi/macad-gym/)
+[![Downloads](https://pepy.tech/badge/macad-gym)](https://pepy.tech/project/macad-gym)
 ### Quick Start
 
 Install MACAD-Gym using `pip install macad-gym`.
