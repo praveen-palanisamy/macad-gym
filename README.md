@@ -202,6 +202,8 @@ If you find this work useful in your research, please cite:
 </details>
 
 ###### **NOTEs**:
-> MACAD-Gym is for CARLA 0.9.x . If you are
+- MACAD-Gym supports multi-GPU setups and it will choose the GPU that is less loaded to launch the simulation needed for the RL training environment
+
+- MACAD-Gym is for CARLA 0.9.x & above . If you are
 looking for an OpenAI Gym-compatible agent learning environment for CARLA 0.8.x (stable release),
 use [this carla_gym environment](https://github.com/PacktPublishing/Hands-On-Intelligent-Agents-with-OpenAI-Gym/tree/master/ch8/environment).
