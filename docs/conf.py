@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.abspath('../src/macad_gym/carla/PythonAPI'))
 # -- Project information -----------------------------------------------------
 
 project = 'MACAD-Gym'
-copyright = '2019, Praveen Palanisamy'
+copyright = '2020, Praveen Palanisamy'
 author = 'Praveen Palanisamy'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.0'
+release = '0.1.3'
 
 # -- General configuration ---------------------------------------------------
 
