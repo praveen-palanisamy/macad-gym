@@ -38,3 +38,4 @@ for ep in range(2):
         obs, reward, done, info = env.step(agent.get_action(obs))
         print(f"Step#:{step}  Rew:{reward}  Done:{done}")
         step += 1
+env.close()
