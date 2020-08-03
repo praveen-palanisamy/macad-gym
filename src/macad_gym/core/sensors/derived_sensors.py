@@ -134,7 +134,7 @@ class CollisionSensor(object):
         collided_type = type(_cur).__name__
         if collided_type == 'Vehicle':
             self.collision_vehicles += 1
-        elif collided_type == 'Pedestrian':
+        elif collided_type == 'Walker':
             self.collision_pedestrians += 1
         elif collided_type == 'Actor':
             self.collision_other += 1
