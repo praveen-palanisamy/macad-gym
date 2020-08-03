@@ -61,7 +61,7 @@ env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
      - Create a new conda env named "macad-gym" and install the required packages:
       `conda env create -f conda_env.yaml`
      - Activate the `macad-gym` conda python env:
-      `source activate carla-gym`
+      `source activate macad-gym`
      - Install the `macad-gym` package:
 	  `pip install -e .`
      - Install CARLA PythonAPI: `pip install carla==0.9.4`
