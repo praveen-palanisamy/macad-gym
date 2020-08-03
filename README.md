@@ -59,7 +59,7 @@ env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
      - Fork/Clone the repository to your workspace:
         `git clone https://github.com/praveen-palanisamy/macad-gym.git && cd macad-gym`
      - Create a new conda env named "macad-gym" and install the required packages:
-      `conda env create -f conda_env.yaml`
+      `conda env create -f conda_env.yml`
      - Activate the `macad-gym` conda python env:
       `source activate macad-gym`
      - Install the `macad-gym` package:
