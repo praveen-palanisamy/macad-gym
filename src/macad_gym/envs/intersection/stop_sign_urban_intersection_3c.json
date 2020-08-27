@@ -3,6 +3,8 @@
             "env": {
                 "server_map": "/Game/Carla/Maps/Town03",
                 "render": true,
+        	    "render_x_res": 800,
+        	    "render_y_res": 600,
                 "x_res": 168,
                 "y_res": 168,
                 "framestack": 1,
@@ -13,7 +15,8 @@
                 "send_measurements": false,
                 "enable_planner": true,
                 "spectator_loc": [140, 68, 9],
-                "synch_server": true
+                "sync_server": true,
+        	    "fixed_delta_seconds": 0.05
             },
             "actors": {
                 "car1": {
