@@ -68,6 +68,9 @@ if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
 SERVER_BINARY = os.environ.get(
     "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.4/CarlaUE4.sh"))
 
+# Check if is using on Windows
+IS_WINDOWS_PLATFORM = "win" in sys.platform
+
 assert os.path.exists(SERVER_BINARY), (
     "Make sure CARLA_SERVER environment"
     " variable is set & is pointing to the"
@@ -79,6 +82,8 @@ assert os.path.exists(SERVER_BINARY), (
 DEFAULT_MULTIENV_CONFIG = {
     "scenarios": "DEFAULT_SCENARIO_TOWN1",
     "env": {
+        # Since Carla 0.9.6, you have to use `client.load_world(server_map)`
+        # instead of passing the map name as an argument
         "server_map": "/Game/Carla/Maps/Town01",
         "render": True,
         "render_x_res": 800,
@@ -203,7 +208,14 @@ live_carla_processes = set()
 def cleanup():
     print("Killing live carla processes", live_carla_processes)
     for pgid in live_carla_processes:
-        os.killpg(pgid, signal.SIGKILL)
+        if IS_WINDOWS_PLATFORM:
+            # for Windows
+            subprocess.call(['taskkill', '/F', '/T', '/PID', str(pgid)])
+        else:
+            # for Linux
+            os.killpg(pgid, signal.SIGKILL)
+
+    live_carla_processes.clear()
 
 
 def termination_cleanup(*_):
@@ -405,32 +417,38 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 # Check if vglrun is setup to launch sim on multipl GPUs
                 if shutil.which("vglrun") is not None:
                     self._server_process = subprocess.Popen(
-                        ("DISPLAY=:8 vglrun -d :7.{} {} {} -benchmark -fps=20"
+                        ("DISPLAY=:8 vglrun -d :7.{} {} -benchmark -fps=20"
                          " -carla-server -world-port={}"
                          " -carla-streaming-port=0".format(
                              min_index,
                              SERVER_BINARY,
-                             self._server_map,
                              self._server_port,
                          )),
                         shell=True,
-                        preexec_fn=os.setsid,
+                        # for Linux
+                        preexec_fn=None if IS_WINDOWS_PLATFORM else os.setsid,
+                        # for Windows (not necessary)
+                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if IS_WINDOWS_PLATFORM else 0,
                         stdout=open(log_file, "w"),
                     )
 
                 # Else, run in headless mode and try the SDL CUDA hint
                 else:
+                    # TODO: Since carla 0.9.12+ you should use -RenderOffScreen to start headlessly
+                    # https://carla.readthedocs.io/en/latest/adv_rendering_options/
                     self._server_process = subprocess.Popen(
                         ("SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE={}"
-                         " {} {} -benchmark -fps=20 -carla-server"
+                         " {} -benchmark -fps=20 -carla-server"
                          " -world-port={} -carla-streaming-port=0".format(
                              min_index,
                              SERVER_BINARY,
-                             self._server_map,
                              self._server_port,
                          )),
                         shell=True,
-                        preexec_fn=os.setsid,
+                        # for Linux
+                        preexec_fn=None if IS_WINDOWS_PLATFORM else os.setsid,
+                        # for Windows (not necessary)
+                        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if IS_WINDOWS_PLATFORM else 0,
                         stdout=open(log_file, "w"),
                     )
             # TODO: Make the try-except style handling work with Popen
@@ -450,21 +468,30 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # Rendering mode and also a fallback if headless/multi-GPU doesn't work
         if multigpu_success is False:
             try:
+                print("Using single gpu to initialize carla server")
+                print("""Details:
+                      1. Port: {}
+                      2. Map: {}
+                      3. Binary: {}""".format(self._server_port, self._server_map, SERVER_BINARY))
+
                 self._server_process = subprocess.Popen(
                     [
                         SERVER_BINARY,
-                        self._server_map,
                         "-windowed",
                         "-ResX=",
                         str(self._env_config["render_x_res"]),
                         "-ResY=",
                         str(self._env_config["render_y_res"]),
-                        "-benchmark -fps=20",
+                        "-benchmark",
+                        "-fps=20",
                         "-carla-server",
-                        "-carla-world-port={} -carla-streaming-port=0".format(
-                            self._server_port),
+                        "-carla-rpc-port={}".format(self._server_port),
+                        "-carla-streaming-port=0"
                     ],
-                    preexec_fn=os.setsid,
+                    # for Linux
+                    preexec_fn=None if IS_WINDOWS_PLATFORM else os.setsid,
+                    # for Windows (not necessary)
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if IS_WINDOWS_PLATFORM else 0,
                     stdout=open(log_file, "w"),
                 )
                 print("Running simulation in single-GPU mode")
@@ -472,20 +499,29 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 logger.debug(e)
                 print("FATAL ERROR while launching server:", sys.exc_info()[0])
 
-        live_carla_processes.add(os.getpgid(self._server_process.pid))
+        if IS_WINDOWS_PLATFORM:
+            live_carla_processes.add(self._server_process.pid)
+        else:
+            live_carla_processes.add(os.getpgid(self._server_process.pid))
 
         # Start client
         self._client = None
         while self._client is None:
             try:
                 self._client = carla.Client("localhost", self._server_port)
+                # The socket establishment could takes some time
+                time.sleep(2)
                 self._client.set_timeout(2.0)
-                self._client.get_server_version()
+                print("Client successfully connected to server, Carla-Server version: ",
+                      self._client.get_server_version())
             except RuntimeError as re:
                 if "timeout" not in str(re) and "time-out" not in str(re):
                     print("Could not connect to Carla server because:", re)
                 self._client = None
+
         self._client.set_timeout(60.0)
+        # load map using client api since 0.9.6+
+        self._client.load_world(self._server_map)
         self.world = self._client.get_world()
         world_settings = self.world.get_settings()
         world_settings.synchronous_mode = self._sync_server
@@ -522,9 +558,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         """
 
-        for cam in self._cameras.values():
-            if cam.sensor.is_alive:
-                cam.sensor.destroy()
+        # The destroy process for cameras is handled in camera_manager.py
+        # for cam in self._cameras.values():
+        #     if cam.sensor.is_alive:
+        #         cam.sensor.destroy()
 
         for colli in self._collisions.values():
             if colli.sensor.is_alive:
@@ -558,9 +595,15 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         except Exception as e:
             print("Error disconnecting client: {}".format(e))
         if self._server_process:
-            pgid = os.getpgid(self._server_process.pid)
-            os.killpg(pgid, signal.SIGKILL)
-            live_carla_processes.remove(pgid)
+            if IS_WINDOWS_PLATFORM:
+                subprocess.call(['taskkill', '/F', '/T', '/PID',
+                                str(self._server_process.pid)])
+                live_carla_processes.remove(self._server_process.pid)
+            else:
+                pgid = os.getpgid(self._server_process.pid)
+                os.killpg(pgid, signal.SIGKILL)
+                live_carla_processes.remove(pgid)
+
             self._server_port = None
             self._server_process = None
 
@@ -677,7 +720,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
             if self._sync_server:
                 self.world.tick()
-                self.world.wait_for_tick()
+                # `wait_for_tick` is no longer needed, see https://github.com/carla-simulator/carla/pull/1803
+                # self.world.wait_for_tick()
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 break
             # Wait to see if spawn area gets cleared before retrying
@@ -728,7 +772,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self.world.set_weather(WEATHERS[weather_num])
 
         self._weather = [
-            self.world.get_weather().cloudyness,
+            self.world.get_weather().cloudiness,
             self.world.get_weather().precipitation,
             self.world.get_weather().precipitation_deposits,
             self.world.get_weather().wind_intensity,
@@ -860,7 +904,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 while cam.callback_count == 0:
                     if self._sync_server:
                         self.world.tick()
-                        self.world.wait_for_tick()
+                        # `wait_for_tick` is no longer needed, see https://github.com/carla-simulator/carla/pull/1803
+                        # self.world.wait_for_tick()
                 if cam.image is None:
                     print("callback_count:", actor_id, ":", cam.callback_count)
                 image = preprocess_image(cam.image, actor_config)
@@ -1096,7 +1141,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # "(A)Synchronous (carla) server
         if self._sync_server:
             self.world.tick()
-            self.world.wait_for_tick()
+            # `wait_for_tick` is no longer needed, see https://github.com/carla-simulator/carla/pull/1803
+            # self.world.wait_for_tick()
 
         # Process observations
         py_measurements = self._read_observation(actor_id)
