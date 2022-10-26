@@ -45,49 +45,48 @@ class KeyboardControl(object):
         # world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
     def parse_events(self, world, clock):
-        self.vehicle = world.actor_list[self.actor_id]
+        self.vehicle = world._actors[self.actor_id]
+        self.camera = world._cameras[self.actor_id]
         self.vehicle.set_autopilot(self._autopilot_enabled)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return True
-            elif event.type == pygame.KEYUP:
-                if self._is_quit_shortcut(event.key):
+        if pygame.get_init():
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
                     return True
-                elif event.key == K_BACKSPACE:
-                    world.restart()
-                elif event.key == K_F1:
-                    world.hud.toggle_info()
-                elif event.key == K_h or (event.key == K_SLASH and
-                                          pygame.key.get_mods() & KMOD_SHIFT):
-                    world.hud.help.toggle()
-                elif event.key == K_TAB:
-                    world.camera_manager.toggle_camera()
-                elif event.key == K_c and pygame.key.get_mods() & KMOD_SHIFT:
-                    world.next_weather(reverse=True)
-                elif event.key == K_c:
-                    world.next_weather()
-                elif event.key == K_BACKQUOTE:
-                    world.camera_manager.next_sensor()
-                elif event.key > K_0 and event.key <= K_9:
-                    world.camera_manager.set_sensor(event.key - 1 - K_0)
-                elif event.key == K_r:
-                    world.camera_manager.toggle_recording()
-                elif event.key == K_q:
-                    self._control.reverse = not self._control.reverse
-                elif event.key == K_p:
-                    self._autopilot_enabled = not self._autopilot_enabled
-                    self.vehicle.set_autopilot(self._autopilot_enabled)
-                    world.hud.notification(
-                        'Autopilot %s' %
-                        ('On' if self._autopilot_enabled else 'Off'))
-        if not self._autopilot_enabled:
-            if self.actor_id == 0:
-                self._parse_keys1(pygame.key.get_pressed(), clock.get_time())
-            elif self.actor_id == 1:
-                self._parse_keys2(pygame.key.get_pressed(), clock.get_time())
-            elif self.actor_id == -1:  # use default ones
-                self._parse_keys(pygame.key.get_pressed(), clock.get_time())
-            self.vehicle.apply_control(self._control)
+                elif event.type == pygame.KEYUP:
+                    if self._is_quit_shortcut(event.key):
+                        return True
+                    elif event.key == K_BACKSPACE:
+                        world.restart()
+                    elif event.key == K_F1:
+                        world.hud.toggle_info()
+                    elif event.key == K_h or (event.key == K_SLASH and
+                                              pygame.key.get_mods() & KMOD_SHIFT):
+                        world.hud.help.toggle()
+                    elif event.key == K_TAB:
+                        self.camera.toggle_camera()
+                    elif event.key == K_c and pygame.key.get_mods() & KMOD_SHIFT:
+                        world.next_weather(reverse=True)
+                    elif event.key == K_c:
+                        world.next_weather()
+                    elif event.key == K_BACKQUOTE:
+                        self.camera.next_sensor()
+                    elif event.key > K_0 and event.key <= K_9:
+                        self.camera.set_sensor(event.key - 1 - K_0)
+                    elif event.key == K_r:
+                        self.camera.toggle_recording()
+                    elif event.key == K_q:
+                        self._control.reverse = not self._control.reverse
+                    elif event.key == K_p:
+                        self._autopilot_enabled = not self._autopilot_enabled
+                        self.vehicle.set_autopilot(self._autopilot_enabled)
+            if not self._autopilot_enabled:
+                if self.actor_id == 0:
+                    self._parse_keys1(pygame.key.get_pressed(), clock.get_time())
+                elif self.actor_id == 1:
+                    self._parse_keys2(pygame.key.get_pressed(), clock.get_time())
+                elif self.actor_id == -1:  # use default ones
+                    self._parse_keys(pygame.key.get_pressed(), clock.get_time())
+                self.vehicle.apply_control(self._control)
 
     def _parse_keys(self, keys, milliseconds):
         self._control.throttle = 1.0 if keys[K_UP] or keys[K_w] else 0.0

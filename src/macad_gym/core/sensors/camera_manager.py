@@ -9,6 +9,14 @@ CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
 if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
     os.makedirs(CARLA_OUT_PATH)
 
+CAMERA_TYPES = {
+    "rgb": 0,
+    "depth_raw": 1,
+    "depth": 2,
+    "semseg_raw": 3,
+    "semseg": 4,
+    "ray": 5
+}
 
 class CameraManager(object):
     """This class from carla, manual_control.py
@@ -22,7 +30,6 @@ class CameraManager(object):
         self._hud = hud
         self._recording = False
         self._memory_record = False
-        # TODO: Make the camera positioning configurable. Toggling is already
         # supported through toggle_camera
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.6, z=1.7)),
@@ -95,17 +102,15 @@ class CameraManager(object):
         self.sensor.set_transform(
             self._camera_transforms[self._transform_index])
 
-    # TODO: Remove the hardcoded int index and make it sensor_type
-    def set_sensor(self, index, notify=True):
+    def set_sensor(self, index, pos=0, notify=True):
         index = index % len(self._sensors)
-        # TODO: Remove the hardcoded 0 ad use camera_type
-        # TODO: Use same keys as used in self._sensors
         needs_respawn = True if self._index is None \
             else self._sensors[index][0] != self._sensors[self._index][0]
         if needs_respawn:
             if self.sensor is not None:
                 self.sensor.destroy()
                 self._surface = None
+            self._transform_index = pos % len(self._camera_transforms)
             self.sensor = self._parent.get_world().spawn_actor(
                 self._sensors[index][-1],
                 self._camera_transforms[self._transform_index],
