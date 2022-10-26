@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 import time
 
-from env.carla.multi_env import MultiCarlaEnv
+from macad_gym.carla.multi_env import MultiCarlaEnv
 
-# from env.carla.multi_env import get_next_actions
+# from macad_gym.carla.multi_env import get_next_actions
 
-# config_file = open("urban_2_car_1_ped.json")
-# configs = json.load(config_file)
-
-U2C_CONFIGS = {
+SSUI1B2C1P_CONFIGS = {
+    "scenarios": "SSUI1B2C1P_TOWN3",
     "env": {
-        "enable_planner": True,
-        "server_map": "/Game/Carla/Maps/Town01",
+        "server_map": "/Game/Carla/Maps/Town03",
         "render": True,
         "render_x_res": 800,
         "render_y_res": 600,
@@ -23,16 +20,18 @@ U2C_CONFIGS = {
         "verbose": False,
         "use_depth_camera": False,
         "send_measurements": False,
+        "enable_planner": True,
+        "spectator_loc": [170, 75, 0.4],
         "sync_server": True,
         "fixed_delta_seconds": 0.05,
     },
     "actors": {
-        "vehicle1": {
+        "car1": {
+            "type": "vehicle_4W",
             "enable_planner": True,
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "DEFAULT_SCENARIO_TOWN1",
             "manual_control": False,
             "auto_control": False,
             "camera_type": "rgb",
@@ -41,19 +40,17 @@ U2C_CONFIGS = {
             "log_images": False,
             "log_measurements": False,
             "render": False,
-            "render_x_res": 800,
-            "render_y_res": 600,
             "x_res": 84,
             "y_res": 84,
             "use_depth_camera": False,
             "send_measurements": False,
         },
-        "vehicle2": {
+        "car2": {
+            "type": "vehicle_4W",
             "enable_planner": True,
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "DEFAULT_SCENARIO_TOWN1_2",
             "manual_control": False,
             "auto_control": False,
             "camera_type": "rgb",
@@ -62,8 +59,44 @@ U2C_CONFIGS = {
             "log_images": False,
             "log_measurements": False,
             "render": False,
-            "render_x_res": 800,
-            "render_y_res": 600,
+            "x_res": 84,
+            "y_res": 84,
+            "use_depth_camera": False,
+            "send_measurements": False,
+        },
+        "pedestrian1": {
+            "type": "pedestrian",
+            "enable_planner": True,
+            "convert_images_to_video": False,
+            "early_terminate_on_collision": True,
+            "reward_function": "corl2017",
+            "manual_control": False,
+            "auto_control": False,
+            "camera_type": "rgb",
+            "collision_sensor": "on",
+            "lane_sensor": "on",
+            "log_images": False,
+            "log_measurements": False,
+            "render": False,
+            "x_res": 84,
+            "y_res": 84,
+            "use_depth_camera": False,
+            "send_measurements": False,
+        },
+        "bike1": {
+            "type": "vehicle_2W",
+            "enable_planner": True,
+            "convert_images_to_video": False,
+            "early_terminate_on_collision": True,
+            "reward_function": "corl2017",
+            "manual_control": False,
+            "auto_control": False,
+            "camera_type": "rgb",
+            "collision_sensor": "on",
+            "lane_sensor": "on",
+            "log_images": False,
+            "log_measurements": False,
+            "render": False,
             "x_res": 84,
             "y_res": 84,
             "use_depth_camera": False,
@@ -73,19 +106,21 @@ U2C_CONFIGS = {
 }
 
 
-class Urban2Car(MultiCarlaEnv):
+class StopSign1B2C1PTown03(MultiCarlaEnv):
     """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
     def __init__(self):
-        self.configs = U2C_CONFIGS
-        super(Urban2Car, self).__init__(self.configs)
+        # config_file = open("stop_sign_1b2c1p_town03.json")
+        # self.configs = json.load(config_file)
+        self.configs = SSUI1B2C1P_CONFIGS
+        super(StopSign1B2C1PTown03,
+              self).__init__(self.configs)
 
 
 if __name__ == "__main__":
-    env = Urban2Car()
+    env = StopSign1B2C1PTown03()
     configs = env.configs
     for ep in range(2):
         obs = env.reset()
-        total_vehicle = env.num_vehicle
 
         total_reward_dict = {}
         action_dict = {}
@@ -94,7 +129,7 @@ if __name__ == "__main__":
         actor_configs = configs["actors"]
         for actor_id in actor_configs.keys():
             total_reward_dict[actor_id] = 0
-            if env.discrete_actions:
+            if env_config["discrete_actions"]:
                 action_dict[actor_id] = 3  # Forward
             else:
                 action_dict[actor_id] = [1, 0]  # test values

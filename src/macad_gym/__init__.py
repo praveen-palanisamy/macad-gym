@@ -27,6 +27,31 @@ _AVAILABLE_ENVS = {
         "Observable Intersection Multi-Agent scenario with "
         "Stop-Sign, 3 Cars in Town3, version 0"
     },
+    'HomoNcomIndePOIntrxMATLS3CTWN3-v0': {
+        "entry_point":
+        "macad_gym.envs:HomoNcomIndePOIntrxMATLS3CTWN3",
+        "description":
+        "Homogeneous, Non-communicating, Independent, Partially-"
+        "Observable Intersection Multi-Agent scenario with "
+        "Traffic-Light Signal, 3 Cars in Town3, version 0"
+    },
+    'HomoNcomIndePOUrbanMAF2CTWN1-v0': {
+        "entry_point":
+        "macad_gym.envs:HomoNcomIndePOUrbanMAF2CTWN1",
+        "description":
+        "Homogeneous, Non-communicating, Independent, Partially-"
+        "Observable Intersection Multi-Agent Follow scenario, "
+        "2 Cars in Town1, version 0"
+    },
+    'HeteNcomIndePOIntrxMASS1B2C1PTWN3-v0': {
+        "entry_point":
+        "macad_gym.envs:HeteNcomIndePOIntrxMASS1B2C1PTWN3",
+        "description":
+        "Heterogeneous, Non-communicating, Independent,"
+        "Partially-Observable Intersection Multi-Agent"
+        " scenario with Stop-Sign, 1-Bike, 2-Car,"
+        "1-Pedestrian in Town3, version 0"
+    },
     'HeteNcomIndePOIntrxMATLS1B2C1PTWN3-v0': {
         "entry_point":
         "macad_gym.envs:HeteNcomIndePOIntrxMATLS1B2C1PTWN3",

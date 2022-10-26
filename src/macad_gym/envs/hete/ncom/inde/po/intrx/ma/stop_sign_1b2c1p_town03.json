@@ -28,7 +28,6 @@
             "convert_images_to_video": false,
             "early_terminate_on_collision": true,
             "reward_function": "corl2017",
-            "scenarios": "INTERSECTION_TOWN3_CAR1",
             "manual_control": false,
             "auto_control": true,
             "camera_type": "rgb",
@@ -50,7 +49,6 @@
             "convert_images_to_video": false,
             "early_terminate_on_collision": true,
             "reward_function": "corl2017",
-            "scenarios": "INTERSECTION_TOWN3_CAR2",
             "manual_control": false,
             "auto_control": true,
             "camera_type": "rgb",
@@ -72,7 +70,6 @@
             "convert_images_to_video": false,
             "early_terminate_on_collision": true,
             "reward_function": "corl2017",
-            "scenarios": "INTERSECTION_TOWN3_PED1",
             "manual_control": false,
             "auto_control": false,
             "camera_type": "rgb",
@@ -88,13 +85,12 @@
             "use_depth_camera": false,
             "send_measurements": false
         },
-        "motorcycle1": {
+        "bike1": {
             "type": "vehicle_2W",
             "enable_planner": true,
             "convert_images_to_video": false,
             "early_terminate_on_collision": true,
             "reward_function": "corl2017",
-            "scenarios": "INTERSECTION_TOWN3_BIKE1",
             "manual_control": false,
             "auto_control": true,
             "camera_type": "rgb",

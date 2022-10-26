@@ -5,8 +5,10 @@ from macad_gym.carla.multi_env import MultiCarlaEnv
 
 
 class StopSign3CarTown03(MultiCarlaEnv):
-    """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
+    """A 3-way signalized intersection Multi-Agent Carla-Gym environment"""
     def __init__(self):
+        # config_file = open("stop_sign_3c_town03.json")
+        # self.configs = json.load(config_file)
         self.configs = {
             "scenarios": "SSUI3C_TOWN3",
             "env": {
@@ -34,7 +36,6 @@ class StopSign3CarTown03(MultiCarlaEnv):
                     "convert_images_to_video": False,
                     "early_terminate_on_collision": True,
                     "reward_function": "corl2017",
-                    "scenarios": "SSUI3C_TOWN3_CAR1",
                     "manual_control": False,
                     "auto_control": False,
                     "camera_type": "rgb",
@@ -54,7 +55,6 @@ class StopSign3CarTown03(MultiCarlaEnv):
                     "convert_images_to_video": False,
                     "early_terminate_on_collision": True,
                     "reward_function": "corl2017",
-                    "scenarios": "SSUI3C_TOWN3_CAR2",
                     "manual_control": False,
                     "auto_control": False,
                     "camera_type": "rgb",
@@ -74,7 +74,6 @@ class StopSign3CarTown03(MultiCarlaEnv):
                     "convert_images_to_video": False,
                     "early_terminate_on_collision": True,
                     "reward_function": "corl2017",
-                    "scenarios": "SSUI3C_TOWN3_CAR3",
                     "manual_control": False,
                     "auto_control": False,
                     "camera_type": "rgb",
@@ -106,7 +105,7 @@ if __name__ == "__main__":
         actor_configs = configs["actors"]
         for actor_id in actor_configs.keys():
             total_reward_dict[actor_id] = 0
-            if env._discrete_actions:
+            if env_config["discrete_actions"]:
                 action_dict[actor_id] = 3  # Forward
             else:
                 action_dict[actor_id] = [1, 0]  # test values

@@ -86,6 +86,30 @@ SSUI3C_TOWN3 = {
     "weather_distribution": [0],
     "max_steps": 500
 }
+SSUI1B2C1P_TOWN3 = {
+    "map": "Town03",
+    "actors": {
+        "car1": {
+            "start": [170.5, 80, 0.4],
+            "end": [144, 59, 0]
+        },
+        "car2": {
+            "start": [188, 59, 0.4],
+            "end": [167, 75.7, 0.13],
+        },
+        "pedestrian1": {
+            "start": [158, 75, 0.4],
+            "end": [185, 71, 0],
+        },
+        "bike1": {
+            "start": [147.6, 62.6, 0.4],
+            "end": [191.2, 62.7, 0],
+        },
+    },
+    "weather_distribution": [0],
+    "max_steps": 500
+}
+
 # End of TAG: SSUI3C
 """Signalized Urban Intersection scenario with 3 Cars passing through.
 CAR1: Starts almost inside the intersection, goes straight
@@ -94,7 +118,7 @@ CAR3: Starts behind CAR1 away from intersection, goes straight
 TAG: SUIC3
 """
 
-SUIC3_TOWN3 = {
+SUI3C_TOWN3 = {
     "map": "Town03",
     "actors": {
         "car1": {
@@ -135,7 +159,7 @@ SUI1B2C1P_TOWN3 = {
             "end": [104, -132, 8],
         }
     },
-    "max_steps": 200
+    "max_steps": 500
 }
 
 # Simple scenario for Town01 that involves driving down a road
