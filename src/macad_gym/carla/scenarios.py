@@ -363,7 +363,6 @@ class Scenarios(object):
 
     @classmethod
     def get_scenario_parameter(cls, scenario_name):
-        local_map = Scenarios.local_map
         if scenario_name in cls.local_map:
             return cls.local_map[scenario_name]
         else:
