@@ -26,8 +26,11 @@ def build_scenario(map, start, end, vehicles, pedestrians, max_steps, weathers):
     return scenario
 
 
-def build_ma_scenario(map, actors, max_steps, weathers):
-    scenario = {"map": map, "actors": actors, "weather_distribution": weathers, "max_steps": max_steps, }
+def build_ma_scenario(map, actors, vehicles=0, pedestrians=0, max_steps=500, weathers=None):
+    if weathers is None:
+        weathers = [0]
+    scenario = {"map": map, "actors": actors, "num_vehicles": vehicles, "num_pedestrians": pedestrians,
+                "weather_distribution": weathers, "max_steps": max_steps, }
     return scenario
 
 
@@ -160,6 +163,8 @@ class Scenarios(object):
             }
         },
         max_steps=2000,
+        vehicles=10,
+        pedestrians=10,
         weathers=[0])
 
     DEFAULT_SCENARIO_TOWN1_COMBINED_WITH_MANUAL = build_ma_scenario(
