@@ -345,28 +345,23 @@ class Scenarios(object):
     local_map = locals()
 
     @classmethod
-    def update_scenarios_parameter(cls, config_map):
-        if "scenarios" in config_map:
-            scenario_map = []
-            if isinstance(config_map["scenarios"], list):
-                for scenario_name in config_map["scenarios"]:
-                    scenario_map.append(cls.get_scenario_parameter(scenario_name))
-            elif isinstance(config_map["scenarios"], str):
-                scenario_map = cls.get_scenario_parameter(config_map["scenarios"])
-            try:
-                if scenario_map is None or (isinstance(scenario_map, list) and None in scenario_map):
-                    raise KeyError
-                config_map["scenarios"] = scenario_map
-            except KeyError:
-                print(config_map["scenarios"] + " scenario is not defined")
-        return config_map
+    def resolve_scenarios_parameter(cls, scenarios_parameter):
+        scenario_map = []
+        if isinstance(scenarios_parameter, dict):
+            scenario_map = scenarios_parameter
+        elif isinstance(scenarios_parameter, list):
+            for scenario_name in scenarios_parameter:
+                scenario_map.append(cls.get_scenario_parameter(scenario_name))
+        elif isinstance(scenarios_parameter, str):
+            scenario_map = cls.get_scenario_parameter(scenarios_parameter)
+        return scenario_map
 
     @classmethod
     def get_scenario_parameter(cls, scenario_name):
         if scenario_name in cls.local_map:
             return cls.local_map[scenario_name]
         else:
-            return None
+            return scenario_name
 
 # To extend the Scenarios class
 # class NewScenarios(Scenarios):

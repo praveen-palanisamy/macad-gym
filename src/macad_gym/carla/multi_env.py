@@ -262,16 +262,13 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         if configs is None:
             configs = DEFAULT_MULTIENV_CONFIG
-
-        # Overridable functionalities classes
+        # Functionalities classes
         self._reward_policy = Reward()
-        self._scenarios_collection = Scenarios
+        configs["scenarios"] = Scenarios.resolve_scenarios_parameter(configs["scenarios"])
 
-        self._scenarios_collection.update_scenarios_parameter(configs)
         self._scenario_config = configs["scenarios"]
         self._env_config = configs["env"]
         self._actor_configs = configs["actors"]
-        self.actors_list = list(self._actor_configs.keys())
         # list of str: Supported values for `type` filed in `actor_configs`
         # for actors than can be actively controlled
         self._supported_active_actor_types = [
@@ -383,7 +380,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self._collisions = {}  # Dictionary of sensors with actor_id as key
         self._lane_invasions = {}  # Dictionary of sensors with actor_id as key
         self._scenario_map = {}  # Dictionary with current scenario map config
-        self._load_scenario(self._scenario_config)
 
     @staticmethod
     def _get_tcp_port(port=0):
@@ -610,7 +606,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         Returns:
             N/A
         """
-        # World reset
+        # World reset and new scenario selection if multiple are available
+        self._load_scenario(self._scenario_config)
+
         for retry in range(RETRIES_ON_ERROR):
             try:
                 if not self._server_process:
