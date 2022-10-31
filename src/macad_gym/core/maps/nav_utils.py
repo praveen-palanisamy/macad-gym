@@ -74,7 +74,6 @@ def get_shortest_path_waypoints(world, planner, origin, destination):
     current_waypoint = start_waypoint
     route.append(RoadOption.VOID)
     for action in route:
-
         #   Generate waypoints to next junction
         wp_choice = current_waypoint.next(hop_resolution)
         while len(wp_choice) == 1:
@@ -82,11 +81,15 @@ def get_shortest_path_waypoints(world, planner, origin, destination):
             solution.append((current_waypoint, RoadOption.LANEFOLLOW))
             wp_choice = current_waypoint.next(hop_resolution)
             #   Stop at destination
-            if current_waypoint.transform.location.distance(
-                    end_waypoint.transform.location) < hop_resolution:
-                break
-        if action == RoadOption.VOID:
-            break
+            if current_waypoint.transform.location.distance(end_waypoint.transform.location) < hop_resolution:
+                return solution
+            if len(wp_choice) > 1 and action.value == RoadOption.VOID.value:
+                action = RoadOption.LANEFOLLOW
+                route.append(RoadOption.VOID)
+
+        if action.value == RoadOption.VOID.value:
+            print("Path not correctly created, from {} to {}".format(str(origin), str(destination)))
+            break  # safe break
 
         #   Select appropriate path at the junction
         if len(wp_choice) > 1:
@@ -100,18 +103,20 @@ def get_shortest_path_waypoints(world, planner, origin, destination):
             v_current = vector(current_location, projected_location)
 
             direction = 0
-            if action == RoadOption.LEFT:
+            if action.value == RoadOption.LEFT.value:
                 direction = 1
-            elif action == RoadOption.RIGHT:
+            elif action.value == RoadOption.RIGHT.value:
                 direction = -1
-            elif action == RoadOption.STRAIGHT:
+            elif action.value == RoadOption.STRAIGHT.value:
                 direction = 0
             select_criteria = float('inf')
 
             #   Choose correct path
-            for wp_select in wp_choice:
-                v_select = vector(current_location,
-                                  wp_select.transform.location)
+            future_wp = []
+            for wp in wp_choice:
+                future_wp.append(wp.next(5)[0])
+            for i, wp_select in enumerate(future_wp):
+                v_select = vector(current_location, wp_select.transform.location)
                 cross = float('inf')
                 if direction == 0:
                     cross = abs(np.cross(v_current, v_select)[-1])
@@ -119,14 +124,15 @@ def get_shortest_path_waypoints(world, planner, origin, destination):
                     cross = direction * np.cross(v_current, v_select)[-1]
                 if cross < select_criteria:
                     select_criteria = cross
-                    current_waypoint = wp_select
+                    current_waypoint = wp_choice[i]
 
-            #   Generate all waypoints within the junction
-            #   along selected path
+            # Generate all waypoints within the junction along selected path
             solution.append((current_waypoint, action))
             current_waypoint = current_waypoint.next(hop_resolution)[0]
             while current_waypoint.is_intersection:
                 solution.append((current_waypoint, action))
+                if current_waypoint.transform.location.distance(end_waypoint.transform.location) < hop_resolution:
+                    return solution
                 current_waypoint = current_waypoint.next(hop_resolution)[0]
 
     return solution
@@ -290,56 +296,48 @@ class PathTracker(object):
                 get_next_waypoint(self.world, self.destination)))
         self.path_index = 0
 
-    def advance_path(self):
+    def advance_path_index(self):
         if self.path_index < len(self.path):
-            last_dist = self.path[self.path_index][0].transform.location.\
-                distance(self.actor.get_location())
-
             for i in range(self.path_index + 1, len(self.path)):
-                dist = self.path[i][0].transform.location.\
-                    distance(self.actor.get_location())
-                if dist <= last_dist:
+                index_dist = self.actor.get_location().\
+                    distance(self.path[self.path_index][0].transform.location)
+                next_index_dist = self.actor.get_location().\
+                    distance(self.path[i][0].transform.location)
+                step_dist = self.path[self.path_index][0].transform.location.\
+                    distance(self.path[i][0].transform.location)
+                if step_dist <= index_dist and index_dist > next_index_dist:
                     self.path_index = i
                 else:
+                    if step_dist >= next_index_dist:
+                        self.path_index = i+1 if i+1 < len(self.path) else i
                     break
-                last_dist = dist
 
-    def seek_closest(self):
-        if len(self.path) > 0:
-            close_dist = self.path[0][0].transform.location.\
-                distance(self.actor.get_location())
-            close_i = 0
-
-            for i in range(1, len(self.path)):
-                cur_dist = self.path[i][0].transform.location.\
-                    distance(self.actor.get_location())
-                if cur_dist <= close_dist:
-                    close_i = i
-
-            self.path_index = close_i
+    def seek_next_waypoint(self):
+        assert len(self.path) > 0, "No waypoints in path list."
+        i = 0
+        for i in range(1, len(self.path)):
+            index_dist = self.actor.get_location().\
+                distance(self.path [ i-1][0].transform.location)
+            step_dist = self.path [ i-1][0].transform.location. \
+                distance(self.path[i][0].transform.location)
+            if step_dist > index_dist and i+1 < len(self.path):
+                i += 1
+                break
+        self.path_index = i
 
     def get_distance_to_end(self):
         last_loc = self.actor.get_location()
         if self.last_location is None or \
                 self.last_location.distance(last_loc) >= 0.5:
-            self.advance_path()
+            self.advance_path_index()
             self.last_location = last_loc
         else:
             return self.distance_cache
 
         if self.path_index < len(self.path):
-            node_coords = (self.path[self.path_index][0].transform.location.x,
-                           self.path[self.path_index][0].transform.location.y)
-            actor_coords = self.actor.get_location()
-            actor_coords = (actor_coords.x, actor_coords.y)
-            distance = self.planner.distance(node_coords, actor_coords)
-
+            distance = self.last_location.distance(self.path[self.path_index][0].transform.location)
             for i in range(self.path_index + 1, len(self.path)):
-                node_coords1 = (self.path[i - 1][0].transform.location.x,
-                                self.path[i - 1][0].transform.location.y)
-                node_coords2 = (self.path[i][0].transform.location.x,
-                                self.path[i][0].transform.location.y)
-                distance += self.planner.distance(node_coords1, node_coords2)
+                distance += self.path[i - 1][0].transform.location.distance(self.path[i][0].transform.location)
         else:
             return 9999.9
 
@@ -359,7 +357,7 @@ class PathTracker(object):
         if len(self.path) > 0:
             return math.radians(
                 math.fabs(self.actor.get_transform().rotation.yaw -
-                          self.path[-1][0].transform.rotation.yaw))
+                          self.path[-1][0].transform.rotation.yaw) % 360)
         return math.pi
 
     def draw(self):
@@ -383,6 +381,12 @@ class PathTracker(object):
                     life_time=0.5,
                     color=carla.Color(0, 255, 0),
                     thickness=0.5)
+
+    def plot(self):
+        import matplotlib.pyplot as plt
+        plt.scatter([i[0].transform.location.x for i in self.path], [i[0].transform.location.y for i in self.path])
+        plt.gca().invert_yaxis()
+        plt.show()
 
     def reset(self):
         self.path_index = 0

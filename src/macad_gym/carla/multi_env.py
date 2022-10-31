@@ -30,6 +30,7 @@ from gym.spaces import Box, Discrete, Tuple, Dict
 import pygame
 import carla
 
+from macad_gym.core.controllers.traffic import apply_traffic
 from macad_gym.multi_actor_env import MultiActorEnv
 from macad_gym import LOG_DIR
 from macad_gym.core.sensors.utils import preprocess_image
@@ -269,6 +270,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self._scenario_config = configs["scenarios"]
         self._env_config = configs["env"]
         self._actor_configs = configs["actors"]
+        # Camera position is problematic for certain vehicles and even in
+        # autopilot they are prone to error
+        self.exclude_hard_vehicles = False
         # list of str: Supported values for `type` filed in `actor_configs`
         # for actors than can be actively controlled
         self._supported_active_actor_types = [
@@ -373,6 +377,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self._previous_actions = {}
         self._previous_rewards = {}
         self._last_reward = {}
+        self._npc_vehicles = []  # List of NPC vehicles
+        self._npc_pedestrians = []  # List of NPC pedestrians
         self._agents = {}  # Dictionary of macad_agents with agent_id as key
         self._actors = {}  # Dictionary of actors with actor_id as key
         self._cameras = {}  # Dictionary of sensors with actor_id as key
@@ -530,6 +536,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             # Set fixed_delta_seconds to have reliable physics between sim steps
             world_settings.fixed_delta_seconds = self._fixed_delta_seconds
         self.world.apply_settings(world_settings)
+        # Set up traffic manager
+        self._traffic_manager = self._client.get_trafficmanager()
+        self._traffic_manager.set_global_distance_to_leading_vehicle(2.5)
+        self._traffic_manager.set_respawn_dormant_vehicles(True)
+        self._traffic_manager.set_synchronous_mode(self._sync_server)
         # Set the spectator/server view if rendering is enabled
         if self._render and self._env_config.get("spectator_loc"):
             spectator = self.world.get_spectator()
@@ -563,15 +574,17 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         for actor in self._actors.values():
             if actor.is_alive:
                 actor.destroy()
-        # The destroy process for cameras is handled in camera_manager.py
-        # Clean-up any remaining vehicle in the world
-        # for v in self.world.get_actors().filter("vehicle*"):
-        #     if v.is_alive:
-        #         v.destroy()
-        #     assert (v not in self.world.get_actors())
+        for npc in self._npc_vehicles:
+            npc.destroy()
+        for npc in zip(*self._npc_pedestrians):
+            npc[1].stop()  # stop controller
+            npc[0].destroy()  # kill entity
+        # Note: the destroy process for cameras is handled in camera_manager.py
 
         self._cameras = {}
         self._actors = {}
+        self._npc_vehicles = []
+        self._npc_pedestrians = []
         self._path_trackers = {}
         self._collisions = {}
         self._lane_invasions = {}
@@ -710,10 +723,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         elif actor_type == "vehicle_4W":
             blueprints = self.world.get_blueprint_library().filter("vehicle")
             # Further filter down to 4-wheeled vehicles
-            blueprints = [
-                b for b in blueprints
-                if int(b.get_attribute("number_of_wheels")) == 4
-            ]
+            blueprints = [b for b in blueprints if int(b.get_attribute("number_of_wheels")) == 4]
+            if self.exclude_hard_vehicles:
+                blueprints = list(filter(lambda x: not
+                    (x.id.endswith('microlino') or
+                     x.id.endswith('carlacola') or
+                     x.id.endswith('cybertruck') or
+                     x.id.endswith('t2') or
+                     x.id.endswith('sprinter') or
+                     x.id.endswith('firetruck') or
+                     x.id.endswith('ambulance')), blueprints))
         elif actor_type == "vehicle_2W":
             blueprints = self.world.get_blueprint_library().filter("vehicle")
             # Further filter down to 2-wheeled vehicles
@@ -740,9 +759,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
             if self._sync_server:
                 self.world.tick()
-                # `wait_for_tick` is no longer needed, see https://github.com/carla-simulator/carla/pull/1803
-                # self.world.wait_for_tick()
             if vehicle is not None and vehicle.get_location().z > 0.0:
+                # Register it under traffic manager
+                vehicle.set_autopilot(False, self._traffic_manager.get_port())
                 break
             # Wait to see if spawn area gets cleared before retrying
             # time.sleep(0.5)
@@ -878,6 +897,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         print("New episode initialized with actors:{}".format(
             self._actors.keys()))
+
+        self._npc_vehicles, self._npc_pedestrians = apply_traffic(
+            self.world, self._traffic_manager,
+            self._scenario_map.get("num_vehicles", 0),
+            self._scenario_map.get("num_pedestrians", 0))
 
     def _load_scenario(self, scenario_parameter):
         self._scenario_map = {}
@@ -1086,23 +1110,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             self._on_render()
         elif config["auto_control"]:
             if getattr(self._actors[actor_id], "set_autopilot", 0):
-                self._actors[actor_id].set_autopilot()
+                self._actors[actor_id].set_autopilot(True, self._traffic_manager.get_port())
         else:
-            # TODO: Planner based on waypoints.
-            # cur_location = self.actor_list[i].get_location()
-            # dst_location = carla.Location(x = self.end_pos[i][0],
-            # y = self.end_pos[i][1], z = self.end_pos[i][2])
-            # cur_map = self.world.get_map()
-            # next_point_transform = get_transform_from_nearest_way_point(
-            # cur_map, cur_location, dst_location)
-            # the point with z = 0, and the default z of cars are 40
-            # next_point_transform.location.z = 40
-            # self.actor_list[i].set_transform(next_point_transform)
-
             agent_type = config.get("type", "vehicle")
-            # TODO: Add proper support for pedestrian actor according to action
             # space of ped actors
             if agent_type == "pedestrian":
+                # TODO: Add proper support for pedestrian actor according to action
                 rotation = self._actors[actor_id].get_transform().rotation
                 rotation.yaw += steer * 10.0
                 x_dir = math.cos(math.radians(rotation.yaw))
@@ -1114,8 +1127,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         direction=carla.Vector3D(x_dir, y_dir, 0.0),
                     ))
 
-            # TODO: Change this if different vehicle types (Eg.:vehicle_4W,
-            #  vehicle_2W, etc) have different control APIs
             elif "vehicle" in agent_type:
                 self._actors[actor_id].apply_control(
                     carla.VehicleControl(
