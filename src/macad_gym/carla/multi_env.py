@@ -30,7 +30,6 @@ from gym.spaces import Box, Discrete, Tuple, Dict
 import pygame
 import carla
 
-from macad_gym.core.controllers.traffic import apply_traffic
 from macad_gym.multi_actor_env import MultiActorEnv
 from macad_gym import LOG_DIR
 from macad_gym.core.sensors.utils import preprocess_image
