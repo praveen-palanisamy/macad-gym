@@ -355,9 +355,9 @@ class PathTracker(object):
 
     def get_orientation_difference_to_end_in_radians(self):
         if len(self.path) > 0:
-            return math.radians(
-                math.fabs(self.actor.get_transform().rotation.yaw -
-                          self.path[-1][0].transform.rotation.yaw) % 360)
+            current = math.radians(self.actor.get_transform().rotation.yaw)
+            target = math.radians(self.path[-1][0].transform.rotation.yaw)
+            return math.fabs(math.cos(current) * math.sin(target) - math.sin(current) * math.cos(target))
         return math.pi
 
     def draw(self):
