@@ -2,6 +2,8 @@
 import logging
 import carla
 
+# TODO make the seed user configurable
+random.seed(10)
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +28,7 @@ def apply_traffic(world, traffic_manager, num_vehicles, num_pedestrians, safe=Fa
     number_of_spawn_points = len(spawn_points)
 
     random.shuffle(spawn_points)
-    if num_vehicles < number_of_spawn_points:
+    if num_vehicles <= number_of_spawn_points:
         spawn_points = random.sample(spawn_points, num_vehicles)
     else:
         msg = 'requested %d vehicles, but could only find %d spawn points'

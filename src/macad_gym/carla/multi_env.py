@@ -117,6 +117,7 @@ DEFAULT_MULTIENV_CONFIG = {
             "manual_control": False,
             "auto_control": False,
             "camera_type": "rgb",
+            "camera_position": 0,
             "collision_sensor": "on",  # off
             "lane_sensor": "on",  # off
             "server_process": False,
@@ -865,11 +866,11 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     camera_manager.set_recording_option(1)
 
                 # in CameraManger's._sensors
-                camera_spec = self._actor_configs[actor_id]["camera_type"].split("-")
-                camera_type, camera_pos = camera_spec if len(camera_spec) > 1 else (camera_spec[0], 0)
+                camera_type = self._actor_configs[actor_id]["camera_type"]
+                camera_pos = getattr(self._actor_configs[actor_id], "camera_position", 0)
                 assert camera_type in CAMERA_TYPES,\
-                    "Camera type `{}` not available. Choose in {}.".format(camera_type, list(CAMERA_TYPES.keys()))
-                camera_manager.set_sensor(CAMERA_TYPES[camera_type], int(camera_pos), notify=False)
+                    "Camera type `{}` not available. Choose in {}.".format(camera_type, [ct.name for ct in CAMERA_TYPES])
+                camera_manager.set_sensor(CAMERA_TYPES[camera_type].value, int(camera_pos), notify=False)
                 assert camera_manager.sensor.is_listening
                 self._cameras.update({actor_id: camera_manager})
 
