@@ -390,8 +390,13 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
     @staticmethod
     def _get_tcp_port(port=0):
+        """
+        Get a free tcp port number
+        :param port: (default 0) port number. When `0` it will be assigned a free port dynamically
+        :return: a port number requested if free otherwise an unhandled exception would be thrown
+        """
         s = socket.socket()
-        s.bind(("", port))  # Request the sys to provide a free port dynamically
+        s.bind(("", port))
         server_port = s.getsockname()[1]
         s.close()
         return server_port
@@ -412,11 +417,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         gpus = GPUtil.getGPUs()
         log_file = os.path.join(LOG_DIR,
                                 "server_" + str(self._server_port) + ".log")
-
-        print("""Details:
-              1. Port: {}
-              2. Map: {}
-              3. Binary: {}""".format(self._server_port, self._server_map, SERVER_BINARY))
+        logger.info(f"1. Port: {self._server_port}\n"
+                    f"2. Map: {self._server_map}\n"
+                    f"3. Binary: {SERVER_BINARY}")
 
         if not self._render and (gpus is not None and len(gpus)) > 0:
             try:
