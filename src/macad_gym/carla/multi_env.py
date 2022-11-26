@@ -390,6 +390,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
     @staticmethod
     def _get_tcp_port(port=0):
+        """
         Get a free tcp port number
         :param port: (default 0) port number. When `0` it will be assigned a free port dynamically
         :return: a port number requested if free otherwise an unhandled exception would be thrown
