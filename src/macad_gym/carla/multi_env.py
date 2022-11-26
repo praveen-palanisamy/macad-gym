@@ -30,6 +30,7 @@ from gym.spaces import Box, Discrete, Tuple, Dict
 import pygame
 import carla
 
+from macad_gym.core.controllers.traffic import apply_traffic
 from macad_gym.multi_actor_env import MultiActorEnv
 from macad_gym import LOG_DIR
 from macad_gym.core.sensors.utils import preprocess_image
@@ -116,6 +117,7 @@ DEFAULT_MULTIENV_CONFIG = {
             "manual_control": False,
             "auto_control": False,
             "camera_type": "rgb",
+            "camera_position": 0,
             "collision_sensor": "on",  # off
             "lane_sensor": "on",  # off
             "server_process": False,
@@ -388,8 +390,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
     @staticmethod
     def _get_tcp_port(port=0):
+        Get a free tcp port number
+        :param port: (default 0) port number. When `0` it will be assigned a free port dynamically
+        :return: a port number requested if free otherwise an unhandled exception would be thrown
+        """
         s = socket.socket()
-        s.bind(("", port))  # Request the sys to provide a free port dynamically
+        s.bind(("", port))
         server_port = s.getsockname()[1]
         s.close()
         return server_port
@@ -410,6 +416,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         gpus = GPUtil.getGPUs()
         log_file = os.path.join(LOG_DIR,
                                 "server_" + str(self._server_port) + ".log")
+        logger.info(f"1. Port: {self._server_port}\n"
+                    f"2. Map: {self._server_map}\n"
+                    f"3. Binary: {SERVER_BINARY}")
 
         print("""Details:
               1. Port: {}
@@ -864,11 +873,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     camera_manager.set_recording_option(1)
 
                 # in CameraManger's._sensors
-                camera_spec = self._actor_configs[actor_id]["camera_type"].split("-")
-                camera_type, camera_pos = camera_spec if len(camera_spec) > 1 else (camera_spec[0], 0)
-                assert camera_type in CAMERA_TYPES,\
-                    "Camera type `{}` not available. Choose in {}.".format(camera_type, list(CAMERA_TYPES.keys()))
-                camera_manager.set_sensor(CAMERA_TYPES[camera_type], int(camera_pos), notify=False)
+                camera_type = self._actor_configs[actor_id]["camera_type"]
+                camera_pos = getattr(self._actor_configs[actor_id], "camera_position", 0)
+                camera_types = [ct.name for ct in CAMERA_TYPES]
+                assert camera_type in camera_types,\
+                    "Camera type `{}` not available. Choose in {}.".format(camera_type, camera_types)
+                camera_manager.set_sensor(CAMERA_TYPES[camera_type].value-1, int(camera_pos), notify=False)
                 assert camera_manager.sensor.is_listening
                 self._cameras.update({actor_id: camera_manager})
 

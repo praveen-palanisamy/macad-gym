@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 import os
+from enum import Enum
+
 import numpy as np
 import pygame
 import weakref
@@ -9,14 +11,12 @@ CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
 if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
     os.makedirs(CARLA_OUT_PATH)
 
-CAMERA_TYPES = {
-    "rgb": 0,
-    "depth_raw": 1,
-    "depth": 2,
-    "semseg_raw": 3,
-    "semseg": 4,
-    "ray": 5
-}
+CAMERA_TYPES = Enum('CameraType', ['rgb',
+                                   'depth_raw',
+                                   'depth',
+                                   'semseg_raw',
+                                   'semseg'])
+
 
 class CameraManager(object):
     """This class from carla, manual_control.py
@@ -105,7 +105,7 @@ class CameraManager(object):
     def set_sensor(self, index, pos=0, notify=True):
         index = index % len(self._sensors)
         needs_respawn = True if self._index is None \
-            else self._sensors[index][0] != self._sensors[self._index][0]
+            else list(CAMERA_TYPES)[index] != list(CAMERA_TYPES)[self._index]
         if needs_respawn:
             if self.sensor is not None:
                 self.sensor.destroy()
