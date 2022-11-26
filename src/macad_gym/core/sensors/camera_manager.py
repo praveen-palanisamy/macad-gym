@@ -15,8 +15,7 @@ CAMERA_TYPES = Enum('CameraType', ['rgb',
                                    'depth_raw',
                                    'depth',
                                    'semseg_raw',
-                                   'semseg',
-                                   'ray'])
+                                   'semseg'])
 
 
 class CameraManager(object):

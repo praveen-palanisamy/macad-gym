@@ -871,9 +871,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 # in CameraManger's._sensors
                 camera_type = self._actor_configs[actor_id]["camera_type"]
                 camera_pos = getattr(self._actor_configs[actor_id], "camera_position", 0)
-                assert camera_type in CAMERA_TYPES,\
-                    "Camera type `{}` not available. Choose in {}.".format(camera_type, [ct.name for ct in CAMERA_TYPES])
-                camera_manager.set_sensor(CAMERA_TYPES[camera_type].value, int(camera_pos), notify=False)
+                camera_types = [ct.name for ct in CAMERA_TYPES]
+                assert camera_type in camera_types,\
+                    "Camera type `{}` not available. Choose in {}.".format(camera_type, camera_types)
+                camera_manager.set_sensor(CAMERA_TYPES[camera_type].value-1, int(camera_pos), notify=False)
                 assert camera_manager.sensor.is_listening
                 self._cameras.update({actor_id: camera_manager})
 
