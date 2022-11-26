@@ -46,7 +46,7 @@
             "reward_function": "corl2017",
             "manual_control": false,
             "auto_control": false,
-            "camera_type": "ray",
+            "camera_type": "semseg",
             "camera_position": 1,
             "collision_sensor": "on",
             "lane_sensor": "on",
