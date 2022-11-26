@@ -1,6 +1,10 @@
+import logging
+
 import pygame
 import datetime
 import math
+
+logger = logging.getLogger(__name__)
 
 
 def get_actor_display_name(actor, truncate=250):
@@ -83,7 +87,7 @@ class HUD(object):
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
-        self._notifications.tick(world, clock)
+        # self._notifications.tick(world, clock)
 
     def distance(self, l, t):  # noqa: E741
         return math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 +
@@ -93,10 +97,12 @@ class HUD(object):
         self._show_info = not self._show_info
 
     def notification(self, text, seconds=2.0):
-        self._notifications.set_text(text, seconds=seconds)
+        logger.info("Notification disabled: "+text)
+        # self._notifications.set_text(text, seconds=seconds)
 
     def error(self, text):
-        self._notifications.set_text('Error: %s' % text, (255, 0, 0))
+        logger.info("Notification error disabled: "+text)
+        # self._notifications.set_text('Error: %s' % text, (255, 0, 0))
 
     def render(self, display):
         if self._show_info:
@@ -143,5 +149,5 @@ class HUD(object):
                                                      (255, 255, 255))
                     display.blit(surface, (8, v_offset))
                 v_offset += 18
-        self._notifications.render(display)
-        self.help.render(display)
+        # self._notifications.render(display)
+        # self.help.render(display)

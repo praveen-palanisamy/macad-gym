@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 import os
+from enum import Enum
+
 import numpy as np
 import pygame
 import weakref
@@ -8,6 +10,12 @@ import carla
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
 if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
     os.makedirs(CARLA_OUT_PATH)
+
+CAMERA_TYPES = Enum('CameraType', ['rgb',
+                                   'depth_raw',
+                                   'depth',
+                                   'semseg_raw',
+                                   'semseg'])
 
 
 class CameraManager(object):
@@ -22,10 +30,9 @@ class CameraManager(object):
         self._hud = hud
         self._recording = False
         self._memory_record = False
-        # TODO: Make the camera positioning configurable. Toggling is already
         # supported through toggle_camera
         self._camera_transforms = [
-            carla.Transform(carla.Location(x=1.6, z=1.7)),
+            carla.Transform(carla.Location(x=1.8, z=1.7)),
             carla.Transform(carla.Location(x=-5.5, z=2.8),
                             carla.Rotation(pitch=-15))
         ]
@@ -95,17 +102,15 @@ class CameraManager(object):
         self.sensor.set_transform(
             self._camera_transforms[self._transform_index])
 
-    # TODO: Remove the hardcoded int index and make it sensor_type
-    def set_sensor(self, index, notify=True):
+    def set_sensor(self, index, pos=0, notify=True):
         index = index % len(self._sensors)
-        # TODO: Remove the hardcoded 0 ad use camera_type
-        # TODO: Use same keys as used in self._sensors
         needs_respawn = True if self._index is None \
-            else self._sensors[index][0] != self._sensors[self._index][0]
+            else list(CAMERA_TYPES)[index] != list(CAMERA_TYPES)[self._index]
         if needs_respawn:
             if self.sensor is not None:
                 self.sensor.destroy()
                 self._surface = None
+            self._transform_index = pos % len(self._camera_transforms)
             self.sensor = self._parent.get_world().spawn_actor(
                 self._sensors[index][-1],
                 self._camera_transforms[self._transform_index],
