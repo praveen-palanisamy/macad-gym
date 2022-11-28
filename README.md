@@ -13,8 +13,10 @@ communicating/non-communicating and other multi-agent settings. New environments
 ### Quick Start
 
 Install MACAD-Gym using `pip install macad-gym`.
- If you have CARLA installed, you can get going using the following 3 lines of code. If not, follow the
+ If you have `CARLA_SERVER` setup, you can get going using the following 3 lines of code. If not, follow the
 [Getting started steps](#getting-started).
+
+#### Training RL Agents
 
 ```python
 import gym
@@ -26,16 +28,27 @@ env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
 
  Any RL library that supports the OpenAI-Gym API can be used to train agents in MACAD-Gym. The [MACAD-Agents](https://github.com/praveen-palanisamy/macad-agents) repository provides sample agents as a starter.
 
+#### Visualizing the Environment
+
+To test-drive the environments, you can run the environment script directly. For example, to test-drive the `HomoNcomIndePOIntrxMASS3CTWN3-v0` environment, run:
+
+```bash
+python -m macad_gym.envs.homo.ncom.inde.po.intrx.ma.stop_sign_3c_town03
+```
+
 ### Usage guide
 
-1. [Getting Started](#getting-started)
-1. [Learning platform & agent interface](#learning-platform-and-agent-interface)
-1. [Citing MACAD-Gym](#citing)
-1. [Developer Contribution Guide](CONTRIBUTING.md)
+- [Getting Started](#getting-started)
+- [Learning Platform and Agent Interface](#learning-platform-and-agent-interface)
+  - [Environments](#environments)
+  - [Agent interface](#agent-interface)
+- [Citing MACAD-Gym](#citing)
+- [Developer Contribution Guide](CONTRIBUTING.md)
 
 ### Getting Started
 
-> Assumes an Ubuntu (16.04/18.04 or later) system.
+> Assumes an Ubuntu (18.04/20.04/22.04 or later) system. 
+> If you are on Windows 10/11, use the CARLA Windows package and set the `CARLA_SERVER` environment variable to the CARLA installation directory.
 
 1. Install the system requirements:
 	- Miniconda/Anaconda 3.x
@@ -48,10 +61,10 @@ env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
 
     3.1 `mkdir ~/software && cd ~/software`
 
-    3.2 Example: Download the 0.9.4 release version from: [Here](https://drive.google.com/file/d/1p5qdXU4hVS2k5BOYSlEm7v7_ez3Et9bP/view)
-    Extract it into `~/software/CARLA_0.9.4`
+    3.2 Example: Download the 0.9.13 release version from: [Here](https://github.com/carla-simulator/carla/releases)
+    Extract it into `~/software/CARLA_0.9.13`
     
-    3.3 `echo "export CARLA_SERVER=${HOME}/software/CARLA_0.9.4/CarlaUE4.sh" >> ~/.bashrc`
+    3.3 `echo "export CARLA_SERVER=${HOME}/software/CARLA_0.9.13/CarlaUE4.sh" >> ~/.bashrc`
 
 1. Install MACAD-Gym:
    - **Option1 for users** : `pip install macad-gym`
@@ -64,7 +77,7 @@ env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
       `source activate macad-gym`
      - Install the `macad-gym` package:
 	  `pip install -e .`
-     - Install CARLA PythonAPI: `pip install carla==0.9.4`
+     - Install CARLA PythonAPI: `pip install carla==0.9.13`
      > NOTE: Change the carla client PyPI package version number to match with your CARLA server version
      
 
@@ -202,7 +215,7 @@ If you find this work useful in your research, please cite:
 </p>
 </details>
 
-###### **NOTEs**:
+### **NOTEs**:
 - MACAD-Gym supports multi-GPU setups and it will choose the GPU that is less loaded to launch the simulation needed for the RL training environment
 
 - MACAD-Gym is for CARLA 0.9.x & above . If you are
