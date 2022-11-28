@@ -1,11 +1,10 @@
 cff-version: 1.2.0
-message: If you use this software, please cite it as below.
-title: MACAD-Gym, Multi-Agent Reinforcement Learning for Connected Autonomous Driving
-abstract: MACAD-Gym is a multi-agent reinforcement learning environment for connected autonomous driving. It is built on top of CARLA, an open-source simulator for autonomous driving research.
+message: "If you use this software, please cite it as below."
+title: "MACAD-Gym, Multi-Agent Reinforcement Learning for Connected Autonomous Driving"
 authors:
 - family-names: "Palanisamy"
   given-names: "Praveen"
-  orcid: "https://orcid.org/0000-0001-9069-3071
+  orcid: "https://orcid.org/0000-0001-9069-3071"
 version: 0.1.4
 doi: "10.5281/zenodo.4053994"
 date-released: 2020-09-27
