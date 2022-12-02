@@ -114,7 +114,7 @@ def get_shortest_path_waypoints(world, planner, origin, destination):
             #   Choose correct path
             future_wp = []
             for wp in wp_choice:
-                future_wp.append(wp.next(5)[0])
+                future_wp.append(wp.next(2*hop_resolution)[0])
             for i, wp_select in enumerate(future_wp):
                 v_select = vector(current_location, wp_select.transform.location)
                 cross = float('inf')

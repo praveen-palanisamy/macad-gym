@@ -27,7 +27,6 @@ def multi_view_render(images, unit_dimension, actor_configs):
     for actor_id, im in images.items():
         if not actor_configs[actor_id]["render"]:
             continue
-        im = cv2.resize(im, (unit_dimension[1], unit_dimension[0]))
         surface = pygame.surfarray.make_surface(im)
         surface_seq += ((surface, (poses[actor_id][0], poses[actor_id][1])), )
 
