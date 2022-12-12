@@ -1205,6 +1205,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     )
                 )
 
+            # TODO: Change this if different vehicle types (Eg.:vehicle_4W,
+            #  vehicle_2W, etc) have different control APIs
             elif "vehicle" in agent_type:
                 self._actors[actor_id].apply_control(
                     carla.VehicleControl(
@@ -1421,7 +1423,7 @@ def print_measurements(measurements):
         other_lane=100 * player_measurements.intersection_otherlane,
         offroad=100 * player_measurements.intersection_offroad,
         agents_num=number_of_agents,
-    )
+    )   
     print(message)
 
 
