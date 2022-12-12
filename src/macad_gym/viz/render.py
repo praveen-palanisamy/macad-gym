@@ -4,6 +4,8 @@ import cv2
 import pygame
 
 i = 0
+pygame.init()
+pygame.display.set_caption("MACAD-Gym")
 
 
 def multi_view_render(images, unit_dimension, actor_configs):
@@ -18,21 +20,21 @@ def multi_view_render(images, unit_dimension, actor_configs):
         N/A.
     """
     global i
-    pygame.init()
+
     surface_seq = ()
-    poses, window_dim = get_surface_poses(
-        len(images), unit_dimension, images.keys())
+    poses, window_dim = get_surface_poses(len(images), unit_dimension, images.keys())
 
     # Get all surfaces.
     for actor_id, im in images.items():
         if not actor_configs[actor_id]["render"]:
             continue
         surface = pygame.surfarray.make_surface(im)
-        surface_seq += ((surface, (poses[actor_id][0], poses[actor_id][1])), )
+        surface_seq += ((surface, (poses[actor_id][1], poses[actor_id][0])),)
 
-    display = pygame.display.set_mode((window_dim[0], window_dim[1]),
-                                      pygame.HWSURFACE | pygame.DOUBLEBUF)
-    display.blits(blit_sequence=surface_seq, doreturn=1)
+    multi_surface = pygame.display.set_mode(
+        (window_dim[0], window_dim[1]), pygame.HWSURFACE | pygame.DOUBLEBUF
+    )
+    multi_surface.blits(blit_sequence=surface_seq, doreturn=1)
     pygame.display.flip()
     # save to disk
     # pygame.image.save(display,

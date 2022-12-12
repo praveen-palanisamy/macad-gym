@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: "MACAD-Gym, Multi-Agent Reinforcement Learning for Connected Autonomous Driving"
+authors:
+  - family-names: Palanisamy
+    given-names: Praveen
+    orcid: "https://orcid.org/0000-0001-9069-3071"
+version: 0.1.4
+doi: "10.5281/zenodo.4053994"
+date-released: 2020-09-27
+url: "https://https://github.com/praveen-palanisamy/macad-gym"
+preferred-citation:
+  type: conference-paper
+  title: "MACAD-Gym: Multi-Agent Reinforcement Learning for Connected Autonomous Driving"
+  authors:
+    - family-names: Palanisamy
+      given-names: Praveen
+      orcid: "https://orcid.org/0000-0001-9069-3071"
+  doi: "10.1109/IJCNN48605.2020.9207663"
+  collection-title: "2020 International Joint Conference on Neural Networks (IJCNN)"
+  collection-type: proceedings
+  year: 2020
+  publisher:
+    name: IEEE
+  url: "https://ieeexplore.ieee.org/document/9207663"
