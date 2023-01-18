@@ -278,6 +278,26 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self._scenario_config = configs["scenarios"]
         self._env_config = configs["env"]
         self._actor_configs = configs["actors"]
+
+        # At most one actor can be manual controlled
+        manual_control_count = 0
+        for _, actor_config in self._actor_configs.items():
+            if actor_config["manual_control"]:
+                if "vehicle" not in actor_config["type"]:
+                    raise ValueError("Only vehicles can be manual controlled.")
+                if actor_config["autopilot"]:
+                    raise ValueError("Autopilot cannot be enabled for manual controlled vehicles.")
+                
+                manual_control_count += 1
+            
+            if manual_control_count != 0 and actor_config["render"]:
+                raise ValueError("Camera rendering cannot be enabled if manual controlled is enabled.")
+        
+        assert manual_control_count <= 1, (
+            "At most one actor can be manually controlled. "
+            f"Found {manual_control_count} actors with manual_control=True"
+        )
+
         # Camera position is problematic for certain vehicles and even in
         # autopilot they are prone to error
         self.exclude_hard_vehicles = False
@@ -316,6 +336,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # Initialize to be compatible with cam_manager to set HUD.
         pygame.font.init()  # for HUD
         self._hud = HUD(self._render_x_res, self._render_y_res)
+
+        # For manual_control
+        self._display = None
+        self._control_clock = None
+        self._manual_controller = None
+        self._manual_control_camera_manager = None
 
         # Actions space
         if self._discrete_actions:
@@ -633,7 +659,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         if self._server_process:
             if IS_WINDOWS_PLATFORM:
                 subprocess.call(
-                    ["taskkill", "/F", "/T", "/PID", str(self._server_process.pid)]
+                    ["taskkill", "/F", "/T", "/PID",
+                        str(self._server_process.pid)]
                 )
                 live_carla_processes.remove(self._server_process.pid)
             else:
@@ -693,9 +720,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         return self._obs_dict
 
-    # TODO: Is this function required?
-    # TODO: Thought: Run server in headless mode always. Use pygame win on
-    # client when render=True
+    # ! Deprecated method
     def _on_render(self):
         """Render the pygame window.
 
@@ -704,11 +729,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         Returns:
             N/A
         """
-        for cam in self._cameras.values():
-            surface = cam._surface
-            if surface is not None:
-                self._display.blit(surface, (0, 0))
-            pygame.display.flip()
+        pass
 
     def _spawn_new_actor(self, actor_id):
         """Spawn an agent as per the blueprint at the given pose
@@ -867,7 +888,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 )
                 actor_config = self._actor_configs[actor_id]
 
-                try:  # Try to spawn actor (soft reset) or fail and reinitialize the server before get back here
+                # Try to spawn actor (soft reset) or fail and reinitialize the server before get back here
+                try:
                     self._actors[actor_id] = self._spawn_new_actor(actor_id)
                 except RuntimeError as spawn_err:
                     del self._done_dict[actor_id]
@@ -927,6 +949,25 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 )
                 assert camera_manager.sensor.is_listening
                 self._cameras.update({actor_id: camera_manager})
+
+                # Manual Control
+                if actor_config["manual_control"]:
+                    self._display = pygame.display.set_mode(
+                        (self._render_x_res, self._render_y_res),
+                        pygame.HWSURFACE | pygame.DOUBLEBUF,
+                    )
+                    self._control_clock = pygame.time.Clock()
+                    logger.debug("pygame started")
+                    self._manual_controller = KeyboardControl(
+                        self, actor_config["auto_control"])
+                    self._manual_controller.actor_id = actor_id
+                    manual_control_hud = HUD(
+                        self._render_x_res, self._render_y_res)
+                    self._manual_control_camera_manager = CameraManager(
+                        self._actors[actor_id], manual_control_hud)
+                    self._manual_control_camera_manager.set_sensor(
+                        CAMERA_TYPES['rgb'].value - 1, pos=2, notify=False
+                    )
 
                 self._start_coord.update(
                     {
@@ -1117,7 +1158,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 k for k, v in self._actor_configs.items() if v.get("render", False)
             ]
             if render_required:
-                images = {k: self._decode_obs(k, v) for k, v in obs_dict.items()}
+                images = {k: self._decode_obs(k, v)
+                          for k, v in obs_dict.items()}
                 multi_view_render(
                     images, [self._x_res, self._y_res], self._actor_configs
                 )
@@ -1166,18 +1208,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         config = self._actor_configs[actor_id]
         if config["manual_control"]:
-            clock = pygame.time.Clock()
-            # pygame
-            self._display = pygame.display.set_mode(
-                (config["render_x_res"], config["render_y_res"]),
-                pygame.HWSURFACE | pygame.DOUBLEBUF,
-            )
-            logger.debug("pygame started")
-            controller = KeyboardControl(self, config["auto_control"])
-            controller.actor_id = actor_id
-            controller.parse_events(self, clock)
-            # TODO: Is this _on_render() method necessary? why?
-            self._on_render()
+            self._control_clock.tick(60)
+            self._manual_control_camera_manager._hud.tick(self.world, self._actors[actor_id], self._collisions[actor_id], self._control_clock)
+            self._manual_controller.parse_events(self, self._control_clock)
+            self._manual_control_camera_manager.render(self._display)
+            self._manual_control_camera_manager._hud.render(self._display)
+            pygame.display.flip()
         elif config["auto_control"]:
             if getattr(self._actors[actor_id], "set_autopilot", 0):
                 self._actors[actor_id].set_autopilot(
@@ -1480,8 +1516,10 @@ def get_next_actions(measurements, is_discrete_actions):
 
 
 if __name__ == "__main__":
-    argparser = argparse.ArgumentParser(description="CARLA Manual Control Client")
-    argparser.add_argument("--scenario", default="3", help="print debug information")
+    argparser = argparse.ArgumentParser(
+        description="CARLA Manual Control Client")
+    argparser.add_argument("--scenario", default="3",
+                           help="print debug information")
     # TODO: Fix the default path to the config.json;Should work after packaging
     argparser.add_argument(
         "--config",
@@ -1489,7 +1527,8 @@ if __name__ == "__main__":
         help="print debug information",
     )
 
-    argparser.add_argument("--map", default="Town01", help="print debug information")
+    argparser.add_argument("--map", default="Town01",
+                           help="print debug information")
 
     args = argparser.parse_args()
 
