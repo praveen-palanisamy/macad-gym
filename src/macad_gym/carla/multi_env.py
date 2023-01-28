@@ -39,7 +39,7 @@ from macad_gym.core.maps.nodeid_coord_map import MAP_TO_COORDS_MAPPING
 # from macad_gym.core.sensors.utils import get_transform_from_nearest_way_point
 from macad_gym.carla.reward import Reward
 from macad_gym.core.sensors.hud import HUD
-from macad_gym.viz.render import multi_view_render
+from macad_gym.viz.render import Render
 from macad_gym.carla.scenarios import Scenarios
 
 # The following imports require carla to be imported already.
@@ -285,14 +285,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             if actor_config["manual_control"]:
                 if "vehicle" not in actor_config["type"]:
                     raise ValueError("Only vehicles can be manual controlled.")
-                if actor_config["autopilot"]:
-                    raise ValueError("Autopilot cannot be enabled for manual controlled vehicles.")
-                
+
                 manual_control_count += 1
-            
-            if manual_control_count != 0 and actor_config["render"]:
-                raise ValueError("Camera rendering cannot be enabled if manual controlled is enabled.")
-        
+
         assert manual_control_count <= 1, (
             "At most one actor can be manually controlled. "
             f"Found {manual_control_count} actors with manual_control=True"
@@ -338,10 +333,22 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self._hud = HUD(self._render_x_res, self._render_y_res)
 
         # For manual_control
-        self._display = None
         self._control_clock = None
         self._manual_controller = None
         self._manual_control_camera_manager = None
+
+        # Render related
+        Render.resize_screen(self._render_x_res, self._render_y_res)
+        
+        self._camera_poses, window_dim = Render.get_surface_poses(
+            [self._x_res, self._y_res], self._actor_configs)
+
+        if manual_control_count == 0:
+            Render.resize_screen(window_dim[0], window_dim[1])
+        else:
+            self._manual_control_render_pose = (0, window_dim[1])
+            Render.resize_screen(
+                max(self._render_x_res, window_dim[0]), self._render_y_res + window_dim[1])
 
         # Actions space
         if self._discrete_actions:
@@ -952,17 +959,15 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
                 # Manual Control
                 if actor_config["manual_control"]:
-                    self._display = pygame.display.set_mode(
-                        (self._render_x_res, self._render_y_res),
-                        pygame.HWSURFACE | pygame.DOUBLEBUF,
-                    )
                     self._control_clock = pygame.time.Clock()
-                    logger.debug("pygame started")
+                    
                     self._manual_controller = KeyboardControl(
                         self, actor_config["auto_control"])
                     self._manual_controller.actor_id = actor_id
-                    manual_control_hud = HUD(
-                        self._render_x_res, self._render_y_res)
+                    
+                    manual_control_hud = HUD(self._render_x_res, self._render_y_res)
+                    self.world.on_tick(manual_control_hud.on_world_tick)
+                    
                     self._manual_control_camera_manager = CameraManager(
                         self._actors[actor_id], manual_control_hud)
                     self._manual_control_camera_manager.set_sensor(
@@ -1159,10 +1164,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             ]
             if render_required:
                 images = {k: self._decode_obs(k, v)
-                          for k, v in obs_dict.items()}
-                multi_view_render(
-                    images, [self._x_res, self._y_res], self._actor_configs
-                )
+                          for k, v in obs_dict.items() if self._actor_configs[k]["render"]}
+
+                Render.multi_view_render(images, self._camera_poses)
+                if self._manual_controller is None:
+                    Render.dummy_event_handler()
+                
             return obs_dict, reward_dict, self._done_dict, info_dict
         except Exception:
             print(
@@ -1211,8 +1218,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             self._control_clock.tick(60)
             self._manual_control_camera_manager._hud.tick(self.world, self._actors[actor_id], self._collisions[actor_id], self._control_clock)
             self._manual_controller.parse_events(self, self._control_clock)
-            self._manual_control_camera_manager.render(self._display)
-            self._manual_control_camera_manager._hud.render(self._display)
+
+            # TODO: consider move this to Render as well
+            self._manual_control_camera_manager.render(Render.get_screen(), self._manual_control_render_pose)
+            self._manual_control_camera_manager._hud.render(Render.get_screen(), self._manual_control_render_pose)
             pygame.display.flip()
         elif config["auto_control"]:
             if getattr(self._actors[actor_id], "set_autopilot", 0):

@@ -105,12 +105,12 @@ class HUD(object):
         logger.info("Notification error disabled: "+text)
         # self._notifications.set_text('Error: %s' % text, (255, 0, 0))
 
-    def render(self, display):
+    def render(self, display, render_pose=(0,0)):
         if self._show_info:
             info_surface = pygame.Surface((220, self.dim[1]))
             info_surface.set_alpha(100)
-            display.blit(info_surface, (0, 0))
-            v_offset = 4
+            display.blit(info_surface, render_pose)
+            v_offset = 4 + render_pose[1]
             bar_h_offset = 100
             bar_width = 106
             for item in self._info_text:

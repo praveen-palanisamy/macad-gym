@@ -139,9 +139,9 @@ class CameraManager(object):
         self._hud.notification('Recording %s' %
                                ('On' if self._recording else 'Off'))
 
-    def render(self, display):
+    def render(self, display, render_pose=(0, 0)):
         if self._surface is not None:
-            display.blit(self._surface, (0, 0))
+            display.blit(self._surface, render_pose)
 
     @staticmethod
     def _parse_image(weak_self, image):
