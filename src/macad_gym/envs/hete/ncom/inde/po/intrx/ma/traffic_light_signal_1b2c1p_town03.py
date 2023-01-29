@@ -6,6 +6,7 @@ from macad_gym.carla.multi_env import MultiCarlaEnv
 
 class TrafficLightSignal1B2C1PTown03(MultiCarlaEnv):
     """A 4-way signalized intersection with 1 Bike, 2 Cars, 1 Pedestrian"""
+
     def __init__(self):
         self.configs = {
             "scenarios": "SUI1B2C1P_TOWN3",
@@ -50,7 +51,7 @@ class TrafficLightSignal1B2C1PTown03(MultiCarlaEnv):
                     "send_measurements": False,
                 },
                 "car2": {
-                    "type": "vehicle_4w",
+                    "type": "vehicle_4W",
                     "enable_planner": False,
                     "convert_images_to_video": False,
                     "early_terminate_on_collision": True,
@@ -145,9 +146,11 @@ if __name__ == "__main__":
             # action_dict = get_next_actions(info, env.discrete_actions)
             for actor_id in total_reward_dict.keys():
                 total_reward_dict[actor_id] += reward[actor_id]
-            print(":{}\n\t".join(["Step#", "rew", "ep_rew",
-                                  "done{}"]).format(i, reward,
-                                                    total_reward_dict, done))
+            print(
+                ":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
+                    i, reward, total_reward_dict, done
+                )
+            )
 
             time.sleep(0.1)
 
