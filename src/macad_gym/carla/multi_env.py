@@ -965,11 +965,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                         self, actor_config["auto_control"])
                     self._manual_controller.actor_id = actor_id
                     
-                    manual_control_hud = HUD(self._render_x_res, self._render_y_res)
-                    self.world.on_tick(manual_control_hud.on_world_tick)
-                    
+                    self.world.on_tick(self._hud.on_world_tick)
                     self._manual_control_camera_manager = CameraManager(
-                        self._actors[actor_id], manual_control_hud)
+                        self._actors[actor_id], self._hud)
                     self._manual_control_camera_manager.set_sensor(
                         CAMERA_TYPES['rgb'].value - 1, pos=2, notify=False
                     )

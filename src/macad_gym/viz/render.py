@@ -58,7 +58,6 @@ class Render:
             screen.blit(surface, render_pose)
 
         pygame.display.flip()
-        Render.dummy_event_handler()
 
     @staticmethod
     def get_surface_poses(unit_dimension, actor_configs):
@@ -70,7 +69,7 @@ class Render:
 
         Returns:
             poses (dict): return position dicts in pygame window (start from left corner). E.g., {"vehiclie":[0,0]}
-            window_dim (list): return the max (width, height) needed to render all actors.
+            window_dim (list): return the max [width, height] needed to render all actors.
         """
         unit_x = unit_dimension[0]
         unit_y = unit_dimension[1]
@@ -79,7 +78,7 @@ class Render:
         for _, config in actor_configs.items():
             if config["render"] == True:
                 subwindow_num += 1
-        
+
         if subwindow_num == 0:
             return {}, [0, 0]
 
@@ -154,36 +153,3 @@ class Render:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-
-
-if __name__ == "__main__":
-    from random import randint
-
-    resX, resY = 800, 600
-
-    # create a red image as main window
-    image = pygame.Surface((resX, resY))
-    image.fill((255, 0, 0))
-
-    # create four sub surface, each 84x84
-    subwindow_num = 4
-    unit_dimension = [84, 84]
-
-    subwindows = {}
-
-    # fill subwindows with random color
-    for i in range(subwindow_num):
-        surf = pygame.Surface((unit_dimension[0], unit_dimension[1]))
-        surf.fill((randint(0, 255), randint(0, 255), randint(0, 255)))
-        subwindows[i] = surf
-
-    # Generate subwindow_num of pseudo actor_config
-    actor_config = {i: {"render": True} for i in range(subwindow_num)}
-
-    poses, window_dim = Render.get_surface_poses(unit_dimension, actor_config)
-
-    Render.resize_screen(max(resX, window_dim[0]), resY + window_dim[1])
-
-    while True:
-        Render.draw(image, (0, window_dim[1]))
-        Render.multi_view_render(subwindows, poses)

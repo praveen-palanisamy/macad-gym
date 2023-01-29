@@ -1,10 +1,6 @@
 """
-Author: Morphlng
-Date: 2023-01-28 18:33:26
-LastEditTime: 2023-01-28 18:33:28
-LastEditors: Morphlng
-Description: Example of creating a custom environment, also a demonstration of how to use the manual_control.
-FilePath: \src\macad_gym\envs\follow_leading_vehicle.py
+follow_leading_vehicle.py: Example of creating a custom environment, also a demonstration of how to use the manual_control.
+__author__: Morphlng
 """
 
 import random
@@ -13,7 +9,7 @@ from macad_gym.envs import MultiCarlaEnv
 """
     This is a scenario extracted from Carla/scenario_runner (https://github.com/carla-simulator/scenario_runner/blob/master/srunner/scenarios/follow_leading_vehicle.py).
 
-    The configuration below contains everything you needed to customize your own scenario in Macad-Gym.
+    The configuration below contains everything you need to customize your own scenario in Macad-Gym.
 """
 configs = {
     "scenarios": {
@@ -59,8 +55,15 @@ configs = {
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
             "scenarios": "FOLLOWLEADING_TOWN1_CAR1",
-            "manual_control": True,     # manual_control and auto_control
-            "auto_control": True,       # can be turned on at the same time
+            
+            # When "auto_control" is True,
+            # starts the actor using auto-pilot.
+            # Allows manual control take-over on
+            # pressing Key `p` on the PyGame window
+            # if manual_control is also True
+            "manual_control": True,
+            "auto_control": True,
+
             "camera_type": "rgb",
             "collision_sensor": "on",
             "lane_sensor": "on",
