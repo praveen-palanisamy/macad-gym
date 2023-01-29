@@ -21,6 +21,7 @@ CAMERA_TYPES = Enum('CameraType', ['rgb',
 class CameraManager(object):
     """This class from carla, manual_control.py
     """
+
     def __init__(self, parent_actor, hud):
         self.image = None  # need image to encode obs.
         self.image_list = []  # for save images later.
@@ -34,9 +35,14 @@ class CameraManager(object):
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.8, z=1.7)),
             carla.Transform(carla.Location(x=-5.5, z=2.8),
-                            carla.Rotation(pitch=-15))
+                            carla.Rotation(pitch=-15)),
+            carla.Transform(carla.Location(
+                x=-2.0*(0.5 + self._parent.bounding_box.extent.x),
+                y=0.0,
+                z=2.0*(0.5 + self._parent.bounding_box.extent.z)),
+                carla.Rotation(pitch=8.0))
         ]
-        # 0 is dashcam view; 1 is tethered view
+        # 0 is dashcam view; 1 is tethered view; 2 for spring arm view (manual_control)
         self._transform_index = 0
         self._sensors = [
             ['sensor.camera.rgb', carla.ColorConverter.Raw, 'Camera RGB'],
@@ -114,7 +120,8 @@ class CameraManager(object):
             self.sensor = self._parent.get_world().spawn_actor(
                 self._sensors[index][-1],
                 self._camera_transforms[self._transform_index],
-                attach_to=self._parent)
+                attach_to=self._parent,
+                attachment_type=carla.AttachmentType.Rigid if pos != 2 else carla.AttachmentType.SpringArm)
             # We need to pass the lambda a weak reference to self to avoid
             # circular reference.
             weak_self = weakref.ref(self)
@@ -132,9 +139,9 @@ class CameraManager(object):
         self._hud.notification('Recording %s' %
                                ('On' if self._recording else 'Off'))
 
-    def render(self, display):
+    def render(self, display, render_pose=(0, 0)):
         if self._surface is not None:
-            display.blit(self._surface, (0, 0))
+            display.blit(self._surface, render_pose)
 
     @staticmethod
     def _parse_image(weak_self, image):

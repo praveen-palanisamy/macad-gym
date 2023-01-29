@@ -38,29 +38,30 @@ class HUD(object):
         self.frame_number = timestamp.frame_count
         self.simulation_time = timestamp.elapsed_seconds
 
-    def tick(self, world, clock):
+    def tick(self, world, vehicle, collision_sensor, clock):
         if not self._show_info:
             return
-        t = world.vehicle.get_transform()
-        v = world.vehicle.get_velocity()
-        c = world.vehicle.get_vehicle_control()
+
+        t = vehicle.get_transform()
+        v = vehicle.get_velocity()
+        c = vehicle.get_control()
+
         heading = 'N' if abs(t.rotation.yaw) < 89.5 else ''
         heading += 'S' if abs(t.rotation.yaw) > 90.5 else ''
         heading += 'E' if 179.5 > t.rotation.yaw > 0.5 else ''
         heading += 'W' if -0.5 > t.rotation.yaw > -179.5 else ''
-        colhist = world.collision_sensor.get_collision_history()
+        colhist = collision_sensor.get_collision_history()
         collision = [
             colhist[x + self.frame_number - 200] for x in range(0, 200)
         ]
         max_col = max(1.0, max(collision))
         collision = [x / max_col for x in collision]
-        vehicles = world.world.get_actors().filter('vehicle.*')
+        vehicles = world.get_actors().filter('vehicle.*')
         self._info_text = [
             'Server:  % 16d FPS' % self.server_fps,
             'Client:  % 16d FPS' % clock.get_fps(), '',
             'Vehicle: % 20s' %
-            get_actor_display_name(world.vehicle, truncate=20),
-            'Map:     % 20s' % world.world.map_name,
+            get_actor_display_name(vehicle, truncate=20),
             'Simulation time: % 12s' %
             datetime.timedelta(seconds=int(self.simulation_time)), '',
             'Speed:   % 15.0f km/h' %
@@ -81,7 +82,7 @@ class HUD(object):
             #                               (l.y - t.location.y)**2 +
             #                               (l.z - t.location.z)**2)
             vehicles = [(self.distance(x.get_location(), t), x)
-                        for x in vehicles if x.id != world.vehicle.id]
+                        for x in vehicles if x.id != vehicle.id]
             for d, vehicle in sorted(vehicles):
                 if d > 200.0:
                     break
@@ -104,12 +105,12 @@ class HUD(object):
         logger.info("Notification error disabled: "+text)
         # self._notifications.set_text('Error: %s' % text, (255, 0, 0))
 
-    def render(self, display):
+    def render(self, display, render_pose=(0,0)):
         if self._show_info:
             info_surface = pygame.Surface((220, self.dim[1]))
             info_surface.set_alpha(100)
-            display.blit(info_surface, (0, 0))
-            v_offset = 4
+            display.blit(info_surface, render_pose)
+            v_offset = 4 + render_pose[1]
             bar_h_offset = 100
             bar_width = 106
             for item in self._info_text:
