@@ -339,16 +339,19 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         # Render related
         Render.resize_screen(self._render_x_res, self._render_y_res)
-        
+
         self._camera_poses, window_dim = Render.get_surface_poses(
-            [self._x_res, self._y_res], self._actor_configs)
+            [self._x_res, self._y_res], self._actor_configs
+        )
 
         if manual_control_count == 0:
             Render.resize_screen(window_dim[0], window_dim[1])
         else:
             self._manual_control_render_pose = (0, window_dim[1])
             Render.resize_screen(
-                max(self._render_x_res, window_dim[0]), self._render_y_res + window_dim[1])
+                max(self._render_x_res, window_dim[0]),
+                self._render_y_res + window_dim[1],
+            )
 
         # Actions space
         if self._discrete_actions:
@@ -666,8 +669,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         if self._server_process:
             if IS_WINDOWS_PLATFORM:
                 subprocess.call(
-                    ["taskkill", "/F", "/T", "/PID",
-                        str(self._server_process.pid)]
+                    ["taskkill", "/F", "/T", "/PID", str(self._server_process.pid)]
                 )
                 live_carla_processes.remove(self._server_process.pid)
             else:
@@ -780,7 +782,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             #: closest match
 
         if actor_type == "pedestrian":
-            blueprints = self.world.get_blueprint_library().filter("walker")
+            blueprints = self.world.get_blueprint_library().filter(
+                "walker.pedestrian.*"
+            )
 
         elif actor_type == "vehicle_4W":
             blueprints = self.world.get_blueprint_library().filter("vehicle")
@@ -833,7 +837,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.world.tick()
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 # Register it under traffic manager
-                vehicle.set_autopilot(False, self._traffic_manager.get_port())
+                # Walker vehicle type does not have autopilot. Use walker controller ai
+                if actor_type == "pedestrian":
+                    # vehicle.set_simulate_physics(False)
+                    pass
+                else:
+                    vehicle.set_autopilot(False, self._traffic_manager.get_port())
                 break
             # Wait to see if spawn area gets cleared before retrying
             # time.sleep(0.5)
@@ -960,16 +969,18 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 # Manual Control
                 if actor_config["manual_control"]:
                     self._control_clock = pygame.time.Clock()
-                    
+
                     self._manual_controller = KeyboardControl(
-                        self, actor_config["auto_control"])
+                        self, actor_config["auto_control"]
+                    )
                     self._manual_controller.actor_id = actor_id
-                    
+
                     self.world.on_tick(self._hud.on_world_tick)
                     self._manual_control_camera_manager = CameraManager(
-                        self._actors[actor_id], self._hud)
+                        self._actors[actor_id], self._hud
+                    )
                     self._manual_control_camera_manager.set_sensor(
-                        CAMERA_TYPES['rgb'].value - 1, pos=2, notify=False
+                        CAMERA_TYPES["rgb"].value - 1, pos=2, notify=False
                     )
 
                 self._start_coord.update(
@@ -1161,13 +1172,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 k for k, v in self._actor_configs.items() if v.get("render", False)
             ]
             if render_required:
-                images = {k: self._decode_obs(k, v)
-                          for k, v in obs_dict.items() if self._actor_configs[k]["render"]}
+                images = {
+                    k: self._decode_obs(k, v)
+                    for k, v in obs_dict.items()
+                    if self._actor_configs[k]["render"]
+                }
 
                 Render.multi_view_render(images, self._camera_poses)
                 if self._manual_controller is None:
                     Render.dummy_event_handler()
-                
+
             return obs_dict, reward_dict, self._done_dict, info_dict
         except Exception:
             print(
@@ -1214,12 +1228,21 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         config = self._actor_configs[actor_id]
         if config["manual_control"]:
             self._control_clock.tick(60)
-            self._manual_control_camera_manager._hud.tick(self.world, self._actors[actor_id], self._collisions[actor_id], self._control_clock)
+            self._manual_control_camera_manager._hud.tick(
+                self.world,
+                self._actors[actor_id],
+                self._collisions[actor_id],
+                self._control_clock,
+            )
             self._manual_controller.parse_events(self, self._control_clock)
 
             # TODO: consider move this to Render as well
-            self._manual_control_camera_manager.render(Render.get_screen(), self._manual_control_render_pose)
-            self._manual_control_camera_manager._hud.render(Render.get_screen(), self._manual_control_render_pose)
+            self._manual_control_camera_manager.render(
+                Render.get_screen(), self._manual_control_render_pose
+            )
+            self._manual_control_camera_manager._hud.render(
+                Render.get_screen(), self._manual_control_render_pose
+            )
             pygame.display.flip()
         elif config["auto_control"]:
             if getattr(self._actors[actor_id], "set_autopilot", 0):
@@ -1523,10 +1546,8 @@ def get_next_actions(measurements, is_discrete_actions):
 
 
 if __name__ == "__main__":
-    argparser = argparse.ArgumentParser(
-        description="CARLA Manual Control Client")
-    argparser.add_argument("--scenario", default="3",
-                           help="print debug information")
+    argparser = argparse.ArgumentParser(description="CARLA Manual Control Client")
+    argparser.add_argument("--scenario", default="3", help="print debug information")
     # TODO: Fix the default path to the config.json;Should work after packaging
     argparser.add_argument(
         "--config",
@@ -1534,8 +1555,7 @@ if __name__ == "__main__":
         help="print debug information",
     )
 
-    argparser.add_argument("--map", default="Town01",
-                           help="print debug information")
+    argparser.add_argument("--map", default="Town01", help="print debug information")
 
     args = argparser.parse_args()
 
