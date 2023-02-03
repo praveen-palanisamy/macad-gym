@@ -1213,7 +1213,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         config = self._actor_configs[actor_id]
         if config["enable_planner"]:
             # update planned route, this will affect _read_observation()
-            planned_action = self._path_trackers[actor_id].run_step()
+            path_tracker = self._path_trackers[actor_id]
+            planned_action = path_tracker.run_step()
 
         if config["manual_control"]:
             self._control_clock.tick(60)
@@ -1233,30 +1234,22 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             pygame.display.flip()
         elif config["auto_control"]:
             if config["enable_planner"]:
-                if self._done_dict[actor_id]:
+                if path_tracker.agent.done() or self._done_dict[actor_id]:
                     # This will take effect in two cases:
                     # 1. The actor has reached the destination. We enable autopilot to avoid it stands still.
                     # 2. The actor has collided with other actors. We enable autopilot to avoid it collides again.
                     # TODO: discuss whether this behavior is desired.
                     toggle_autopilot(self._actors[actor_id], True, self._traffic_manager.get_port())
                 else:
+                    # Apply BasicAgent's action, this will navigate the actor to defined destination.
+                    # However, the BasicAgent doesn't take consideration of some rules, such as stop sign.
+                    # It's not guaranteed to drive safely.
                     self._actors[actor_id].apply_control(planned_action)
                     # TODO: For debugging, remove drawing when PathTracker is complete
-                    self._path_trackers[actor_id].draw()
+                    path_tracker.draw()
             else:
                 toggle_autopilot(self._actors[actor_id], True, self._traffic_manager.get_port())
         else:
-            # TODO: Planner based on waypoints.
-            # cur_location = self.actor_list[i].get_location()
-            # dst_location = carla.Location(x = self.end_pos[i][0],
-            # y = self.end_pos[i][1], z = self.end_pos[i][2])
-            # cur_map = self.world.get_map()
-            # next_point_transform = get_transform_from_nearest_way_point(
-            # cur_map, cur_location, dst_location)
-            # the point with z = 0, and the default z of cars are 40
-            # next_point_transform.location.z = 40
-            # self.actor_list[i].set_transform(next_point_transform)
-
             agent_type = config.get("type", "vehicle")
             # TODO: Add proper support for pedestrian actor according to action
             # space of ped actors
