@@ -47,20 +47,12 @@ from macad_gym.core.sensors.camera_manager import CameraManager, CAMERA_TYPES
 from macad_gym.core.sensors.derived_sensors import LaneInvasionSensor
 from macad_gym.core.sensors.derived_sensors import CollisionSensor
 from macad_gym.core.controllers.keyboard_control import KeyboardControl
-from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner_dao import (  # noqa: E501
-    GlobalRoutePlannerDAO,
-)
+from agents.navigation.local_planner import RoadOption
 
 # The following imports depend on these paths being in sys path
 # TODO: Fix this. This probably won't work after packaging/distribution
 sys.path.append("src/macad_gym/carla/PythonAPI")
 from macad_gym.core.maps.nav_utils import PathTracker  # noqa: E402
-from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner import (  # noqa: E402, E501
-    GlobalRoutePlanner,
-)
-from macad_gym.carla.PythonAPI.agents.navigation.local_planner import (  # noqa:E402, E501
-    RoadOption,
-)
 
 logger = logging.getLogger(__name__)
 # Set this where you want to save image outputs (or empty string to disable)
@@ -621,11 +613,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 carla.Transform(location, carla.Rotation(yaw=180 + angle, pitch=-15))
             )
 
-        if self._env_config.get("enable_planner"):
-            planner_dao = GlobalRoutePlannerDAO(self.world.get_map())
-            self.planner = GlobalRoutePlanner(planner_dao)
-            self.planner.setup()
-
     def _clean_world(self):
         """Destroy all actors cleanly before exiting
 
@@ -916,8 +903,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
                 if self._env_config["enable_planner"]:
                     self._path_trackers[actor_id] = PathTracker(
-                        self.world,
-                        self.planner,
                         (
                             self._start_pos[actor_id][0],
                             self._start_pos[actor_id][1],
@@ -1226,6 +1211,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             )
 
         config = self._actor_configs[actor_id]
+        if config["enable_planner"]:
+            # update planned route, this will affect _read_observation()
+            planned_action = self._path_trackers[actor_id].run_step()
+
         if config["manual_control"]:
             self._control_clock.tick(60)
             self._manual_control_camera_manager._hud.tick(
@@ -1235,8 +1224,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self._control_clock,
             )
             self._manual_controller.parse_events(self, self._control_clock)
-
-            # TODO: consider move this to Render as well
             self._manual_control_camera_manager.render(
                 Render.get_screen(), self._manual_control_render_pose
             )
@@ -1245,10 +1232,19 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             )
             pygame.display.flip()
         elif config["auto_control"]:
-            if getattr(self._actors[actor_id], "set_autopilot", 0):
-                self._actors[actor_id].set_autopilot(
-                    True, self._traffic_manager.get_port()
-                )
+            if config["enable_planner"]:
+                if self._done_dict[actor_id]:
+                    # This will take effect in two cases:
+                    # 1. The actor has reached the destination. We enable autopilot to avoid it stands still.
+                    # 2. The actor has collided with other actors. We enable autopilot to avoid it collides again.
+                    # TODO: discuss whether this behavior is desired.
+                    toggle_autopilot(self._actors[actor_id], True, self._traffic_manager.get_port())
+                else:
+                    self._actors[actor_id].apply_control(planned_action)
+                    # TODO: For debugging, remove drawing when PathTracker is complete
+                    self._path_trackers[actor_id].draw()
+            else:
+                toggle_autopilot(self._actors[actor_id], True, self._traffic_manager.get_port())
         else:
             # TODO: Planner based on waypoints.
             # cur_location = self.actor_list[i].get_location()
@@ -1386,7 +1382,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             dict: measurement data.
 
         """
-        cur = self._actors[actor_id]
         cur_config = self._actor_configs[actor_id]
         planner_enabled = cur_config["enable_planner"]
         if planner_enabled:
@@ -1394,13 +1389,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             orientation_diff = self._path_trackers[
                 actor_id
             ].get_orientation_difference_to_end_in_radians()
-            commands = self.planner.plan_route(
-                (cur.get_location().x, cur.get_location().y),
-                (self._end_pos[actor_id][0], self._end_pos[actor_id][1]),
-            )
+            commands = self._path_trackers[actor_id].get_path()
             if len(commands) > 0:
                 next_command = ROAD_OPTION_TO_COMMANDS_MAPPING.get(
-                    commands[0], "LANE_FOLLOW"
+                    commands[0][1], "LANE_FOLLOW"
                 )
             elif (
                 dist <= DISTANCE_TO_GOAL_THRESHOLD
@@ -1544,6 +1536,9 @@ def get_next_actions(measurements, is_discrete_actions):
             action_dict[actor_id] = [1, 0]
     return action_dict
 
+def toggle_autopilot(actor, activate, tm_port=8000):
+    if hasattr(actor, "set_autopilot"):
+        actor.set_autopilot(activate, tm_port)
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description="CARLA Manual Control Client")
