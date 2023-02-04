@@ -1210,20 +1210,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 "steer", steer, "throttle", throttle, "brake", brake, "reverse", reverse
             )
 
-        config = self._actor_configs[actor_id]
-        if config["enable_planner"]:
-            # update planned route, this will affect _read_observation()
-            path_tracker = self._path_trackers[actor_id]
-            planned_action = path_tracker.run_step()
-
-        if config["manual_control"]:
+        # The manual control should apply on every carla tick
+        # Otherwise the performance is related to the number of actors
+        if self._control_clock is not None:
             self._control_clock.tick(60)
-            self._manual_control_camera_manager._hud.tick(
-                self.world,
-                self._actors[actor_id],
-                self._collisions[actor_id],
-                self._control_clock,
-            )
             self._manual_controller.parse_events(self, self._control_clock)
             self._manual_control_camera_manager.render(
                 Render.get_screen(), self._manual_control_render_pose
@@ -1232,6 +1222,20 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 Render.get_screen(), self._manual_control_render_pose
             )
             pygame.display.flip()
+
+        config = self._actor_configs[actor_id]
+        if config["enable_planner"]:
+            # update planned route, this will affect _read_observation()
+            path_tracker = self._path_trackers[actor_id]
+            planned_action = path_tracker.run_step()
+
+        if config["manual_control"]:
+            self._manual_control_camera_manager._hud.tick(
+                self.world,
+                self._actors[actor_id],
+                self._collisions[actor_id],
+                self._control_clock,
+            )
         elif config["auto_control"]:
             if config["enable_planner"]:
                 if path_tracker.agent.done() or self._done_dict[actor_id]:
