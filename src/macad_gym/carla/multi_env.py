@@ -271,7 +271,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self._env_config = configs["env"]
         self._actor_configs = configs["actors"]
 
-        # At most one actor can be manual controlled
+        # At most one actor can be manually controlled
         manual_control_count = 0
         for _, actor_config in self._actor_configs.items():
             if actor_config["manual_control"]:
@@ -705,8 +705,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 while cam.callback_count == 0:
                     if self._sync_server:
                         self.world.tick()
-                        # `wait_for_tick` is no longer needed, see https://github.com/carla-simulator/carla/pull/1803
-                        # self.world.wait_for_tick()
+                    else:
+                        self.world.wait_for_tick()
+
                 if cam.image is None:
                     print("callback_count:", actor_id, ":", cam.callback_count)
                 obs = self._encode_obs(actor_id, cam.image, py_measurement)
@@ -822,6 +823,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             vehicle = self.world.try_spawn_actor(blueprint, transform)
             if self._sync_server:
                 self.world.tick()
+            else:
+                self.world.wait_for_tick()
+            
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 # Register it under traffic manager
                 # Walker vehicle type does not have autopilot. Use walker controller ai
@@ -1244,6 +1248,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     # 2. The actor has collided with other actors. We enable autopilot to avoid it collides again.
                     # TODO: discuss whether this behavior is desired.
                     toggle_autopilot(self._actors[actor_id], True, self._traffic_manager.get_port())
+                    print("autopilot has taken over for actor {}".format(actor_id))
                 else:
                     # Apply BasicAgent's action, this will navigate the actor to defined destination.
                     # However, the BasicAgent doesn't take consideration of some rules, such as stop sign.
@@ -1289,8 +1294,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # "(A)Synchronous (carla) server"
         if self._sync_server:
             self.world.tick()
-            # `wait_for_tick` is no longer needed, see https://github.com/carla-simulator/carla/pull/1803
-            # self.world.wait_for_tick()
 
         # Process observations
         py_measurements = self._read_observation(actor_id)
