@@ -619,20 +619,31 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         Returns:
             N/A
         """
+        DestroyActor = carla.command.DestroyActor
+        batch = []
+
         for colli in self._collisions.values():
             if colli.sensor.is_alive:
-                colli.sensor.destroy()
+                batch.append(DestroyActor(colli.sensor))       
         for lane in self._lane_invasions.values():
             if lane.sensor.is_alive:
-                lane.sensor.destroy()
+                batch.append(DestroyActor(lane.sensor))       
         for actor in self._actors.values():
             if actor.is_alive:
-                actor.destroy()
+                batch.append(DestroyActor(actor))      
         for npc in self._npc_vehicles:
-            npc.destroy()
+            batch.append(DestroyActor(npc))     
         for npc in zip(*self._npc_pedestrians):
-            npc[1].stop()  # stop controller
-            npc[0].destroy()  # kill entity
+            npc[1].stop()
+            batch.append(DestroyActor(npc[0]))
+    
+        try:
+            self._client.apply_batch_sync(batch)
+        except Exception as e:
+            if "time-out" not in str(e):
+                pass
+            else:
+                raise e
         # Note: the destroy process for cameras is handled in camera_manager.py
 
         self._cameras = {}
@@ -642,6 +653,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self._path_trackers = {}
         self._collisions = {}
         self._lane_invasions = {}
+        self._manual_controller = None
+        self._manual_control_camera_manager = None
+        self._control_clock = None
 
         print("Cleaned-up the world...")
 
@@ -1248,7 +1262,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                     # 2. The actor has collided with other actors. We enable autopilot to avoid it collides again.
                     # TODO: discuss whether this behavior is desired.
                     toggle_autopilot(self._actors[actor_id], True, self._traffic_manager.get_port())
-                    print("autopilot has taken over for actor {}".format(actor_id))
                 else:
                     # Apply BasicAgent's action, this will navigate the actor to defined destination.
                     # However, the BasicAgent doesn't take consideration of some rules, such as stop sign.
@@ -1294,6 +1307,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # "(A)Synchronous (carla) server"
         if self._sync_server:
             self.world.tick()
+        else:
+            self.world.wait_for_tick()
 
         # Process observations
         py_measurements = self._read_observation(actor_id)
