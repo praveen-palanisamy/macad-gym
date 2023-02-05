@@ -63,8 +63,13 @@ python -m macad_gym.envs.homo.ncom.inde.po.intrx.ma.stop_sign_3c_town03
 
     3.2 Example: Download the 0.9.13 release version from: [Here](https://github.com/carla-simulator/carla/releases)
     Extract it into `~/software/CARLA_0.9.13`
-    
-    3.3 `echo "export CARLA_SERVER=${HOME}/software/CARLA_0.9.13/CarlaUE4.sh" >> ~/.bashrc`
+
+    3.3 
+    ```bash
+    echo "export CARLA_ROOT=${HOME}/software/CARLA_0.9.13" >> ~/.bashrc
+    echo "export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh" >> ~/.bashrc
+    echo "export PYTHONPATH=${CARLA_ROOT}/PythonAPI/carla:${PYTHONPATH}" >> ~/.bashrc
+    ```
 
 1. Install MACAD-Gym:
    - **Option1 for users** : `pip install macad-gym`
