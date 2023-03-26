@@ -30,7 +30,6 @@ from gym.spaces import Box, Discrete, Tuple, Dict
 import pygame
 import carla
 
-from macad_gym.core.controllers.traffic import apply_traffic
 from macad_gym.multi_actor_env import MultiActorEnv
 from macad_gym import LOG_DIR
 from macad_gym.core.sensors.utils import preprocess_image
@@ -428,8 +427,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self._previous_actions = {}
         self._previous_rewards = {}
         self._last_reward = {}
-        self._npc_vehicles = []  # List of NPC vehicles
-        self._npc_pedestrians = []  # List of NPC pedestrians
         self._agents = {}  # Dictionary of macad_agents with agent_id as key
         self._actors = {}  # Dictionary of actors with actor_id as key
         self._cameras = {}  # Dictionary of sensors with actor_id as key
@@ -646,17 +643,10 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         for actor in self._actors.values():
             if actor.is_alive:
                 actor.destroy()
-        for npc in self._npc_vehicles:
-            npc.destroy()
-        for npc in zip(*self._npc_pedestrians):
-            npc[1].stop()  # stop controller
-            npc[0].destroy()  # kill entity
         # Note: the destroy process for cameras is handled in camera_manager.py
 
         self._cameras = {}
         self._actors = {}
-        self._npc_vehicles = []
-        self._npc_pedestrians = []
         self._path_trackers = {}
         self._collisions = {}
         self._lane_invasions = {}
@@ -1017,13 +1007,6 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 )
 
         print("New episode initialized with actors:{}".format(self._actors.keys()))
-
-        self._npc_vehicles, self._npc_pedestrians = apply_traffic(
-            self.world,
-            self._traffic_manager,
-            self._scenario_map.get("num_vehicles", 0),
-            self._scenario_map.get("num_pedestrians", 0),
-        )
 
     def _load_scenario(self, scenario_parameter):
         self._scenario_map = {}
