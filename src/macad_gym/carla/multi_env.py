@@ -39,7 +39,7 @@ from macad_gym.core.maps.nodeid_coord_map import MAP_TO_COORDS_MAPPING
 # from macad_gym.core.sensors.utils import get_transform_from_nearest_way_point
 from macad_gym.carla.reward import Reward
 from macad_gym.core.sensors.hud import HUD
-from macad_gym.viz.render import multi_view_render
+from macad_gym.viz.render import Render
 from macad_gym.carla.scenarios import Scenarios
 
 # The following imports require carla to be imported already.
@@ -278,6 +278,21 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self._scenario_config = configs["scenarios"]
         self._env_config = configs["env"]
         self._actor_configs = configs["actors"]
+
+        # At most one actor can be manual controlled
+        manual_control_count = 0
+        for _, actor_config in self._actor_configs.items():
+            if actor_config["manual_control"]:
+                if "vehicle" not in actor_config["type"]:
+                    raise ValueError("Only vehicles can be manual controlled.")
+
+                manual_control_count += 1
+
+        assert manual_control_count <= 1, (
+            "At most one actor can be manually controlled. "
+            f"Found {manual_control_count} actors with manual_control=True"
+        )
+
         # Camera position is problematic for certain vehicles and even in
         # autopilot they are prone to error
         self.exclude_hard_vehicles = False
@@ -316,6 +331,27 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         # Initialize to be compatible with cam_manager to set HUD.
         pygame.font.init()  # for HUD
         self._hud = HUD(self._render_x_res, self._render_y_res)
+
+        # For manual_control
+        self._control_clock = None
+        self._manual_controller = None
+        self._manual_control_camera_manager = None
+
+        # Render related
+        Render.resize_screen(self._render_x_res, self._render_y_res)
+
+        self._camera_poses, window_dim = Render.get_surface_poses(
+            [self._x_res, self._y_res], self._actor_configs
+        )
+
+        if manual_control_count == 0:
+            Render.resize_screen(window_dim[0], window_dim[1])
+        else:
+            self._manual_control_render_pose = (0, window_dim[1])
+            Render.resize_screen(
+                max(self._render_x_res, window_dim[0]),
+                self._render_y_res + window_dim[1],
+            )
 
         # Actions space
         if self._discrete_actions:
@@ -698,9 +734,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         return self._obs_dict
 
-    # TODO: Is this function required?
-    # TODO: Thought: Run server in headless mode always. Use pygame win on
-    # client when render=True
+    # ! Deprecated method
     def _on_render(self):
         """Render the pygame window.
 
@@ -709,11 +743,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         Returns:
             N/A
         """
-        for cam in self._cameras.values():
-            surface = cam._surface
-            if surface is not None:
-                self._display.blit(surface, (0, 0))
-            pygame.display.flip()
+        pass
 
     def _spawn_new_actor(self, actor_id):
         """Spawn an agent as per the blueprint at the given pose
@@ -757,7 +787,9 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             #: closest match
 
         if actor_type == "pedestrian":
-            blueprints = self.world.get_blueprint_library().filter("walker")
+            blueprints = self.world.get_blueprint_library().filter(
+                "walker.pedestrian.*"
+            )
 
         elif actor_type == "vehicle_4W":
             blueprints = self.world.get_blueprint_library().filter("vehicle")
@@ -810,7 +842,12 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 self.world.tick()
             if vehicle is not None and vehicle.get_location().z > 0.0:
                 # Register it under traffic manager
-                vehicle.set_autopilot(False, self._traffic_manager.get_port())
+                # Walker vehicle type does not have autopilot. Use walker controller ai
+                if actor_type == "pedestrian":
+                    # vehicle.set_simulate_physics(False)
+                    pass
+                else:
+                    vehicle.set_autopilot(False, self._traffic_manager.get_port())
                 break
             # Wait to see if spawn area gets cleared before retrying
             # time.sleep(0.5)
@@ -872,7 +909,8 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 )
                 actor_config = self._actor_configs[actor_id]
 
-                try:  # Try to spawn actor (soft reset) or fail and reinitialize the server before get back here
+                # Try to spawn actor (soft reset) or fail and reinitialize the server before get back here
+                try:
                     self._actors[actor_id] = self._spawn_new_actor(actor_id)
                 except RuntimeError as spawn_err:
                     del self._done_dict[actor_id]
@@ -932,6 +970,23 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 )
                 assert camera_manager.sensor.is_listening
                 self._cameras.update({actor_id: camera_manager})
+
+                # Manual Control
+                if actor_config["manual_control"]:
+                    self._control_clock = pygame.time.Clock()
+
+                    self._manual_controller = KeyboardControl(
+                        self, actor_config["auto_control"]
+                    )
+                    self._manual_controller.actor_id = actor_id
+
+                    self.world.on_tick(self._hud.on_world_tick)
+                    self._manual_control_camera_manager = CameraManager(
+                        self._actors[actor_id], self._hud
+                    )
+                    self._manual_control_camera_manager.set_sensor(
+                        CAMERA_TYPES["rgb"].value - 1, pos=2, notify=False
+                    )
 
                 self._start_coord.update(
                     {
@@ -1122,10 +1177,16 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
                 k for k, v in self._actor_configs.items() if v.get("render", False)
             ]
             if render_required:
-                images = {k: self._decode_obs(k, v) for k, v in obs_dict.items()}
-                multi_view_render(
-                    images, [self._x_res, self._y_res], self._actor_configs
-                )
+                images = {
+                    k: self._decode_obs(k, v)
+                    for k, v in obs_dict.items()
+                    if self._actor_configs[k]["render"]
+                }
+
+                Render.multi_view_render(images, self._camera_poses)
+                if self._manual_controller is None:
+                    Render.dummy_event_handler()
+
             return obs_dict, reward_dict, self._done_dict, info_dict
         except Exception:
             print(
@@ -1171,18 +1232,23 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
 
         config = self._actor_configs[actor_id]
         if config["manual_control"]:
-            clock = pygame.time.Clock()
-            # pygame
-            self._display = pygame.display.set_mode(
-                (config["render_x_res"], config["render_y_res"]),
-                pygame.HWSURFACE | pygame.DOUBLEBUF,
+            self._control_clock.tick(60)
+            self._manual_control_camera_manager._hud.tick(
+                self.world,
+                self._actors[actor_id],
+                self._collisions[actor_id],
+                self._control_clock,
             )
-            logger.debug("pygame started")
-            controller = KeyboardControl(self, config["auto_control"])
-            controller.actor_id = actor_id
-            controller.parse_events(self, clock)
-            # TODO: Is this _on_render() method necessary? why?
-            self._on_render()
+            self._manual_controller.parse_events(self, self._control_clock)
+
+            # TODO: consider move this to Render as well
+            self._manual_control_camera_manager.render(
+                Render.get_screen(), self._manual_control_render_pose
+            )
+            self._manual_control_camera_manager._hud.render(
+                Render.get_screen(), self._manual_control_render_pose
+            )
+            pygame.display.flip()
         elif config["auto_control"]:
             if getattr(self._actors[actor_id], "set_autopilot", 0):
                 self._actors[actor_id].set_autopilot(

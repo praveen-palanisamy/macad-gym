@@ -36,6 +36,7 @@ import carla
 class KeyboardControl(object):
     """This class from carla, manual_control.py
     """
+
     def __init__(self, world, start_in_autopilot):
         self._autopilot_enabled = start_in_autopilot
         self._control = carla.VehicleControl()
@@ -80,26 +81,44 @@ class KeyboardControl(object):
                         self._autopilot_enabled = not self._autopilot_enabled
                         self.vehicle.set_autopilot(self._autopilot_enabled)
             if not self._autopilot_enabled:
+                # FIXME: The actor_id is the name of the vehicle, not the id
                 if self.actor_id == 0:
-                    self._parse_keys1(pygame.key.get_pressed(), clock.get_time())
+                    self._parse_keys1(
+                        pygame.key.get_pressed(), clock.get_time())
                 elif self.actor_id == 1:
-                    self._parse_keys2(pygame.key.get_pressed(), clock.get_time())
-                elif self.actor_id == -1:  # use default ones
-                    self._parse_keys(pygame.key.get_pressed(), clock.get_time())
+                    self._parse_keys2(
+                        pygame.key.get_pressed(), clock.get_time())
+                else:  # use default ones
+                    self._parse_keys(pygame.key.get_pressed(),
+                                     clock.get_time())
                 self.vehicle.apply_control(self._control)
 
     def _parse_keys(self, keys, milliseconds):
-        self._control.throttle = 1.0 if keys[K_UP] or keys[K_w] else 0.0
+        if keys[K_UP] or keys[K_w]:
+            self._control.throttle = min(self._control.throttle + 0.1, 1.0)
+        else:
+            self._control.throttle = 0.0
+
+        if keys[K_DOWN] or keys[K_s]:
+            self._control.brake = min(self._control.brake + 0.2, 1.0)
+        else:
+            self._control.brake = 0
+
         steer_increment = 5e-4 * milliseconds
         if keys[K_LEFT] or keys[K_a]:
-            self._steer_cache -= steer_increment
+            if self._steer_cache > 0:
+                self._steer_cache = 0
+            else:
+                self._steer_cache -= steer_increment
         elif keys[K_RIGHT] or keys[K_d]:
-            self._steer_cache += steer_increment
+            if self._steer_cache < 0:
+                self._steer_cache = 0
+            else:
+                self._steer_cache += steer_increment
         else:
             self._steer_cache = 0.0
         self._steer_cache = min(0.7, max(-0.7, self._steer_cache))
         self._control.steer = round(self._steer_cache, 1)
-        self._control.brake = 1.0 if keys[K_DOWN] or keys[K_s] else 0.0
         self._control.hand_brake = keys[K_SPACE]
 
     def _parse_keys1(self, keys, milliseconds):
