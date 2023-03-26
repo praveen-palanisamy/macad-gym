@@ -1,14 +1,10 @@
 #!/usr/bin/env python
 import time
 
-from env.carla.multi_env import MultiCarlaEnv
-
-# from env.carla.multi_env import get_next_actions
-
-# config_file = open("urban_2_car_1_ped.json")
-# configs = json.load(config_file)
+from macad_gym.carla.multi_env import MultiCarlaEnv
 
 U2C_CONFIGS = {
+    "scenarios": "DEFAULT_SCENARIO_TOWN1_COMBINED",
     "env": {
         "enable_planner": True,
         "server_map": "/Game/Carla/Maps/Town01",
@@ -32,7 +28,6 @@ U2C_CONFIGS = {
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "DEFAULT_SCENARIO_TOWN1",
             "manual_control": False,
             "auto_control": False,
             "camera_type": "rgb",
@@ -53,7 +48,6 @@ U2C_CONFIGS = {
             "convert_images_to_video": False,
             "early_terminate_on_collision": True,
             "reward_function": "corl2017",
-            "scenarios": "DEFAULT_SCENARIO_TOWN1_2",
             "manual_control": False,
             "auto_control": False,
             "camera_type": "rgb",
@@ -73,19 +67,18 @@ U2C_CONFIGS = {
 }
 
 
-class Urban2Car(MultiCarlaEnv):
-    """A 4-way signalized intersection Multi-Agent Carla-Gym environment"""
+class Urban2CarTown01(MultiCarlaEnv):
+    """A Straight Urban road Multi-Agent Carla-Gym environment"""
     def __init__(self):
         self.configs = U2C_CONFIGS
-        super(Urban2Car, self).__init__(self.configs)
+        super(Urban2CarTown01, self).__init__(self.configs)
 
 
 if __name__ == "__main__":
-    env = Urban2Car()
+    env = Urban2CarTown01()
     configs = env.configs
     for ep in range(2):
         obs = env.reset()
-        total_vehicle = env.num_vehicle
 
         total_reward_dict = {}
         action_dict = {}
@@ -94,7 +87,7 @@ if __name__ == "__main__":
         actor_configs = configs["actors"]
         for actor_id in actor_configs.keys():
             total_reward_dict[actor_id] = 0
-            if env.discrete_actions:
+            if env_config["discrete_actions"]:
                 action_dict[actor_id] = 3  # Forward
             else:
                 action_dict[actor_id] = [1, 0]  # test values
