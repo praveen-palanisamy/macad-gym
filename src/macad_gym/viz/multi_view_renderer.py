@@ -7,41 +7,36 @@ pygame.init()
 pygame.display.set_caption("MACAD-Gym")
 
 
-class Render:
+class MultiViewRenderer:
     """Handle rendering of pygame window."""
 
-    _screen = None
-    _update_size = False
-    resX = 640
-    resY = 480
+    def __init__(self, screen_width=640, screen_height=480):
+        self.width = screen_width
+        self.height = screen_height
+        self.poses = {}
+        self._update_size = False
+        self._screen = None
+        self.save_counter = 0
 
-    save_cnt = 0
+    def reset_frame_counter(self):
+        self.save_counter = 0
 
-    @staticmethod
-    def reset_frame_cnt():
-        Render.save_cnt = 0
-
-    @staticmethod
-    def resize_screen(resX, resY):
-        """Resize the screen.
-
-        This call doesn't take effect until Render.get_screen() is called.
+    def resize_screen(self, screen_width, screen_height):
         """
-        Render.resX = resX
-        Render.resY = resY
-        Render._update_size = True
+        Resize the screen.
+        """
+        self.width = screen_width
+        self.height = screen_height
+        self._update_size = True
 
-    @staticmethod
-    def get_screen():
-        if Render._screen is None or Render._update_size:
-            Render._screen = pygame.display.set_mode(
-                (Render.resX, Render.resY), pygame.HWSURFACE | pygame.DOUBLEBUF)
-            Render._update_size = False
+    def get_screen(self):
+        if self._screen is None or self._update_size:
+            self._screen = pygame.display.set_mode((self.width, self.height), pygame.HWSURFACE | pygame.DOUBLEBUF)
+            self._update_size = False
 
-        return Render._screen
+        return self._screen
 
-    @staticmethod
-    def draw(image, render_pose=(0, 0)):
+    def draw(self, image, render_pose=(0, 0)):
         """Draw the image on the screen.
 
         Args:
@@ -51,18 +46,16 @@ class Render:
         Returns:
             N/A.
         """
-        screen = Render.get_screen()
+        screen = self.get_screen()
 
         if isinstance(image, pygame.Surface):
             screen.blit(image, render_pose)
         else:
             surface = pygame.surfarray.make_surface(image)
             screen.blit(surface, render_pose)
-
         pygame.display.flip()
 
-    @staticmethod
-    def get_surface_poses(unit_dimension, actor_configs):
+    def set_surface_poses(self, unit_dimension, actor_configs):
         """Calculate the poses of sub-windows of actors
 
         Args:
@@ -70,7 +63,7 @@ class Render:
             actor_configs (dict): dict of actor configs.
 
         Returns:
-            poses (dict): return position dicts in pygame window (start from left corner). E.g., {"vehiclie":[0,0]}
+            poses (dict): return position dicts in pygame window (start from left corner). E.g., {"vehicle":[0,0]}
             window_dim (list): return the max [width, height] needed to render all actors.
         """
         unit_x = unit_dimension[0]
@@ -78,37 +71,37 @@ class Render:
 
         subwindow_num = 0
         for _, config in actor_configs.items():
-            if config["render"] == True:
+            if config.render :
+                subwindow_num += 1
+            if config.manual_control:
                 subwindow_num += 1
 
         if subwindow_num == 0:
             return {}, [0, 0]
 
-        if unit_dimension[0] * subwindow_num > Render.resX:
+        if unit_dimension[0] * subwindow_num > self.width:
             row_num = math.ceil(math.sqrt(subwindow_num))
             max_x = row_num * unit_x
         else:
             row_num = 1
             max_x = subwindow_num*unit_x
-
         max_y = row_num * unit_y
 
-        poses = {}
-
-        i = 0
-        for id, config in actor_configs.items():
-            if config["render"] == False:
+        self.poses = {}
+        for i, a in enumerate(actor_configs.items()):
+            id, config = a
+            if not config.render and not config.manual_control:
                 continue
 
             x_pos = math.floor(i / row_num) * unit_x
             y_pos = math.floor(i % row_num) * unit_y
-            poses[id] = [x_pos, y_pos]
-            i += 1
+            self.poses[id if not config.manual_control else "manual"] = [x_pos, y_pos]
 
-        return poses, [max_x, max_y]
+        self.resize_screen(max_x, max_y)
 
-    @staticmethod
-    def multi_view_render(images, poses, enable_save=False):
+        return max_x, max_y
+
+    def render(self, images, enable_save=False):
         """Render multiple views of actors.
 
         Args:
@@ -119,31 +112,27 @@ class Render:
         Returns:
             N/A.
         """
-        surface_seq = ()
 
         # Get all surfaces.
-        for actor_id, im in images.items():
+        surface_seq = ()
+        for id, im in images.items():
             if isinstance(im, pygame.Surface):
                 surface = im
             else:
                 surface = pygame.surfarray.make_surface(im)
+            surface_seq += ((surface, (self.poses[id][0], self.poses[id][1])),)
 
-            surface_seq += ((surface,
-                            (poses[actor_id][0], poses[actor_id][1])),)
-
-        Render.get_screen().blits(blit_sequence=surface_seq, doreturn=1)
+        self.get_screen().blits(blit_sequence=surface_seq, doreturn=1)
         pygame.display.flip()
 
-        # save to disk
+        # Save to disk
         if enable_save:
             for surf, pos in surface_seq:
-                pygame.image.save(
-                    surf, f"./carla_out/{Render.save_cnt}_{pos[0]}_{pos[1]}.png")
-
-            Render.save_cnt += 1
+                pygame.image.save(surf, f"./carla_out/{self.save_counter}_{pos[0]}_{pos[1]}.png")
+            self.save_counter += 1
 
     @staticmethod
-    def dummy_event_handler():
+    def window_event_handler():
         """Dummy event handler.
 
         This is needed to make pygame window responsive.

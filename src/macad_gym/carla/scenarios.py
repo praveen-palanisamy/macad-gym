@@ -15,6 +15,13 @@ PAPER_TEST_WEATHERS = [1, 8, 5, 3]  # clear day, clear sunset, daytime rain, day
 PAPER_TRAIN_WEATHERS = [2, 14]  # cloudy daytime, soft rain at sunset
 
 
+
+
+#TODO keep here the dictionaries of positions and weather
+# the scenario will be just {map, steps, pedestrian, veichles, or other} <-- attributes of scenario element
+# all should be converted in XML format
+# the actors are read elsewhere <-- content of scenario element
+
 # builder functions for single and multi-agent scenarios
 def build_scenario(map, start, end, vehicles, pedestrians, max_steps, weathers):
     scenario = {"map": map, "num_vehicles": vehicles, "num_pedestrians": pedestrians, "weather_distribution": weathers,

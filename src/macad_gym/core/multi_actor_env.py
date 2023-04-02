@@ -5,6 +5,9 @@ __author__:PP
 
 import gym
 
+from macad_gym.core.constants import DEFAULT_MULTIENV_CONFIG
+from macad_gym.core.maps.nodeid_coord_map import MAP_TO_COORDS_MAPPING
+
 
 class MultiActorEnv(gym.Env):
     """An environment that hosts multiple independent actors.
@@ -12,7 +15,7 @@ class MultiActorEnv(gym.Env):
     Actor are identified by actor ids(string).
 
     Examples:
-        >>> env = MyMultiActorEnv()
+        >>> env = MyMultiActorEnv(DEFAULT_MULTIENV_CONFIG)
         >>> obs = env.reset()
         >>> print(obs)
         {
@@ -25,6 +28,7 @@ class MultiActorEnv(gym.Env):
             action_dict={
             "car_0": 1, "car_1": 0, "camera_0": 1 "traffic_light_1": 2,
             })
+
         >>> print(rewards)
         {
             "car_0": 3,
@@ -40,6 +44,8 @@ class MultiActorEnv(gym.Env):
             "traffic_light_1": False,
             "__all__": False,
         }
+    NOTE:
+        - Randomization for the starting/ending position can be achived using MAP_TO_COORDS_MAPPING[self._map]
     """
 
     _gym_disable_underscore_compat = True

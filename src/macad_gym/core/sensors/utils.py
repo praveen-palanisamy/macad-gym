@@ -2,8 +2,10 @@ import numpy as np
 import cv2
 import sys
 
+from macad_gym.core.sensors.camera_manager import DEPTH_CAMERAS
 
-def preprocess_image(image, config):
+
+def preprocess_image(image, config, resize=None):
     """Process image raw data to array data.
 
     Args:
@@ -14,10 +16,7 @@ def preprocess_image(image, config):
         list: Image array.
     """
 
-    # Retrieve data from config
-    x_res = config["x_res"]
-    y_res = config["y_res"]
-    use_depth_camera = config["use_depth_camera"]
+    use_depth_camera = config.camera_type in DEPTH_CAMERAS
 
     # Process image based on config data
     if use_depth_camera:
@@ -25,14 +24,16 @@ def preprocess_image(image, config):
         data = np.reshape(data, (image.height, image.width, 4))
         data = data[:, :, :1]
         data = data[:, :, ::-1]
-        data = cv2.resize(data, (x_res, y_res), interpolation=cv2.INTER_AREA)
+        if resize is not None:
+            data = cv2.resize(data, resize, interpolation=cv2.INTER_AREA)
         data = np.expand_dims(data, 2)
     else:
         data = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
         data = np.reshape(data, (image.height, image.width, 4))
         data = data[:, :, :3]
         data = data[:, :, ::-1]
-        data = cv2.resize(data, (x_res, y_res), interpolation=cv2.INTER_AREA)
+        if resize is not None:
+            data = cv2.resize(data, resize, interpolation=cv2.INTER_AREA)
         data = (data.astype(np.float32) - 128) / 128
 
     return data

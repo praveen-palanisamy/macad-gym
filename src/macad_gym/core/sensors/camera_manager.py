@@ -11,26 +11,24 @@ CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
 if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
     os.makedirs(CARLA_OUT_PATH)
 
-CAMERA_TYPES = Enum('CameraType', ['rgb',
-                                   'depth_raw',
-                                   'depth',
-                                   'semseg_raw',
-                                   'semseg'])
+CAMERA_TYPES = Enum('CameraType', ['rgb', 'depth', 'depth_raw', 'semseg', 'semseg_raw'])
+
+DEPTH_CAMERAS = ['depth', 'depth_raw']
 
 
 class CameraManager(object):
     """This class from carla, manual_control.py
     """
 
-    def __init__(self, parent_actor, hud):
+    def __init__(self, parent_actor, hud, record=False):
         self.image = None  # need image to encode obs.
         self.image_list = []  # for save images later.
         self.sensor = None
         self._surface = None
         self._parent = parent_actor
         self._hud = hud
-        self._recording = False
-        self._memory_record = False
+        self._recording = record
+        self._buffered_recording = False
         # supported through toggle_camera
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.8, z=1.7)),
@@ -83,25 +81,6 @@ class CameraManager(object):
         if self.sensor is not None:
             self.sensor.destroy()
 
-    def set_recording_option(self, option):
-        """Set class vars to select recording method.
-
-        Option 1: save image to disk while the program runs.(Default)
-        Option 2: save to memory first. Save to disk when program finishes.
-
-        Args:
-            option (int): record method.
-
-        Returns:
-            N/A.
-        """
-
-        # TODO: The options should be more verbose. Strings instead of ints
-        if option == 1:
-            self._recording = True
-        elif option == 2:
-            self._memory_record = True
-
     def toggle_camera(self):
         self._transform_index = (self._transform_index + 1) % len(
             self._camera_transforms)
@@ -142,6 +121,8 @@ class CameraManager(object):
     def render(self, display, render_pose=(0, 0)):
         if self._surface is not None:
             display.blit(self._surface, render_pose)
+        self._hud.render(display, render_pose)
+        pygame.display.flip()
 
     @staticmethod
     def _parse_image(weak_self, image):
@@ -176,7 +157,7 @@ class CameraManager(object):
                 image.frame_number)
             image.save_to_disk(image_dir)  # , env.cc
             # image.save_to_disk('_out/%08d' % image.frame_number)
-        elif self._memory_record:
+        elif self._buffered_recording:
             self.image_list.append(image)
         else:
             pass
