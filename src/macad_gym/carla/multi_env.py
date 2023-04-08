@@ -25,33 +25,38 @@ import traceback
 import socket
 import math
 
+import gym
 import numpy as np  # linalg.norm is used
 import GPUtil
 from gym.spaces import Box, Discrete, Tuple, Dict
 import pygame
 import carla
+from gymnasium.utils import EzPickle
 from path import Path
+from pettingzoo import AECEnv
+from pettingzoo.utils import wrappers
+from pettingzoo.utils.conversions import parallel_wrapper_fn
 
 from macad_gym.core.constants import DEFAULT_MULTIENV_CONFIG, RETRIES_ON_ERROR, DISCRETE_ACTIONS, COMMANDS_ENUM, \
     ROAD_OPTION_TO_COMMANDS_MAPPING, DISTANCE_TO_GOAL_THRESHOLD, ORIENTATION_TO_GOAL_THRESHOLD, COMMAND_ORDINAL
 from macad_gym.core.controllers.traffic import apply_traffic
 from macad_gym import LOG_DIR
-from macad_gym.core.multi_actor_env import MultiActorEnv
-from macad_gym.core.sensors.utils import preprocess_image
+from macad_gym.core.world_objects.utils import preprocess_image
 from macad_gym.core.maps.nodeid_coord_map import MAP_TO_COORDS_MAPPING
 from macad_gym.core.maps.nodeid_coord_map import MAP_TO_COORDS_MAPPING
 
 # from macad_gym.core.sensors.utils import get_transform_from_nearest_way_point
 from macad_gym.carla.reward import Reward
-from macad_gym.core.sensors.hud import HUD
+from macad_gym.core.world_objects.hud import HUD
+from macad_gym.core.utils.misc import sigmoid
 from macad_gym.core.utils.scenario_config import Configuration
 from macad_gym.viz.multi_view_renderer import MultiViewRenderer
 from macad_gym.carla.scenarios import Scenarios
 
 # The following imports require carla to be imported already.
-from macad_gym.core.sensors.camera_manager import CameraManager, CAMERA_TYPES, DEPTH_CAMERAS
-from macad_gym.core.sensors.derived_sensors import LaneInvasionSensor
-from macad_gym.core.sensors.derived_sensors import CollisionSensor
+from macad_gym.core.world_objects.camera_manager import CameraManager, CAMERA_TYPES, DEPTH_CAMERAS
+from macad_gym.core.world_objects.sensors import LaneInvasionSensor
+from macad_gym.core.world_objects.sensors import CollisionSensor
 from macad_gym.core.controllers.keyboard_control import KeyboardControl
 from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner_dao import (  # noqa: E501
     GlobalRoutePlannerDAO,
@@ -94,9 +99,6 @@ assert os.path.exists(SERVER_BINARY), (
 # from minigrid.core.world_object import Point, WorldObj
 # TODO move constants to replicate minigrid
 # TODO use obs and action spaces from gym
-# TODO XML config compatible with openscenarios to read the config file and override the other configs
-# TODO transform the default config in XML eliminating the redundant/useless parameters and read xml as if it is a dictionary
-
 
 
 
@@ -127,16 +129,20 @@ signal.signal(signal.SIGTERM, termination_cleanup)
 signal.signal(signal.SIGINT, termination_cleanup)
 atexit.register(cleanup)
 
-MultiAgentEnvBases = [MultiActorEnv]
-try:
-    from ray.rllib.env import MultiAgentEnv
 
-    MultiAgentEnvBases.append(MultiAgentEnv)
-except ImportError:
-    logger.warning("\n Disabling RLlib support.", exc_info=True)
+def env(**kwargs):
+    """Instantiate a PettingoZoo environment."""
+    # TODO implement the AEC API interface as wrapper of immediately in the main env dependiong on the difference of the specification 
+    env = MultiActorCarlaEnv(**kwargs)
+    # env = SumoEnvironmentPZ(**kwargs)
+    env = wrappers.AssertOutOfBoundsWrapper(env)
+    env = wrappers.OrderEnforcingWrapper(env)
+    return env
 
 
-class MultiCarlaEnv(*MultiAgentEnvBases):
+parallel_env = parallel_wrapper_fn(env)
+
+class MultiActorCarlaEnv(gym.Env):
     def __init__(
         self,
         configs: dict = None,
@@ -160,7 +166,36 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         multi-agent learning environments. The environment settings, scenarios
         and the actors in the environment can all be configured using
         the `configs` dict.
-
+        Examples:
+            >>> env = MyMultiActorEnv(DEFAULT_MULTIENV_CONFIG)
+            >>> obs = env.reset()
+            >>> print(obs)
+            {
+                "car_0": [2.4, 1.6],
+                "car_1": [3.4, -3.2],
+                "camera_0": [0.0, 0.0, 10.0, 20.0. 30.0],
+                "traffic_light_1": [0, 3, 5, 1],
+            }
+            >>> obs, rewards, dones, infos = env.step(
+                action_dict={
+                "car_0": 1, "car_1": 0, "camera_0": 1 "traffic_light_1": 2,
+                })
+    
+            >>> print(rewards)
+            {
+                "car_0": 3,
+                "car_1": -1,
+                "camera_0": 1,
+                "traffic_light_1": 0,
+            }
+            >>> print(dones)
+            {
+                "car_0": False,
+                "car_1": True,
+                "camera_0": False,
+                "traffic_light_1": False,
+                "__all__": False,
+            }
         Args:
             configs (dict): Configuration for environment specified under the
                 `env` key and configurations for each actor specified as dict
@@ -1091,7 +1126,7 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
             obs (dict): Observations for each actor.
             rewards (dict): Reward values for each actor. None for first step
             dones (dict): Done values for each actor. Special key "__all__" is
-            set when all actors are done and the env terminates
+            used to indicate env termination.
             info (dict): Info for each actor.
 
         Raises
@@ -1174,114 +1209,103 @@ class MultiCarlaEnv(*MultiAgentEnvBases):
         self._clear_server_state()
 
 
-def print_measurements(measurements):
-    number_of_agents = len(measurements.non_player_agents)
-    player_measurements = measurements.player_measurements
-    message = "Vehicle at ({pos_x:.1f}, {pos_y:.1f}), "
-    message += "{speed:.2f} km/h, "
-    message += "Collision: {{vehicles={col_cars:.0f}, "
-    message += "pedestrians={col_ped:.0f}, other={col_other:.0f}}}, "
-    message += "{other_lane:.0f}% other lane, {offroad:.0f}% off-road, "
-    message += "({agents_num:d} non-player macad_agents in the scene)"
-    message = message.format(
-        pos_x=player_measurements.transform.location.x,
-        pos_y=player_measurements.transform.location.y,
-        speed=player_measurements.forward_speed,
-        col_cars=player_measurements.collision_vehicles,
-        col_ped=player_measurements.collision_pedestrians,
-        col_other=player_measurements.collision_other,
-        other_lane=100 * player_measurements.intersection_otherlane,
-        offroad=100 * player_measurements.intersection_offroad,
-        agents_num=number_of_agents,
-    )
-    print(message)
+# class SumoEnvironmentPZ(AECEnv, EzPickle):
+#     """A wrapper for the SUMO environment that implements the AECEnv interface from PettingZoo.
+# 
+#     For more information, see https://pettingzoo.farama.org/api/aec/.
+# 
+#     The arguments are the same as for :py:class:`sumo_rl.environment.env.SumoEnvironment`.
+#     """
+# 
+#     metadata = {"render.modes": ["human", "rgb_array"], "name": "sumo_rl_v0", "is_parallelizable": True}
+# 
+#     def __init__(self, **kwargs):
+#         """Initialize the environment."""
+#         EzPickle.__init__(self, **kwargs)
+#         self._kwargs = kwargs
+# 
+#         self.seed()
+#         self.env = SumoEnvironment(**self._kwargs)
+# 
+#         self.agents = self.env.ts_ids
+#         self.possible_agents = self.env.ts_ids
+#         self._agent_selector = agent_selector(self.agents)
+#         self.agent_selection = self._agent_selector.reset()
+#         # spaces
+#         self.action_spaces = {a: self.env.action_spaces(a) for a in self.agents}
+#         self.observation_spaces = {a: self.env.observation_spaces(a) for a in self.agents}
+# 
+#         # dicts
+#         self.rewards = {a: 0 for a in self.agents}
+#         self.terminations = {a: False for a in self.agents}
+#         self.truncations = {a: False for a in self.agents}
+#         self.infos = {a: {} for a in self.agents}
+# 
+#     def seed(self, seed=None):
+#         """Set the seed for the environment."""
+#         self.randomizer, seed = seeding.np_random(seed)
+# 
+#     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+#         """Reset the environment."""
+#         self.env.reset(seed=seed, options=options)
+#         self.agents = self.possible_agents[:]
+#         self.agent_selection = self._agent_selector.reset()
+#         self.rewards = {agent: 0 for agent in self.agents}
+#         self._cumulative_rewards = {agent: 0 for agent in self.agents}
+#         self.terminations = {a: False for a in self.agents}
+#         self.truncations = {a: False for a in self.agents}
+#         self.infos = {agent: {} for agent in self.agents}
+# 
+#     def observation_space(self, agent):
+#         """Return the observation space for the agent."""
+#         return self.observation_spaces[agent]
+# 
+#     def action_space(self, agent):
+#         """Return the action space for the agent."""
+#         return self.action_spaces[agent]
+# 
+#     def observe(self, agent):
+#         """Return the observation for the agent."""
+#         obs = self.env.observations[agent].copy()
+#         return obs
+# 
+#     def close(self):
+#         """Close the environment and stop the SUMO simulation."""
+#         self.env.close()
+# 
+#     def render(self, mode="human"):
+#         """Render the environment."""
+#         return self.env.render(mode)
+# 
+#     def save_csv(self, out_csv_name, episode):
+#         """Save metrics of the simulation to a .csv file."""
+#         self.env.save_csv(out_csv_name, episode)
+# 
+#     def step(self, action):
+#         """Step the environment."""
+#         if self.truncations[self.agent_selection] or self.terminations[self.agent_selection]:
+#             return self._was_dead_step(action)
+#         agent = self.agent_selection
+#         if not self.action_spaces[agent].contains(action):
+#             raise Exception(
+#                 "Action for agent {} must be in Discrete({})."
+#                 "It is currently {}".format(agent, self.action_spaces[agent].n, action)
+#             )
+# 
+#         self.env._apply_actions({agent: action})
+# 
+#         if self._agent_selector.is_last():
+#             self.env._run_steps()
+#             self.env._compute_observations()
+#             self.rewards = self.env._compute_rewards()
+#             self.env._compute_info()
+#         else:
+#             self._clear_rewards()
+# 
+#         done = self.env._compute_dones()["__all__"]
+#         self.truncations = {a: done for a in self.agents}
+# 
+#         self.agent_selection = self._agent_selector.next()
+#         self._cumulative_rewards[agent] = 0
+#         self._accumulate_rewards()
 
-
-def sigmoid(x):
-    x = float(x)
-    return np.exp(x) / (1 + np.exp(x))
-
-
-def collided_done(py_measurements):
-    """Define the main episode termination criteria"""
-    m = py_measurements
-    collided = (m["collision_vehicles"] > 0
-            or m["collision_pedestrians"] > 0
-            or m["collision_other"] > 0)
-    return bool(collided)  # or m["total_reward"] < -100)
-
-
-def get_next_actions(measurements, is_discrete_actions):
-    """Get/Update next action, work with way_point based planner.
-
-    Args:
-        measurements (dict): measurement data.
-        is_discrete_actions (bool): whether to use discrete actions
-
-    Returns:
-        dict: action_dict, dict of len-two integer lists.
-    """
-    action_dict = {}
-    for actor_id, meas in measurements.items():
-        m = meas
-        command = m["next_command"]
-        if command == "REACH_GOAL":
-            action_dict[actor_id] = 0
-        elif command == "GO_STRAIGHT":
-            action_dict[actor_id] = 3
-        elif command == "TURN_RIGHT":
-            action_dict[actor_id] = 6
-        elif command == "TURN_LEFT":
-            action_dict[actor_id] = 5
-        elif command == "LANE_FOLLOW":
-            action_dict[actor_id] = 3
-        # Test for discrete actions:
-        if not is_discrete_actions:
-            action_dict[actor_id] = [1, 0]
-    return action_dict
-
-# TODO fai pytest xml
-#  pydoc with typed variables
-#  solve eventual to dos
-#  clean the code
-
-if __name__ == "__main__":
-    argparser = argparse.ArgumentParser(description="CARLA Manual Control Client")
-    # TODO: Fix the default path to the config.json;Should work after packaging
-    argparser.add_argument("--xml_config_path", default="src/macad_gym/carla/configs.xml", help="Path to the xml config file")
-    argparser.add_argument("--maps_path", default="/Game/Carla/Maps/", help="Path to the CARLA maps")
-    argparser.add_argument("--render_mode", default="human", help="Path to the CARLA maps")
-
-    args = vars(argparser.parse_args())
-    env = MultiCarlaEnv(**args)
-
-    for _ in range(2):
-        obs = env.reset()
-
-        total_reward_dict = {}
-        action_dict = {}
-
-        for actor_id in env.actor_configs.keys():
-            total_reward_dict[actor_id] = 0
-            if env.discrete_action_space:
-                action_dict[actor_id] = 3  # Forward
-            else:
-                action_dict[actor_id] = [1, 0]  # test values
-
-        start = time.time()
-        i = 0
-        done = {"__all__": False}
-        while not done["__all__"]:
-            # while i < 20:  # TEST
-            i += 1
-            obs, reward, done, info = env.step(action_dict)
-            action_dict = get_next_actions(info, env.discrete_action_space)
-            for actor_id in total_reward_dict.keys():
-                total_reward_dict[actor_id] += reward[actor_id]
-            print(
-                ":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(
-                    i, reward, total_reward_dict, done
-                )
-            )
-
-        print("{} fps".format(i / (time.time() - start)))
