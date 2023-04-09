@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<config>
+<!--The name of defined actors should match the name of scenario objects you want to control-->
+    <actors>
+<!--    Default parameters for actor definition`-->
+        <actor name="vehicle1" render="False" enable_planner="True" camera_type="rgb" camera_position="0"
+               framestack="1" lane_sensor="True" collision_sensor="True" early_terminate_on_collision="True"
+               manual_control="False" auto_control="False" squash_action_logits="False" reward_function="corl2017"
+               send_measurements="False" log_images="False" log_measurements="False" verbose="False" />
+    </actors>
+    <scenarios>
+<!--    Available weather distributions in `constant.WEATHERS`-->
+        <scenario name="HomoNcomIndePOUrbanMA2CTWN1" town="Town01" max_steps="2000" npc_pedestrians="10" npc_vehicles="10" weather="Default">
+            <object name="vehicle1" type="vehicle_4W" start_x="217.50997924804688" start_y="198.75999450683594" start_z="0.50" yaw="-0.16" end_x="299.39996337890625" end_y="199.05999755859375" end_z="0.50" model="vehicle.*" />            
+            <object name="vehicle2" type="vehicle_4W" outopilot="True" start_x="299.39996337890625" start_y="199.05999755859375" start_z="0.50" yaw="0" end_x="334.8299865722656" end_y="217.0800018310547" end_z="0.5" model="vehicle.lincoln.mkz_2017" />            
+<!--        Override weather attribute to make it custom -->
+            <weather cloudiness="0" precipitation="0" precipitation_deposits="0" wind_intensity="0" sun_azimuth_angle="0" sun_altitude_angle="75" />
+        </scenario>
+    </scenarios>
+</config>

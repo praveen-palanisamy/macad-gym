@@ -14,7 +14,7 @@ from typing import List, Dict
 import xml.etree.ElementTree as ET
 
 import carla
-from macad_gym.core.sensors.camera_manager import CAMERA_TYPES
+from macad_gym.core.world_objects.camera_manager import CAMERA_TYPES
 
 from macad_gym.core.constants import WEATHERS
 
@@ -95,7 +95,7 @@ class ActorConfiguration(object):
         return self
 
 
-class VehicleConfiguration(object):
+class ObjectsConfiguration(object):
     """
     This is a configuration base class to hold model and transform attributes
     """
@@ -114,7 +114,7 @@ class VehicleConfiguration(object):
         """
         static method to initialize an ActorConfigurationData from a given ET tree
         """
-        assert node.attrib.get("name", None) is not None, "XML attribute error. The 'vehicle' elements require a 'name' key."
+        assert node.attrib.get("name", None) is not None, "XML attribute error. The 'object' elements require a 'name' key."
 
         name = node.attrib.get('name', None)
         config = {
@@ -132,7 +132,7 @@ class VehicleConfiguration(object):
             "color": node.attrib.get('color', None),
         }
 
-        return VehicleConfiguration(name).update(config)
+        return ObjectsConfiguration(name).update(config)
 
     def update(self, conf):
         if conf.get("type", None) is not None: self.model = conf["type"]
@@ -162,11 +162,11 @@ class ScenarioConfiguration(object):
     - type is the class of scenario (e.g. ControlLoss)
     """
 
-    def __init__(self, name, type=None, town="Town01", vehicles=None, num_pedestrians=0, num_vehicles=0, weathers=None):
+    def __init__(self, name, type=None, town="Town01", objects=None, num_pedestrians=0, num_vehicles=0, weathers=None):
         self.name = name
         self.type = type
         self.town = town
-        self.vehicles = vehicles if vehicles is not None else {}
+        self.objects = objects if objects is not None else {}
         self.num_pedestrians = num_pedestrians
         self.num_vehicles = num_vehicles
         self.weathers = weathers if weathers is not None else [carla.WeatherParameters.Default]
@@ -186,12 +186,12 @@ class ScenarioConfiguration(object):
             "num_vehicles": node.attrib.get('npc_vehicles', None)
         }
 
-        vehicles = {}
-        for vehicle in node.iter("vehicle"):
-            v = VehicleConfiguration.parse_xml_node(vehicle)
-            if v.name in vehicles:
-                warnings.warn("Multiple `vehicle` elements with same name identifier in XML configuration.")
-            vehicles.update({v.name: v})
+        objects = {}
+        for object in node.iter("object"):
+            o = ObjectsConfiguration.parse_xml_node(object)
+            if o.name in objects:
+                warnings.warn("Multiple `object` elements with same name identifier in XML configuration.")
+            objects.update({o.name: o})
 
         weathers = [] if len(list(node.iter("weather"))) > 0 else [WEATHERS[node.attrib.get('weather', "Default")]]
         for weather_node in node.iter("weather"):
@@ -207,23 +207,23 @@ class ScenarioConfiguration(object):
             weather.wetness = float(weather_node.attrib.get("wetness", 0.0))
             weathers.append(weather)
 
-        return ScenarioConfiguration(name, vehicles=vehicles, weathers=weathers).update(config)
+        return ScenarioConfiguration(name, objects=objects, weathers=weathers).update(config)
 
     def update(self, conf):
         if conf.get("type", None) is not None: self.type = conf["type"]
         if conf.get("town", None) is not None: self.town = conf["town"]
 
-        if len(conf.get("vehicles", [])) > 0:
-            self.vehicles = {}
-            if isinstance(conf["vehicles"], list):
-                for new_vehicle_dict in conf["vehicles"]:
-                    assert new_vehicle_dict.get("name", None) is not None, "The 'vehicle' elements require a 'name' key."
-                    new_vehicle = VehicleConfiguration(new_vehicle_dict["name"]).update(new_vehicle_dict)
-                    self.vehicles.update({new_vehicle.name: new_vehicle})
-            elif isinstance(conf["vehicles"], dict):
-                for name, new_vehicle_dict in conf["vehicles"].items():
-                    new_vehicle = VehicleConfiguration(name).update(new_vehicle_dict)
-                    self.vehicles.update({new_vehicle.name: new_vehicle})
+        if len(conf.get("objects", [])) > 0:
+            self.objects = {}
+            if isinstance(conf["objects"], list):
+                for new_object_dict in conf["objects"]:
+                    assert new_object_dict.get("name", None) is not None, "The 'object' elements require a 'name' key."
+                    new_object = ObjectsConfiguration(new_object_dict["name"]).update(new_object_dict)
+                    self.objects.update({new_object.name: new_object})
+            elif isinstance(conf["objects"], dict):
+                for name, new_object_dict in conf["objects"].items():
+                    new_object = ObjectsConfiguration(name).update(new_object_dict)
+                    self.objects.update({new_object.name: new_object})
 
         if conf.get("num_pedestrians", None) is not None: self.num_pedestrians = int(conf["num_pedestrians"])
         if conf.get("num_vehicles", None) is not None: self.num_vehicles = int(conf["num_vehicles"])
@@ -261,8 +261,8 @@ class Configuration(object):
 
     def _check_actors_consistency(self):
         for n, s in self.scenarios.items():
-            if len(set(self.actors.keys()).difference(set(s.vehicles.keys()))) != 0:
-                raise ValueError(f"The `name` of `actor` elements in `actors` do not correspond the `name` of controllable vehicles in scenario `{n}`.")
+            if len(set(self.actors.keys()).difference(set(s.objects.keys()))) != 0:
+                raise ValueError(f"The `name` of `actor` elements in `actors` do not correspond the `name` of controllable objects in scenario `{n}`.")
 
     @staticmethod
     def parse_xml(config_file_name):

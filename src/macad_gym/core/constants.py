@@ -11,7 +11,7 @@ DEFAULT_MULTIENV_CONFIG = {
         "scenario1" : {
             "max_steps": 500,
             "town": "Town01",
-            "vehicles": {
+            "objects": {
                 "vehicle1": {"start_x": 115, "start_y": 132, "start_z": 0.5, "yaw": 0, "end_x": 125, "end_y": 142, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"},
                 "2": {"start_x": 107, "start_y": 133.5, "start_z": 0.5, "yaw": 0, "end_x": 117, "end_y": 143.5, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"}
             },
@@ -19,7 +19,7 @@ DEFAULT_MULTIENV_CONFIG = {
         "scenario2" : {
             "max_steps": 500,
             "town": "Town01",
-            "vehicles": {
+            "objects": {
                 "vehicle1": {"start_x": 115, "start_y": 132, "start_z": 0.5, "yaw": 0, "end_x": 125, "end_y": 142, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"},
                 "2": {"start_x": 107, "start_y": 133.5, "start_z": 0.5, "yaw": 0, "end_x": 117, "end_y": 143.5, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"}
             },

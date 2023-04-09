@@ -1,4 +1,8 @@
 <?xml version="1.0"?>
+<!-- Signalized (traffic light) Urban Intersection scenario with 3 Cars passing through. -->
+<!-- CAR1: Starts almost inside the intersection, goes straight -->
+<!-- CAR2: Starts 90 wrt CAR1 close to intersection, turns right to merge -->
+<!-- CAR3: Starts behind CAR1 away from intersection, goes straight -->
 <config>
     <actors>
         <actor name="vehicle1" render="True" />
