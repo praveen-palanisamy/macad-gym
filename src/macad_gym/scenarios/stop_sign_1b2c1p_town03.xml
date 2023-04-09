@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<config>
+    <actors>
+        <actor name="vehicle1" render="True" />
+        <actor name="vehicle2" render="True" />
+    </actors>
+    <scenarios>
+        <scenario name="HeteNcomIndePOIntrxMASS1B2C1PTWN3" town="Town03" max_steps="500" npc_pedestrians="0" npc_vehicles="0" weather="Default">
+            <object name="car1" type="vehicle_4W" start_x="170.5" start_y="80" start_z="0.40" yaw="0" end_x="144" end_y="59" end_z="0" model="vehicle.*" />            
+            <object name="car2" type="vehicle_4W" start_x="188" start_y="59" start_z="0.40" yaw="0" end_x="167" end_y="75.7" end_z="0.13" model="vehicle.*" />            
+            <object name="pedestrian1" type="pedestrian" start_x="158" start_y="75" start_z="0.40" yaw="0" end_x="185" end_y="71" end_z="0" />            
+            <object name="bike1" type="vehicle_2W" start_x="147.6" start_y="62.6" start_z="0.40" yaw="0" end_x="191.2" end_y="62.7" end_z="0" />            
+        </scenario>
+    </scenarios>
+</config>
