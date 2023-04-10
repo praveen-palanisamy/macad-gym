@@ -46,7 +46,7 @@ class KeyboardControl(object):
         # world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
     def parse_events(self, world, clock):
-        self.vehicle = world._actors[self.actor_id]
+        self.vehicle = world._actor_objects[self.actor_id]
         self.camera = world._cameras[self.actor_id]
         self.vehicle.set_autopilot(self._autopilot_enabled)
         if pygame.get_init():

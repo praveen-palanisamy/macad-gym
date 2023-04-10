@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- Stop Sign Urban Intersection scenario with 3 Cars passing through. -->
+<!-- Homogeneous, Non-communicating, Independent, Partially-Observable Intersection Multi-Agent scenario with Stop-Sign, 3 Cars in Town3 -->
 <config>
     <actors>
         <actor name="vehicle1" render="True" />

@@ -2,8 +2,6 @@
 import logging
 import carla
 
-# TODO make the seed user configurable
-random.seed(10)
 logger = logging.getLogger(__name__)
 
 

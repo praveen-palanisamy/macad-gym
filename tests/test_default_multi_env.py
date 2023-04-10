@@ -58,7 +58,7 @@ def test_multienv_argments():
 
 def test_multienv_action_space(make_default_env):
     env, configs = make_default_env
-    assert isinstance(env.action_space,
+    assert isinstance(env.action_spaces,
                       gym.spaces.Dict), ("Multi Actor/Agent environment should"
                                          "have Dict action space, one"
                                          "key-value pair per actor/agent")
@@ -66,7 +66,7 @@ def test_multienv_action_space(make_default_env):
 
 def test_multienv_obs_space(make_default_env):
     env, configs = make_default_env
-    assert isinstance(env.observation_space,
+    assert isinstance(env.observation_spaces,
                       gym.spaces.Dict), ("Multi Actor/Agent env should have "
                                          "Dict Obs space, one key-value pair"
                                          "per actor/agent")

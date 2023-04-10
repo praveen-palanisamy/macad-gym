@@ -18,7 +18,7 @@ class SimpleAgent(object):
         self.action_dict = {}
 
     def get_action(self, obs):
-        """ Returns `action_dict` containing actions for each agent in the env
+        """ Returns `actions` containing actions for each agent in the env
         """
         for actor_id in self.actor_configs.keys():
             # ... Process obs of each agent and generate action ...

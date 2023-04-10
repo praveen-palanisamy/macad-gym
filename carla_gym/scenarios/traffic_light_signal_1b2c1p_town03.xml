@@ -1,4 +1,5 @@
 <?xml version="1.0"?>
+<!-- Heterogeneous, Non-communicating, Independent, Partially-Observable Intersection Multi-Agent scenario with Traffic-Light Signal, 1-Bike, 2-Car, 1-Pedestrian in Town3 -->
 <config>
     <actors>
         <actor name="vehicle1" render="True" />

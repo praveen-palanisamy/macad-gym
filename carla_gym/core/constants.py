@@ -13,7 +13,7 @@ DEFAULT_MULTIENV_CONFIG = {
             "town": "Town01",
             "objects": {
                 "vehicle1": {"start_x": 115, "start_y": 132, "start_z": 0.5, "yaw": 0, "end_x": 125, "end_y": 142, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"},
-                "2": {"start_x": 107, "start_y": 133.5, "start_z": 0.5, "yaw": 0, "end_x": 117, "end_y": 143.5, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"}
+                "vehicle2": {"start_x": 107, "start_y": 133.5, "start_z": 0.5, "yaw": 0, "end_x": 117, "end_y": 143.5, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"}
             },
         },
         "scenario2" : {
@@ -21,7 +21,7 @@ DEFAULT_MULTIENV_CONFIG = {
             "town": "Town01",
             "objects": {
                 "vehicle1": {"start_x": 115, "start_y": 132, "start_z": 0.5, "yaw": 0, "end_x": 125, "end_y": 142, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"},
-                "2": {"start_x": 107, "start_y": 133.5, "start_z": 0.5, "yaw": 0, "end_x": 117, "end_y": 143.5, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"}
+                "vehicle2": {"start_x": 107, "start_y": 133.5, "start_z": 0.5, "yaw": 0, "end_x": 117, "end_y": 143.5, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"}
             },
         }
     },
@@ -31,7 +31,6 @@ DEFAULT_MULTIENV_CONFIG = {
             "render": True,
             "framestack": 1,  # note: only [1, 2] currently supported
             "early_terminate_on_collision": True,
-            "reward_function": "corl2017",
             "squash_action_logits": False,
             "manual_control": False,
             "auto_control": False,

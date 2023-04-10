@@ -111,9 +111,9 @@ Like any OpenAI Gym environment, you can obtain the observation space and action
 spaces as shown below:
 
 ```bash
->>> print(env.observation_space)
+>>> print(env.observation_spaces)
 Dict(car1:Box(168, 168, 3), car2:Box(168, 168, 3), car3:Box(168, 168, 3))
->>> print(env.action_space)
+>>> print(env.action_spaces)
 Dict(car1:Discrete(9), car2:Discrete(9), car3:Discrete(9))
 ```
 
@@ -171,7 +171,7 @@ class SimpleAgent(object):
 
 
     def get_action(self, obs):
-        """ Returns `action_dict` containing actions for each agent in the env
+        """ Returns `actions` containing actions for each agent in the env
         """
         for actor_id in self.actor_configs.keys():
             # ... Process obs of each agent and generate action ...

@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import sys
 
-from macad_gym.core.sensors.camera_manager import DEPTH_CAMERAS
+from macad_gym.core.world_objects.camera_manager import DEPTH_CAMERAS
 
 
 def preprocess_image(image, config, resize=None):
@@ -78,3 +78,13 @@ def get_transform_from_nearest_way_point(cur_map, cur_location, dst_location):
     #   persistent_lines=True)
 
     return next_point.transform
+
+
+def collided_done(py_measurements):
+    """Define the main episode termination criteria"""
+    m = py_measurements
+    collided = (m["collision_vehicles"] > 0
+            or m["collision_pedestrians"] > 0
+            or m["collision_other"] > 0)
+    return bool(collided)  # or m["total_reward"] < -100)
+

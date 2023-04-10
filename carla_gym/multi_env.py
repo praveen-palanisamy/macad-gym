@@ -1,17 +1,15 @@
 """
 multi_env.py: Multi-actor environment interface for CARLA-Gym
-Should support two modes of operation. See CARLA-Gym developer guide for
-more information
-__author__: @Praveen-Palanisamy
+Code adapted from https://github.com/praveen-palanisamy/macad-gym/ to match PettingZoo APIs
+and provide high configurability to the environments
 """
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import argparse
 import atexit
 import shutil
-from configparser import ConfigParser
+from copy import deepcopy
 from datetime import datetime
 import logging
 import json
@@ -24,87 +22,64 @@ import time
 import traceback
 import socket
 import math
+from typing import Optional
 
+import cv2
 import gym
-import numpy as np  # linalg.norm is used
+import numpy as np
 import GPUtil
 from gym.spaces import Box, Discrete, Tuple, Dict
 import pygame
 import carla
-from gymnasium.utils import EzPickle
+from gymnasium.utils import EzPickle, seeding
 from path import Path
 from pettingzoo import AECEnv
-from pettingzoo.utils import wrappers
-from pettingzoo.utils.conversions import parallel_wrapper_fn
+from pettingzoo.utils import wrappers, agent_selector
+from pettingzoo.utils.env import ActionDict
 
-from macad_gym.core.constants import DEFAULT_MULTIENV_CONFIG, RETRIES_ON_ERROR, DISCRETE_ACTIONS, COMMANDS_ENUM, \
+from carla_gym.core.constants import DEFAULT_MULTIENV_CONFIG, RETRIES_ON_ERROR, DISCRETE_ACTIONS, COMMANDS_ENUM, \
     ROAD_OPTION_TO_COMMANDS_MAPPING, DISTANCE_TO_GOAL_THRESHOLD, ORIENTATION_TO_GOAL_THRESHOLD, COMMAND_ORDINAL
-from macad_gym.core.controllers.traffic import apply_traffic
-from macad_gym import LOG_DIR
-from macad_gym.core.world_objects.utils import preprocess_image
-from macad_gym.core.maps.nodeid_coord_map import MAP_TO_COORDS_MAPPING
-from macad_gym.core.maps.nodeid_coord_map import MAP_TO_COORDS_MAPPING
+from carla_gym.core.controllers.traffic import apply_traffic
+from carla_gym import LOG_DIR
+from carla_gym.core.world_objects.utils import preprocess_image, collided_done
 
-# from macad_gym.core.sensors.utils import get_transform_from_nearest_way_point
-from macad_gym.carla.reward import Reward
-from macad_gym.core.world_objects.hud import HUD
-from macad_gym.core.utils.misc import sigmoid
-from macad_gym.core.utils.scenario_config import Configuration
-from macad_gym.viz.multi_view_renderer import MultiViewRenderer
-from macad_gym.carla.scenarios import Scenarios
+from carla_gym.carla_api.reward import Reward
+from carla_gym.core.world_objects.hud import HUD
+from carla_gym.core.utils.misc import sigmoid
+from carla_gym.core.utils.scenario_config import Configuration
+from carla_gym.viz.multi_view_renderer import MultiViewRenderer
 
-# The following imports require carla to be imported already.
-from macad_gym.core.world_objects.camera_manager import CameraManager, CAMERA_TYPES, DEPTH_CAMERAS
-from macad_gym.core.world_objects.sensors import LaneInvasionSensor
-from macad_gym.core.world_objects.sensors import CollisionSensor
-from macad_gym.core.controllers.keyboard_control import KeyboardControl
-from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner_dao import (  # noqa: E501
+from carla_gym.core.world_objects.camera_manager import CameraManager, CAMERA_TYPES, DEPTH_CAMERAS
+from carla_gym.core.world_objects.sensors import LaneInvasionSensor
+from carla_gym.core.world_objects.sensors import CollisionSensor
+from carla_gym.core.controllers.keyboard_control import KeyboardControl
+from carla_gym.carla_api.PythonAPI.agents.navigation.global_route_planner_dao import (  # noqa: E501
     GlobalRoutePlannerDAO,
 )
 
 # The following imports depend on these paths being in sys path
 # TODO: Fix this. This probably won't work after packaging/distribution
-sys.path.append("src/macad_gym/carla/PythonAPI")
-from macad_gym.core.maps.nav_utils import PathTracker  # noqa: E402
-from macad_gym.carla.PythonAPI.agents.navigation.global_route_planner import (  # noqa: E402, E501
+sys.path.append("carla_gym/carla_api/PythonAPI")
+from carla_gym.core.maps.nav_utils import PathTracker  # noqa: E402
+from carla_gym.carla_api.PythonAPI.agents.navigation.global_route_planner import (  # noqa: E402, E501
     GlobalRoutePlanner,
-)
-
-logger = logging.getLogger(__name__)
-# Set this where you want to save image outputs (or empty string to disable)
-CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
-if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
-    os.makedirs(CARLA_OUT_PATH)
-
-# Set this to the path of your Carla binary
-SERVER_BINARY = os.environ.get(
-    "CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.13/CarlaUE4.sh")
 )
 
 # Check if is using on Windows
 IS_WINDOWS_PLATFORM = "win" in sys.platform
-
+# Set this where you want to save image outputs (or empty string to disable)
+CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
+if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
+    os.makedirs(CARLA_OUT_PATH)
+# Set this to the path of your Carla binary
+SERVER_BINARY = os.environ.get("CARLA_SERVER", os.path.expanduser("~/software/CARLA_0.9.13/CarlaUE4.sh"))
 assert os.path.exists(SERVER_BINARY), (
-    "Make sure CARLA_SERVER environment"
-    " variable is set & is pointing to the"
-    " CARLA server startup script (Carla"
-    "UE4.sh). Refer to the README file/docs."
+    "Make sure CARLA_SERVER environment variable is set & is pointing to the "
+    "CARLA server startup script (CarlaUE4.sh). Refer to the README file/docs."
 )
 
-# TODO: Clean env & actor configs to have appropriate keys based on the nature
-# from minigrid.core.actions import Actions
-# from minigrid.core.constants import COLOR_NAMES, DIR_TO_VEC, TILE_PIXELS
-# from minigrid.core.grid import Grid
-# from minigrid.core.mission import MissionSpace
-# from minigrid.core.world_object import Point, WorldObj
-# TODO move constants to replicate minigrid
-# TODO use obs and action spaces from gym
-
-
-
-
-
 live_carla_processes = set()
+logger = logging.getLogger(__name__)
 
 
 def cleanup():
@@ -130,17 +105,65 @@ signal.signal(signal.SIGINT, termination_cleanup)
 atexit.register(cleanup)
 
 
-def env(**kwargs):
-    """Instantiate a PettingoZoo environment."""
-    # TODO implement the AEC API interface as wrapper of immediately in the main env dependiong on the difference of the specification 
+"""
+# CARLA autonomous driving simulator
+
+Configuration of the scenarios can be provided as additional argument when the environment is created. It can be provided in form of JSON or XML file (following the CARLA srunner structure).
+The configuration provide specifications about the testing scenario (e.g. weather, scenario objects controllable and not) and relative dynamics (e.g. start/end positions of objects).
+(see carla_gym.scenarios for example scenarios and default_1c_town01.xml for a detailed list of available attributes)
+Environment specifications can be provided as additional arguments when the environment is created.
+
+#### Environment parameters
+
+``` python
+carla_gym.env(configs: dict = None, xml_config_path: str = None, maps_path: str = "./", render_mode: str = None,
+        render_width: int = 800, render_height: int = 600, actor_render_width: int = 84, actor_render_height: int = 84,
+        discrete_action_space: bool = True, max_steps: int = 500, sync_server: bool = True,
+        fixed_delta_seconds: float = 0.05, verbose: bool = False)
+```
+
+### Action Space
+
+In any given turn, an agent can choose from one of those 9 discrete actions:
+
++-------------------+--------------------+-------------------+
+| Action (Discrete) | Action (Continuous)|      Behavior     |
++-------------------+--------------------+-------------------+
+|         0         |    [0.0, 0.0]      |    No operation   |
+|         1         |    [0.0, -0.5]     |      Turn left    |
+|         2         |    [0.0, 0.5]      |     Turn right    |
+|         3         |    [1.0, 0.0]      |       Forward     |
+|         4         |    [-0.5, 0.0]     |        Brake      |
+|         5         |   [0.5, -0.05]     |    Forward left   |
+|         6         |    [0.5, 0.05]     |   Forward right   |
+|         7         |   [-0.5, -0.5]     |     Brake left    |
+|         8         |    [-0.5, 0.5]     |     Brake right   |
++-------------------+--------------------+-------------------+
+
+or use a continuous format:
+
+Box(high=np.array([1.0, 1.0]), low=np.array([-1.0, -1.0]), shape=(2,), dtype=np.float32)
+
+### Version History
+
+* v0: Initial versions release (1.0.0)
+
+"""
+
+
+def parallel_env(**kwargs):
+    """Instantiate a PettingoZoo environment with Parallel API implemented."""
     env = MultiActorCarlaEnv(**kwargs)
-    # env = SumoEnvironmentPZ(**kwargs)
+    return env
+
+
+def env(**kwargs):
+    """Instantiate a PettingoZoo AEC API environment."""
+    env = MultiActorCarlaEnvPZ(**kwargs)
     env = wrappers.AssertOutOfBoundsWrapper(env)
     env = wrappers.OrderEnforcingWrapper(env)
     return env
 
-
-parallel_env = parallel_wrapper_fn(env)
 
 class MultiActorCarlaEnv(gym.Env):
     def __init__(
@@ -159,57 +182,28 @@ class MultiActorCarlaEnv(gym.Env):
         fixed_delta_seconds: float = 0.05,
         verbose: bool = False
     ):
-        """MACAD-Gym environment implementation.
+        """
+        Carla-Gym environment parallel implementation.
 
-        Provides a generic MACAD-Gym environment implementation that can be
-        customized further to create new or variations of existing
-        multi-agent learning environments. The environment settings, scenarios
-        and the actors in the environment can all be configured using
-        the `configs` dict.
-        Examples:
-            >>> env = MyMultiActorEnv(DEFAULT_MULTIENV_CONFIG)
-            >>> obs = env.reset()
-            >>> print(obs)
-            {
-                "car_0": [2.4, 1.6],
-                "car_1": [3.4, -3.2],
-                "camera_0": [0.0, 0.0, 10.0, 20.0. 30.0],
-                "traffic_light_1": [0, 3, 5, 1],
-            }
-            >>> obs, rewards, dones, infos = env.step(
-                action_dict={
-                "car_0": 1, "car_1": 0, "camera_0": 1 "traffic_light_1": 2,
-                })
-    
-            >>> print(rewards)
-            {
-                "car_0": 3,
-                "car_1": -1,
-                "camera_0": 1,
-                "traffic_light_1": 0,
-            }
-            >>> print(dones)
-            {
-                "car_0": False,
-                "car_1": True,
-                "camera_0": False,
-                "traffic_light_1": False,
-                "__all__": False,
-            }
-        Args:
-            configs (dict): Configuration for environment specified under the
-                `env` key and configurations for each actor specified as dict
-                under `actor`.
-                Example:
-                    >>> configs = {"env":{
-                    "server_map":"/Game/Carla/Maps/Town05",
-                    "discrete_actions":True,...},
-                    "actors":{
-                    "actor_id1":{"enable_planner":True,...},
-                    "actor_id2":{"enable_planner":False,...}
-                    }}
-            xml_configs (str): filepath to an OPENscenario compatible xml file with scenarios configs.
-                If both arguments are provided, `configs` overrides the XML scenarios.
+        Provides a generic environment implementation. The environment settings can be setted as parameters
+        at creation of the env while scenarios settings can be configured with the `configs` parameter or providing
+        `xml_config_path` parameter pointing to an XML configuration file.
+
+        Note: The `config` specifications override the ones parsed from `xml_config_path`.
+        Note: For more information about sync/async mode of CARLA environment refer to https://carla.readthedocs.io/en/latest/adv_synchrony_timestep/#setting-synchronous-mode
+        :param configs: (dict) Scenarios configuration dictionary. Example provided in `carla_gym.core.constants.DEFAULT_MULTIENV_CONFIG`.
+        :param xml_config_path: (str) Filepath to an OPENscenario compatible xml file with scenarios configs. Example provided in `carla_gym.scenarios.default_1c_town01.xml`.
+        :param maps_path: (str) Path where to find the external CARLA maps.
+        :param render_mode: (str) Mode of rendering. Only 'human' is available.
+        :param render_width: (int) Spectator view rendering width.
+        :param render_height: (int) Spectator view rendering height.
+        :param actor_render_width: (int) Actor camera view rendering width.
+        :param actor_render_height: (int) Actor camera view rendering height.
+        :param discrete_action_space: (bool) Whether the action space is discrete or continuous otherwise.
+        :param max_steps: (int) maximum number of step in the scenarios before the end of the episode.
+        :param sync_server: (bool) Whether the CARLA server should be in synchronous or asynchronous mode.
+        :param fixed_delta_seconds: (float) Fixes the time elapsed between two steps of the simulation to ensure reliable physics. 0.0 to work with a variable time-step.
+        :param verbose: (bool) Whether detailed logs should be given in output.
         """
         assert configs is not None or xml_config_path is not None, "Missing configuration!"
         assert max_steps > 0,  "`max_steps` supports only values > 0."
@@ -226,7 +220,7 @@ class MultiActorCarlaEnv(gym.Env):
         # Camera position is problematic for certain vehicles and even in autopilot they are prone to error
         self.exclude_hard_vehicles = False
         # list of str: Supported values for `type` filed in `actor_configs`
-        self._supported_active_actor_types = ["vehicle_4W","vehicle_2W","pedestrian","traffic_light"]
+        self._supported_active_actor_types = ["vehicle_4W", "vehicle_2W", "pedestrian", "traffic_light"]
         # Set attributes as in gym's specs
         self.reward_range = (-float("inf"), float("inf"))
 
@@ -264,12 +258,12 @@ class MultiActorCarlaEnv(gym.Env):
         # Action space (common for all actors)
         if self.discrete_action_space:
             n = len(DISCRETE_ACTIONS)
-            self.action_space = Dict({
+            self.action_spaces = Dict({
                 actor_id: Discrete(n)
                 for actor_id in self.actor_configs.keys()
             })
         else:
-            self.action_space = Dict({
+            self.action_spaces = Dict({
                 actor_id: Box(-1.0, 1.0, shape=(2, ))
                 for actor_id in self.actor_configs.keys()
             })
@@ -282,7 +276,7 @@ class MultiActorCarlaEnv(gym.Env):
             for actor_id, actor_config in self.actor_configs.items()
         })
         # Observation space of output (for the individual actor)
-        self.observation_space = Dict({
+        self.observation_spaces = Dict({
             actor_id: Tuple([
                 self._image_space[actor_id],  # image
                 Discrete(len(COMMANDS_ENUM)),  # next_command
@@ -295,39 +289,37 @@ class MultiActorCarlaEnv(gym.Env):
         self._server_port = None
         self._server_process = None
         self._client = None
-        self._scenario_config = None  # Dictionary with current scenario map config
-        self._num_steps = {}
-        self._total_reward = {}
-        self._prev_measurement = {}
-        self._prev_image = {}  # Dictionary of images with actor_id as key to build a `framestack`
-        self._episode_id_dict = {}
+        self._scenario_config = None  # Dict with current scenario map config
+        self._episode_id_dict = {}  # Identifier for log purpose
         self._measurements_file_dict = {}
+        # Scenario related
         self._weather = None
         self._start_pos = {}  # Start pose for each actor
         self._end_pos = {}  # End pose for each actor
         self._start_coord = {}
         self._end_coord = {}
-        self._last_obs = None
-        self._surface = None
-        self._video = False
-        self._obs_dict = {}
-        self._done_dict = {}
-        self._previous_actions = {}
-        self._previous_rewards = {}
-        self._last_reward = {}
         self._npc_vehicles = []  # List of NPC vehicles
         self._npc_pedestrians = []  # List of NPC pedestrians
-        self._agents = {}  # Dictionary of macad_agents with agent_id as key
-        self._actors = {}  # Dictionary of actors with actor_id as key
+        self._actor_objects = {}  # Dictionary of CARLA objects of the actors with actor_id as key
         self._cameras = {}  # Dictionary of sensors with actor_id as key
         self._path_trackers = {}  # Dictionary of sensors with actor_id as key
         self._collisions = {}  # Dictionary of sensors with actor_id as key
         self._lane_invasions = {}  # Dictionary of sensors with actor_id as key
+        # Execution state related
+        self._active_actors = set()
+        self._num_steps = {}
+        self._dones = {}
+        self._total_rewards = {}
+        self._previous_measurements = {}  # Dict with last sensor's state reading for each actor_id key
+        self._previous_observations = {}  # Dict with last sensor's state reading for each actor_id key
+        self._previous_image = {}  # Dict with last camera images for each actor_id key to build a `framestack`
+        self._previous_actions = {}
+        self._previous_rewards = {}
 
     @staticmethod
-    def _get_tcp_port(port=0):
-        """
-        Get a free tcp port number
+    def _get_tcp_port(port: int = 0):
+        """Get a free tcp port number
+
         :param port: (default 0) port number. When `0` it will be assigned a free port dynamically
         :return: a port number requested if free otherwise an unhandled exception would be thrown
         """
@@ -337,6 +329,34 @@ class MultiActorCarlaEnv(gym.Env):
         s.close()
         return server_port
 
+    def observation_space(self, agent: str):  # Gym accessor
+        """Return the observation space of a single agent."""
+        return self.observation_spaces[agent]
+
+    def action_space(self, agent: str):  # Gym accessor
+        """Return the action space of a single agent."""
+        return self.action_spaces[agent]
+
+    def state(self):  # Gym accessor
+        raise Exception("No global state impelemented.")
+        pass
+
+    @property
+    def possible_agents(self):  # Gym accessor
+        return list(self.actor_configs.keys())
+
+    @property
+    def max_num_agents(self):  # Gym accessor
+        return len(self.possible_agents)
+
+    @property
+    def agents(self):  # Gym accessor
+        return list(self._active_actors)
+
+    @property
+    def num_agents(self):  # Gym accessor
+        return len(self._active_actors)
+
     def _load_scenario(self):
         self._scenario_config = random.choice(list(self.scenario_configs.values()))
 
@@ -345,15 +365,13 @@ class MultiActorCarlaEnv(gym.Env):
             self._end_pos[actor_id] = actor.end
 
     def _init_server(self):
-        """Initialize carla server and client
+        """Initialize CARLA server and client.
 
-        Returns:
-            N/A
+        :return: N/A
         """
         print("Initializing new Carla server...")
         # Create a new server process and start the client.
-        # First find a port that is free and then use it in order to avoid
-        # crashes due to:"...bind:Address already in use"
+        # First find a port that is free and then use it in order to avoid crashes due to address already in use
         self._server_port = self._get_tcp_port()
 
         multigpu_success = False
@@ -381,7 +399,6 @@ class MultiActorCarlaEnv(gym.Env):
                         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if IS_WINDOWS_PLATFORM else 0,
                         stdout=open(log_file, "w"),
                     )
-
                 # Else, run in headless mode
                 else:
                     # Since carla 0.9.12+ use -RenderOffScreen to start headlessly
@@ -495,10 +512,9 @@ class MultiActorCarlaEnv(gym.Env):
         self.planner.setup()
 
     def _clean_world(self):
-        """Destroy all actors cleanly before exiting
+        """Destroy all actors instances in the environment.
 
-        Returns:
-            N/A
+        :return: N/A
         """
         for colli in self._collisions.values():
             if colli.sensor.is_alive:
@@ -506,7 +522,7 @@ class MultiActorCarlaEnv(gym.Env):
         for lane in self._lane_invasions.values():
             if lane.sensor.is_alive:
                 lane.sensor.destroy()
-        for actor in self._actors.values():
+        for actor in self._actor_objects.values():
             if actor.is_alive:
                 actor.destroy()
         for npc in self._npc_vehicles:
@@ -517,7 +533,7 @@ class MultiActorCarlaEnv(gym.Env):
         # Note: the destroy process for cameras is handled in camera_manager.py
 
         self._cameras = {}
-        self._actors = {}
+        self._actor_objects = {}
         self._npc_vehicles = []
         self._npc_pedestrians = []
         self._path_trackers = {}
@@ -546,17 +562,11 @@ class MultiActorCarlaEnv(gym.Env):
             self._server_port = None
             self._server_process = None
 
-    def _spawn_new_actor(self, actor_id):
-        """Spawn an agent as per the blueprint at the given pose
+    def _spawn_new_actor(self, actor_id: str):
+        """Spawn an actor using `actor_configs` information.
 
-        Args:
-            blueprint: Blueprint of the actor. Can be a Vehicle or Pedestrian
-            pose: carla.Transform object with location and rotation
-
-        Returns:
-            An instance of a subclass of carla.Actor. carla.Vehicle in the case
-            of a Vehicle agent.
-
+        :param actor_id: (str) actor identifier to spawn.
+        :return: An instance of a subclass of carla.Actor (e.g. carla.Vehicle in the case of a vehicle actor)
         """
         actor_type = self._scenario_config.vehicles[actor_id].type
         actor_model = self._scenario_config.vehicles[actor_id].model
@@ -567,7 +577,7 @@ class MultiActorCarlaEnv(gym.Env):
         if actor_type == "traffic_light":
             # Traffic lights already exist in the world & can't be spawned.
             # Find closest traffic light actor in world.actor_list and return
-            from macad_gym.core.controllers import traffic_lights
+            from carla_gym.core.controllers import traffic_lights
 
             loc = carla.Location(
                 self._start_pos[actor_id][0],
@@ -580,8 +590,7 @@ class MultiActorCarlaEnv(gym.Env):
                 rot.yaw = self._start_pos[actor_id][3]
             transform = carla.Transform(loc, rot)
             tls = traffic_lights.get_tls(self.world, transform, sort=True)
-            return tls[0][0]  #: Return the key (carla.TrafficLight object) of
-            #: closest match
+            return tls[0][0]  #: Return the key (carla.TrafficLight object) of closest match
 
         if actor_type == "pedestrian":
             blueprints = self.world.get_blueprint_library().filter("walker.pedestrian.*" if actor_model is None else actor_model)
@@ -625,7 +634,7 @@ class MultiActorCarlaEnv(gym.Env):
                 vehicle.set_autopilot(False, self._traffic_manager.get_port())
                 # Register it under traffic manager
                 # Walker vehicle type does not have autopilot. Use walker controller ai
-                if actor_type == "pedestrian": #TODO review this
+                if actor_type == "pedestrian":  # TODO review pedestrian behaviour
                     # vehicle.set_simulate_physics(False)
                     pass
                 else:
@@ -640,7 +649,7 @@ class MultiActorCarlaEnv(gym.Env):
             vehicle = self.world.spawn_actor(blueprint, transform)
         return vehicle
 
-    def _reset(self, clean_world=True):
+    def _reset(self, clean_world: bool = True):
         """Reset the state of the actors.
         A "soft" reset is performed in which the existing actors are destroyed
         and the necessary actors are spawned into the environment without
@@ -652,18 +661,13 @@ class MultiActorCarlaEnv(gym.Env):
         pose and configuration of all actors (including the sensor actors) are
         (re)initialized as per the actor configuration.
 
-        Returns:
-            dict: Dictionaries of observations for actors.
-
-        Raises:
-            RuntimeError: If spawning an actor at its initial state as per its'
-            configuration fails (eg.: Due to collision with an existing object
-            on that spot). This Error will be handled by the caller
-            `self.reset()` which will perform a "hard" reset by creating
-            a new server instance
+        :param clean_world: (bool) clean previous state of the world removing objects.
+        :return: (dict) Dictionaries of observations for actors.
+        :raises RuntimeError: If spawning an actor at its initial state as per its' configuration fails
+                (eg.: Due to collision with an existing object on that spot). This Error will be handled by the caller
+                `self.reset()` which will perform a "hard" reset by creating a new server instance
         """
-
-        self._done_dict["__all__"] = False
+        self._dones["__all__"] = False
         if clean_world:
             self._clean_world()
 
@@ -678,7 +682,7 @@ class MultiActorCarlaEnv(gym.Env):
 
         # TODO to implement spawn also set(scenario_config.vehicles).diff(actor_configs) with proper behaviour
         for actor_id, actor_config in self.actor_configs.items():
-            if self._done_dict.get(actor_id, True):
+            if self._dones.get(actor_id, True):
 
                 self._measurements_file_dict[actor_id] = None
                 self._episode_id_dict[actor_id] = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
@@ -686,10 +690,11 @@ class MultiActorCarlaEnv(gym.Env):
 
                 # Try to spawn actor (soft reset) or fail and reinitialize the server before get back here
                 try:
-                    self._actors[actor_id] = self._spawn_new_actor(actor_id)
+                    self._actor_objects[actor_id] = self._spawn_new_actor(actor_id)
+                    self._active_actors.add(actor_id)
                 except RuntimeError as spawn_err:
-                    if actor_id in self._done_dict:
-                        del self._done_dict[actor_id]
+                    if actor_id in self._dones:
+                        del self._dones[actor_id]
                     # Chain the exception & re-raise to be handled by the caller `self.reset()`
                     raise spawn_err from RuntimeError("Unable to spawn actor:{}".format(actor_id))
 
@@ -706,21 +711,21 @@ class MultiActorCarlaEnv(gym.Env):
                         self._end_pos[actor_id][1],
                         self._end_pos[actor_id][2],
                     ),
-                    self._actors[actor_id],
+                    self._actor_objects[actor_id],
                 )
 
                 # Spawn collision and lane sensors if necessary
                 if actor_config.collision_sensor:
-                    collision_sensor = CollisionSensor(self._actors[actor_id], 0)
+                    collision_sensor = CollisionSensor(self._actor_objects[actor_id], 0)
                     self._collisions.update({actor_id: collision_sensor})
                 if actor_config.lane_sensor:
-                    lane_sensor = LaneInvasionSensor(self._actors[actor_id], 0)
+                    lane_sensor = LaneInvasionSensor(self._actor_objects[actor_id], 0)
                     self._lane_invasions.update({actor_id: lane_sensor})
 
                 # Spawn cameras
                 pygame.font.init()  # for HUD
                 hud = HUD(self._render_x_res, self._render_y_res)
-                camera_manager = CameraManager(self._actors[actor_id], hud, record=actor_config.log_images)
+                camera_manager = CameraManager(self._actor_objects[actor_id], hud, record=actor_config.log_images)
                 camera_manager.set_sensor(
                     CAMERA_TYPES[self.actor_configs[actor_id].camera_type].value-1,
                     self.actor_configs[actor_id].camera_position, notify=False
@@ -736,7 +741,7 @@ class MultiActorCarlaEnv(gym.Env):
                     self._control_clock = pygame.time.Clock()
                     self._manual_controller = KeyboardControl(self, actor_config.auto_control)
                     self._manual_controller.actor_id = actor_id
-                    self._manual_control_camera_manager = CameraManager(self._actors[actor_id], self._hud)
+                    self._manual_control_camera_manager = CameraManager(self._actor_objects[actor_id], self._hud)
                     self._manual_control_camera_manager.set_sensor(CAMERA_TYPES["rgb"].value - 1, pos=2, notify=False)
 
                 self._start_coord.update(
@@ -760,20 +765,21 @@ class MultiActorCarlaEnv(gym.Env):
                           f"start_pos_xyz(coordID): {self._start_pos[actor_id]} ({self._start_coord[actor_id]}), "
                           f"end_pos_xyz(coordID): {self._end_pos[actor_id]} ({self._end_coord[actor_id]})")
 
-        print("New episode initialized with actors:{}".format(self._actors.keys()))
+        print("New episode initialized with actors:{}".format(self._actor_objects.keys()))
 
         self._npc_vehicles, self._npc_pedestrians = apply_traffic(
             self.world, self._traffic_manager,
             self._scenario_config.num_vehicles,
             self._scenario_config.num_pedestrians)
 
-    def reset(self):
-        """Reset the carla world, call _init_server()
+    def reset(self, seed: Optional[int] = None):
+        """ Reset the carla world.
 
-        Returns:
-            N/A
+        :param seed: (int) seed for random.
+        :return: N/A
         """
         # World reset and new scenario selection if multiple are available
+        random.seed(seed)
         self._load_scenario()
 
         for retry in range(RETRIES_ON_ERROR):
@@ -792,40 +798,30 @@ class MultiActorCarlaEnv(gym.Env):
 
         # Set appropriate initial values for all actors
         for actor_id, actor_config in self.actor_configs.items():
-            if self._done_dict.get(actor_id, True):
-                self._last_reward[actor_id] = None
-                self._total_reward[actor_id] = None
+            if self._dones.get(actor_id, True):
+                self._previous_actions[actor_id] = None
+                self._previous_rewards[actor_id] = None
+                self._total_rewards[actor_id] = 0
                 self._num_steps[actor_id] = 0
 
                 py_measurement = self._read_observation(actor_id)
-                self._prev_measurement[actor_id] = py_measurement
-                cam = self._cameras[actor_id]
-                # Wait for the actor's camera sensor to start streaming (shouldn't take too long)
-                while cam.callback_count == 0:
-                    if self._sync_server:
-                        self.world.tick()
-                        # `wait_for_tick` is no longer needed, see https://github.com/carla-simulator/carla/pull/1803
-                        # self.world.wait_for_tick()
-                if cam.image is None:
-                    print("callback_count:", actor_id, ":", cam.callback_count)
-                obs = self._encode_obs(actor_id, cam.image, py_measurement)
-                self._obs_dict[actor_id] = obs
+                self._previous_measurements[actor_id] = py_measurement
+  
+                obs = self._encode_obs(actor_id, py_measurement)
+                self._previous_observations[actor_id] = obs
                 # Actor correctly reset
-                self._done_dict[actor_id] = False
+                self._dones[actor_id] = False
 
-        return self._obs_dict
+        return self._previous_observations
 
-    def _read_observation(self, actor_id):
-        """Read observation and return measurement.
-
-        Args:
-            actor_id (str): Actor identifier
-
-        Returns:
-            dict: measurement data.
-
+    def _read_observation(self, actor_id: str):
         """
-        cur = self._actors[actor_id]
+        Read observation and return measurement.
+
+        :param actor_id: (str) Actor identifier.
+        :return: (dict) measurement data.
+        """
+        cur = self._actor_objects[actor_id]
         cur_config = self.actor_configs[actor_id]
         if cur_config.enable_planner:
             dist = self._path_trackers[actor_id].get_distance_to_end()
@@ -845,7 +841,6 @@ class MultiActorCarlaEnv(gym.Env):
                 next_command = "REACH_GOAL"
             else:
                 next_command = "LANE_FOLLOW"
-
             # DEBUG
             # self.path_trackers[actor_id].draw()
         else:
@@ -866,21 +861,34 @@ class MultiActorCarlaEnv(gym.Env):
 
         distance_to_goal_euclidean = float(
             np.linalg.norm([
-                self._actors[actor_id].get_location().x -
+                self._actor_objects[actor_id].get_location().x -
                 self._end_pos[actor_id][0],
-                self._actors[actor_id].get_location().y -
+                self._actor_objects[actor_id].get_location().y -
                 self._end_pos[actor_id][1],
             ]))
+
+        # Wait for the actor's camera sensor to start streaming (shouldn't take too long)
+        cam = self._cameras[actor_id]
+        while cam.callback_count == 0:
+            if self._sync_server:
+                self.world.tick()
+        if cam.image is None:
+            raise Exception(f"The `{actor_id}` camera did not start correctly after {cam.callback_count} attempts.")
+
+        # Get image from ccamera and reshape following actor resolution
+        data = np.frombuffer(cam.image.raw_data, dtype=np.dtype("uint8"))
+        data = np.reshape(data, (cam.image.height, cam.image.width, 4))[:, :, :3]
+        camera_image = cv2.resize(data, (self._actor_render_x_res, self._actor_render_y_res), interpolation=cv2.INTER_AREA)
 
         py_measurements = {
             "episode_id": self._episode_id_dict[actor_id],
             "step": self._num_steps[actor_id],
-            "x": self._actors[actor_id].get_location().x,
-            "y": self._actors[actor_id].get_location().y,
-            "pitch": self._actors[actor_id].get_transform().rotation.pitch,
-            "yaw": self._actors[actor_id].get_transform().rotation.yaw,
-            "roll": self._actors[actor_id].get_transform().rotation.roll,
-            "forward_speed": self._actors[actor_id].get_velocity().x,
+            "x": self._actor_objects[actor_id].get_location().x,
+            "y": self._actor_objects[actor_id].get_location().y,
+            "pitch": self._actor_objects[actor_id].get_transform().rotation.pitch,
+            "yaw": self._actor_objects[actor_id].get_transform().rotation.yaw,
+            "roll": self._actor_objects[actor_id].get_transform().rotation.roll,
+            "forward_speed": self._actor_objects[actor_id].get_velocity().x,
             "distance_to_goal": distance_to_goal,
             "distance_to_goal_euclidean": distance_to_goal_euclidean,
             "collision_vehicles": collision_vehicles,
@@ -895,6 +903,7 @@ class MultiActorCarlaEnv(gym.Env):
             "current_scenario": self._scenario_config,
             "x_res": self._render_x_res,
             "y_res": self._render_y_res,
+            "image": camera_image,
             "max_steps": self.max_steps,
             "next_command": next_command,
             "previous_action": self._previous_actions.get(actor_id, None),
@@ -903,23 +912,18 @@ class MultiActorCarlaEnv(gym.Env):
 
         return py_measurements
 
-    def _encode_obs(self, actor_id, image, py_measurements):
-        """Encode sensor and measurements into obs based on state-space config.
+    def _encode_obs(self, actor_id: str, py_measurements: dict):
+        """Encode sensor and measurements into obs based on actor config.
 
-        Args:
-            actor_id (str): Actor identifier
-            image (array): original unprocessed image
-            py_measurements (dict): measurement file
-
-        Returns:
-            obs (dict): properly encoded observation data for each actor
+        :param actor_id: (str) Actor identifier.
+        :param py_measurements (dict): Measurements data to convert into observation.
+        :return: (dict) Properly encoded observation data for the given actor.
         """
         # Apply preprocessing
         actor_config = self.actor_configs[actor_id]
-        image = preprocess_image(image, actor_config, resize=(self._actor_render_x_res, self._actor_render_y_res))
+        image = preprocess_image(py_measurements["image"], actor_config, resize=None)
+        prev_image = preprocess_image(self._previous_measurements[actor_id].get("image", image), actor_config, resize=None)
         # Stack frames
-        prev_image = self._prev_image.get(actor_id, image)
-        self._prev_image[actor_id] = image
         if actor_config.framestack == 2:
             # image = np.concatenate([prev_image, image], axis=2)
             image = np.concatenate([prev_image, image])
@@ -932,17 +936,14 @@ class MultiActorCarlaEnv(gym.Env):
             [py_measurements["forward_speed"], py_measurements["distance_to_goal"]],
         )
 
-        self._last_obs = obs
         return obs
 
-    def _decode_obs(self, actor_id, obs):
-        """Decode actor observation into original image reversing the pre_process() operation.
-        Args:
-            actor_id (str): Actor identifier
-            obs (dict): Properly encoded observation data of an actor
+    def _decode_obs(self, actor_id: str, obs: dict):
+        """Decode actor observation into original image reversing the `preprocess_image()` operation.
 
-        Returns:
-            image (array): Original actor camera view
+        :param actor_id: (str) Actor identifier.
+        :param obs: (dict) Properly encoded observation data of an actor.
+        :return: (array) Original actor camera view.
         """
         if self.actor_configs[actor_id].send_measurements:
             obs = obs[0]
@@ -953,23 +954,19 @@ class MultiActorCarlaEnv(gym.Env):
             img = obs.swapaxes(0, 1) * 128 + 128
         return img
 
-    def _step(self, actor_id, action):
-        """Perform the actual step in the CARLA environment
+    def _step(self, actor_id: str, action):
+        """Perform the actual step in the CARLA environment.
 
         Applies control to `actor_id` based on `action`, process measurements,
         compute the rewards and terminal state info (dones).
-
-        Args:
-            actor_id(str): Actor identifier
-            action: Actions to be executed for the actor.
-
-        Returns
-            obs (obs_space): Observation for the actor whose id is actor_id.
-            reward (float): Reward for actor. None for first step
-            done (bool): Done value for actor.
-            info (dict): Info for actor.
+        :param actor_id: (str) Actor identifier.
+        :param action: Actions to be executed for the actor.
+        :return: a tuple given by (obs, reward, done, info), where
+            - (obs_space) Observation for the specified actor.
+            - (float) Reward for specified actor.
+            - (bool) Done value for specified actor.
+            - (dict) Info for specified actor.
         """
-
         if self.discrete_action_space:
             action = DISCRETE_ACTIONS[int(action)]
 
@@ -993,26 +990,26 @@ class MultiActorCarlaEnv(gym.Env):
             self._control_clock.tick(self.metadata["render_fps"])
             self._manual_control_camera_manager._hud.tick(
                 self.world,
-                self._actors[actor_id],
+                self._actor_objects[actor_id],
                 self._collisions[actor_id],
                 self._control_clock,
             )
             self._manual_controller.parse_events(self, self._control_clock)
 
         elif actor_config.auto_control:
-            if getattr(self._actors[actor_id], "set_autopilot", 0):
-                self._actors[actor_id].set_autopilot(True, self._traffic_manager.get_port())
+            if getattr(self._actor_objects[actor_id], "set_autopilot", 0):
+                self._actor_objects[actor_id].set_autopilot(True, self._traffic_manager.get_port())
         else:
             agent_type = self._scenario_config.vehicles[actor_id].type
             # space of ped actors
             if agent_type == "pedestrian":
                 # TODO: Add proper support for pedestrian actor according to action
-                rotation = self._actors[actor_id].get_transform().rotation
+                rotation = self._actor_objects[actor_id].get_transform().rotation
                 rotation.yaw += steer * 10.0
                 x_dir = math.cos(math.radians(rotation.yaw))
                 y_dir = math.sin(math.radians(rotation.yaw))
 
-                self._actors[actor_id].apply_control(
+                self._actor_objects[actor_id].apply_control(
                     carla.WalkerControl(
                         speed=3.0 * throttle,
                         direction=carla.Vector3D(x_dir, y_dir, 0.0),
@@ -1020,7 +1017,7 @@ class MultiActorCarlaEnv(gym.Env):
                 )
             # To cover vehicle_4W, vehicle_2W, etc
             elif "vehicle" in agent_type:
-                self._actors[actor_id].apply_control(
+                self._actor_objects[actor_id].apply_control(
                     carla.VehicleControl(
                         throttle=throttle,
                         steer=steer,
@@ -1032,23 +1029,18 @@ class MultiActorCarlaEnv(gym.Env):
         # Asynchronosly (one actor at a time; not all at once in a sync) apply
         # actor actions & perform a server tick after each actor's apply_action
         # if running with sync_server steps
-        # NOTE: A distinction is made between "(A)Synchronous Environment" and
-        # "(A)Synchronous (carla) server"
+        # (see https://carla.readthedocs.io/en/latest/adv_synchrony_timestep/#setting-synchronous-mode)
         if self._sync_server:
             self.world.tick()
-            # `wait_for_tick` is no longer needed, see https://github.com/carla-simulator/carla/pull/1803
+            # `wait_for_tick` is no longer needed, (see https://github.com/carla-simulator/carla/pull/1803)
             # self.world.wait_for_tick()
 
         # Process observations
         py_measurements = self._read_observation(actor_id)
         if self.verbose:
             print("Next command", py_measurements["next_command"])
-        # Store previous action
-        self._previous_actions[actor_id] = action
-        if type(action) is np.ndarray:
-            py_measurements["action"] = [float(a) for a in action]
-        else:
-            py_measurements["action"] = action
+        # Store previous action (and control)
+        py_measurements["action"] = [float(a) for a in action] if type(action) is np.ndarray else action
         py_measurements["control"] = {
             "steer": steer,
             "throttle": throttle,
@@ -1057,28 +1049,28 @@ class MultiActorCarlaEnv(gym.Env):
             "hand_brake": hand_brake,
         }
 
-        # Compute done
+        # Compute and store done
         done = (self._num_steps[actor_id] > self.max_steps
                 or py_measurements["next_command"] == "REACH_GOAL"
                 or (actor_config.early_terminate_on_collision and collided_done(py_measurements)))
         py_measurements["done"] = done
 
-        # Compute reward
+        # Compute and store reward
         reward = self._reward_policy.compute_reward(
-            self._prev_measurement[actor_id], py_measurements, actor_config.reward_function
+            self._previous_measurements[actor_id], py_measurements, actor_config.reward_function
         )
-
-        self._previous_rewards[actor_id] = reward
-        if self._total_reward[actor_id] is None:
-            self._total_reward[actor_id] = reward
-        else:
-            self._total_reward[actor_id] += reward
-
+        self._total_rewards[actor_id] += reward
         py_measurements["reward"] = reward
-        py_measurements["total_reward"] = self._total_reward[actor_id]
+        py_measurements["total_reward"] = self._total_rewards[actor_id]
+
+        # Compute output observation
+        obs = self._encode_obs(actor_id, py_measurements),
 
         # End iteration updating parameters and logging
-        self._prev_measurement[actor_id] = py_measurements
+        self._previous_actions[actor_id] = action
+        self._previous_rewards[actor_id] = reward
+        self._previous_measurements[actor_id] = py_measurements
+        self._previous_observations[actor_id] = obs
         self._num_steps[actor_id] += 1
 
         if actor_config.log_measurements and CARLA_OUT_PATH:
@@ -1096,20 +1088,10 @@ class MultiActorCarlaEnv(gym.Env):
             if done:
                 self._measurements_file_dict[actor_id].close()
                 self._measurements_file_dict[actor_id] = None
-                # if self.config["convert_images_to_video"] and\
-                #  (not self.video):
-                #    self.images_to_video()
-                #    self.video = Trueseg_city_space
-        original_image = self._cameras[actor_id].image
 
-        return (
-            self._encode_obs(actor_id, original_image, py_measurements),
-            reward,
-            done,
-            py_measurements,
-        )
+        return obs, reward, done, py_measurements
 
-    def step(self, action_dict):
+    def step(self, actions: dict):
         """Execute one environment step for the specified actors.
 
         Executes the provided action for the corresponding actors in the
@@ -1117,45 +1099,36 @@ class MultiActorCarlaEnv(gym.Env):
         done and info (measurements) for each of the actors. The step is
         performed asynchronously i.e. only for the specified actors and not
         necessarily for all actors in the environment.
-
-        Args:
-            action_dict (dict): Actions to be executed for each actor. Keys are
-                agent_id strings, values are corresponding actions.
-
-        Returns
-            obs (dict): Observations for each actor.
-            rewards (dict): Reward values for each actor. None for first step
-            dones (dict): Done values for each actor. Special key "__all__" is
-            used to indicate env termination.
-            info (dict): Info for each actor.
-
-        Raises
-            RuntimeError: If `step(...)` is called before calling `reset()`
-            ValueError: If `action_dict` is not a dictionary of actions
-            ValueError: If `action_dict` contains actions for nonexistent actor
+        :param actions: (dict) Actions to be executed for each actor. {agent_id (str): action, ...}. 
+        :return: a tuple given by (obs, reward, done, info), where
+            - (obs_space) Observation for each actor.
+            - (float) Reward values for each actor.
+            - (bool) DDone values for each actor. Special key "__all__" is used to indicate env termination.
+            - (dict) Info for each actor.
+        :raises RuntimeError: If `step(...)` is called before calling `reset()`.
+        :raises ValueError: If `action_dict` is not a dictionary of actions or contains actions for nonexistent actor.
         """
 
         if (not self._server_process) or (not self._client):
             raise RuntimeError("Cannot call step(...) before calling reset()")
 
         assert len(
-            self._actors), ("No actors exist in the environment. Either"
+            self._actor_objects), ("No actors exist in the environment. Either"
                             " the environment was not properly "
                             "initialized using`reset()` or all the "
                             "actors have exited. Cannot execute `step()`")
 
-        if not isinstance(action_dict, dict):
+        if not isinstance(actions, dict):
             raise ValueError(
-                "`step(action_dict)` expected dict of actions. "
-                "Got {}".format(type(action_dict))
+                "`step(actions)` expected dict of actions. "
+                "Got {}".format(type(actions))
             )
-        # Make sure the action_dict contains actions only for actors that
-        # exist in the environment
-        if not set(action_dict).issubset(set(self._actors)):
+        # Make sure the actions contains actions only for actors that exist in the environment
+        if not set(actions).issubset(set(self._actor_objects)):
             raise ValueError(
                 "Cannot execute actions for non-existent actors."
                 " Received unexpected actor ids:{}".format(
-                    set(action_dict).difference(set(self._actors))
+                    set(actions).difference(set(self._actor_objects))
                 )
             )
 
@@ -1164,38 +1137,31 @@ class MultiActorCarlaEnv(gym.Env):
             reward_dict = {}
             info_dict = {}
 
-            for actor_id, action in action_dict.items():
+            for actor_id, action in actions.items():
                 obs, reward, done, info = self._step(actor_id, action)
                 obs_dict[actor_id] = obs
                 reward_dict[actor_id] = reward
-                if not self._done_dict.get(actor_id, False):
-                    self._done_dict[actor_id] = done
+                if not self._dones.get(actor_id, False):
+                    self._dones[actor_id] = done
+                    if done: self._active_actors.discard(actor_id)
                 info_dict[actor_id] = info
-            self._done_dict["__all__"] = sum(self._done_dict.values()) >= len(self._actors)
+            self._dones["__all__"] = sum(self._dones.values()) >= len(self._actor_objects)
             self.render()
 
-            return obs_dict, reward_dict, self._done_dict, info_dict
+            return obs_dict, reward_dict, self._dones, info_dict
         except Exception:
             print("Error during step, terminating episode early.", traceback.format_exc())
             self._clear_server_state()
 
     def render(self):
-        """
-        Render the pygame window.
-        """
+        """Render the pygame window."""
         # Render only the view of those actor with render=True
         if self.render_mode == "human" and sum([v.render for v in self.actor_configs.values()]) > 0:
             # Get images to render
             images = {}
             for actor_id, actor_config in self.actor_configs.items():
                 if self.actor_configs[actor_id].render:
-                    image = self._prev_image[actor_id]
-                    # Reverse the processing operation
-                    if self.actor_configs[actor_id].camera_type in DEPTH_CAMERAS:
-                        image = np.tile(image.swapaxes(0, 1), 3)
-                    else:
-                        image = image.swapaxes(0, 1) * 128 + 128
-                    images[actor_id] = image
+                    images[actor_id] = self._previous_measurements[actor_id]["image"]
             # Render
             if self._manual_control_camera_manager is not None:
                 images["manual"] = self._manual_control_camera_manager.image
@@ -1209,103 +1175,119 @@ class MultiActorCarlaEnv(gym.Env):
         self._clear_server_state()
 
 
-# class SumoEnvironmentPZ(AECEnv, EzPickle):
-#     """A wrapper for the SUMO environment that implements the AECEnv interface from PettingZoo.
-# 
-#     For more information, see https://pettingzoo.farama.org/api/aec/.
-# 
-#     The arguments are the same as for :py:class:`sumo_rl.environment.env.SumoEnvironment`.
-#     """
-# 
-#     metadata = {"render.modes": ["human", "rgb_array"], "name": "sumo_rl_v0", "is_parallelizable": True}
-# 
-#     def __init__(self, **kwargs):
-#         """Initialize the environment."""
-#         EzPickle.__init__(self, **kwargs)
-#         self._kwargs = kwargs
-# 
-#         self.seed()
-#         self.env = SumoEnvironment(**self._kwargs)
-# 
-#         self.agents = self.env.ts_ids
-#         self.possible_agents = self.env.ts_ids
-#         self._agent_selector = agent_selector(self.agents)
-#         self.agent_selection = self._agent_selector.reset()
-#         # spaces
-#         self.action_spaces = {a: self.env.action_spaces(a) for a in self.agents}
-#         self.observation_spaces = {a: self.env.observation_spaces(a) for a in self.agents}
-# 
-#         # dicts
-#         self.rewards = {a: 0 for a in self.agents}
-#         self.terminations = {a: False for a in self.agents}
-#         self.truncations = {a: False for a in self.agents}
-#         self.infos = {a: {} for a in self.agents}
-# 
-#     def seed(self, seed=None):
-#         """Set the seed for the environment."""
-#         self.randomizer, seed = seeding.np_random(seed)
-# 
-#     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
-#         """Reset the environment."""
-#         self.env.reset(seed=seed, options=options)
-#         self.agents = self.possible_agents[:]
-#         self.agent_selection = self._agent_selector.reset()
-#         self.rewards = {agent: 0 for agent in self.agents}
-#         self._cumulative_rewards = {agent: 0 for agent in self.agents}
-#         self.terminations = {a: False for a in self.agents}
-#         self.truncations = {a: False for a in self.agents}
-#         self.infos = {agent: {} for agent in self.agents}
-# 
-#     def observation_space(self, agent):
-#         """Return the observation space for the agent."""
-#         return self.observation_spaces[agent]
-# 
-#     def action_space(self, agent):
-#         """Return the action space for the agent."""
-#         return self.action_spaces[agent]
-# 
-#     def observe(self, agent):
-#         """Return the observation for the agent."""
-#         obs = self.env.observations[agent].copy()
-#         return obs
-# 
-#     def close(self):
-#         """Close the environment and stop the SUMO simulation."""
-#         self.env.close()
-# 
-#     def render(self, mode="human"):
-#         """Render the environment."""
-#         return self.env.render(mode)
-# 
-#     def save_csv(self, out_csv_name, episode):
-#         """Save metrics of the simulation to a .csv file."""
-#         self.env.save_csv(out_csv_name, episode)
-# 
-#     def step(self, action):
-#         """Step the environment."""
-#         if self.truncations[self.agent_selection] or self.terminations[self.agent_selection]:
-#             return self._was_dead_step(action)
-#         agent = self.agent_selection
-#         if not self.action_spaces[agent].contains(action):
-#             raise Exception(
-#                 "Action for agent {} must be in Discrete({})."
-#                 "It is currently {}".format(agent, self.action_spaces[agent].n, action)
-#             )
-# 
-#         self.env._apply_actions({agent: action})
-# 
-#         if self._agent_selector.is_last():
-#             self.env._run_steps()
-#             self.env._compute_observations()
-#             self.rewards = self.env._compute_rewards()
-#             self.env._compute_info()
-#         else:
-#             self._clear_rewards()
-# 
-#         done = self.env._compute_dones()["__all__"]
-#         self.truncations = {a: done for a in self.agents}
-# 
-#         self.agent_selection = self._agent_selector.next()
-#         self._cumulative_rewards[agent] = 0
-#         self._accumulate_rewards()
+class MultiActorCarlaEnvPZ(AECEnv, EzPickle):
+    """A wrapper for the Carla environment that implements the AECEnv interface from PettingZoo.
 
+    For more information, see https://pettingzoo.farama.org/api/aec/.
+
+    The arguments are the same as for :py:class:`carla_gym.multi_env.MultiActorCarlaEnv`.
+    """
+    def __init__(self, **kwargs):
+        """Initialize the environment."""
+        EzPickle.__init__(self, **kwargs)
+        self._kwargs = kwargs
+
+        self.env = MultiActorCarlaEnv(**self._kwargs)
+
+        self.metadata = {**self.env.metadata, "is_parallelizable": True}
+
+    @property
+    def observation_spaces(self):
+        """Return a dictionary with the observation space of all the agents."""
+        return self.env.observation_spaces
+
+    @property
+    def action_spaces(self):
+        """Return a dictionary with the action space of all the agents."""
+        return self.env.action_spaces
+
+    def observation_space(self, agent: str):
+        """Return the observation space for the agent."""
+        return self.env.observation_space(agent)
+
+    def action_space(self, agent: str):
+        """Return the action space for the agent."""
+        return self.env.action_space(agent)
+
+    @property
+    def terminations(self):
+        """Return the action space for the agent."""
+        return self.env._dones.copy()
+
+    def reset(self, seed: Optional[int] = None):
+        """Reset the environment."""
+        self._observations = self.env.reset(seed=seed)
+        self.agents = self.env.agents[:]
+        self._live_agents = self.agents[:]
+        self._actions: ActionDict = {agent: None for agent in self.agents}
+        self._agent_selector = agent_selector(self._live_agents)
+        self.agent_selection = self._agent_selector.reset()
+        # _Observations are saved in the wrapped env or read on the fly
+        self.rewards = {a: 0 for a in self.agents}
+        # Terminations are saved in the wrapped env
+        self.truncations = {a: False for a in self.agents}
+        self.infos = {a: {} for a in self.agents}
+        self._cumulative_rewards = {a: 0 for a in self.agents}
+        self.new_agents = []
+        self.new_values = {}
+
+    def observe(self, agent: str):
+        """Return the observation for the agent.
+
+        Note: with a CARLA server in asynchronous mode the observation is re-executed to get real time data
+        and `infos` is updated as well
+        """
+        obs = self.env._previous_observations[agent]
+        if not self.env._sync_server:  # need to read again the sensors
+            self.infos[agent].update(self.env._read_observation(agent))
+            obs = deepcopy(self.env._encode_obs(agent, self.infos[agent]))
+        return obs
+
+    def step(self, action):
+        """Step the environment for current `agent_selection`."""
+        if self.terminations[self.agent_selection] or self.truncations[self.agent_selection]:
+            del self._actions[self.agent_selection]
+            return self._was_dead_step(action)
+
+        self._actions[self.agent_selection] = action
+        if self._agent_selector.is_last():
+            _, rewards, _, infos = self.env.step(self._actions)
+
+            self.rewards = rewards.copy()
+            self.truncation = {k: v > self.env.max_steps for k,v in self.env._num_steps.items()}
+            self.infos = deepcopy(infos)
+            self._accumulate_rewards()
+
+            if len(self.env.agents):
+                self._agent_selector = agent_selector(self.env.agents)
+                self.agent_selection = self._agent_selector.reset()
+
+            self._deads_step_first()
+        else:
+            if self._agent_selector.is_first():
+                self._clear_rewards()
+
+            self.agent_selection = self._agent_selector.next()
+
+    def last(self, observe: bool = True):
+        """Get current `agent_selection` details."""
+        agent = self.agent_selection
+        observation = self.observe(agent) if observe else None
+        return (
+            observation,
+            self._cumulative_rewards[agent],
+            self.terminations[agent],
+            self.truncations[agent],
+            self.infos[agent],
+        )
+
+    def render(self):
+        """Render the environment."""
+        return self.env.render()
+
+    def close(self):
+        """Close the environment and stop the SUMO simulation."""
+        self.env.close()
+
+    def __str__(self):
+        return str(self.env)
