@@ -1,8 +1,7 @@
 ﻿import argparse
 import time
 
-from macad_gym.carla.multi_env import MultiActorCarlaEnv
-
+from carla_gym.multi_env import MultiActorCarlaEnv
 
 
 def get_next_actions(measurements, is_discrete_actions):
@@ -13,7 +12,7 @@ def get_next_actions(measurements, is_discrete_actions):
         is_discrete_actions (bool): whether to use discrete actions
 
     Returns:
-        dict: action_dict, dict of len-two integer lists.
+        dict: actions, dict of len-two integer lists.
     """
     action_dict = {}
     for actor_id, meas in measurements.items():
@@ -34,21 +33,24 @@ def get_next_actions(measurements, is_discrete_actions):
             action_dict[actor_id] = [1, 0]
     return action_dict
 
-# TODO fai pytest xml
-#  pydoc with typed variables
-#  solve eventual to dos
-#  reorder the classes
-#  check what is used and what is not
-#  registered env scenario management
-#  pettingzoo api             <-- implement AECEnv API
-#  vec_env/parallel_env       <-- make example macad_gym.env(... a="", b="", ...)
-#  test agents/rlib support   <-- https://github1s.com/LucasAlegre/sumo-rl/blob/HEAD/experiments/a3c_4x4grid.py#L17
+# TODO
+#  execute in different ways and check the paths of packed config files
+#  test autopilot
+#  test manual control
+#  test pedestrian
+    #  contributing format style
+    #  CI hooks/gitlab
+    #  requirements
+    #  tru the run execution
+#  pytest
+#  macad-agents
+#  test agents/rlib support <-- https://github1s.com/LucasAlegre/sumo-rl/blob/HEAD/experiments/a3c_4x4grid.py#L17
+#  check which classes are used and which not
 
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description="CARLA Manual Control Client")
-    # TODO: Fix the default path to the config.json;Should work after packaging
-    argparser.add_argument("--xml_config_path", default="src/macad_gym/carla/configs.xml", help="Path to the xml config file")
+    argparser.add_argument("--xml_config_path", default="macad_gym/carla/configs.xml", help="Path to the xml config file")
     argparser.add_argument("--maps_path", default="/Game/Carla/Maps/", help="Path to the CARLA maps")
     argparser.add_argument("--render_mode", default="human", help="Path to the CARLA maps")
 
