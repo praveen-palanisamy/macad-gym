@@ -20,18 +20,12 @@ def preprocess_image(image, config, resize=None):
 
     # Process image based on config data
     if use_depth_camera:
-        data = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-        data = np.reshape(data, (image.height, image.width, 4))
-        data = data[:, :, :1]
-        data = data[:, :, ::-1]
+        data = image[:, :, :1]
         if resize is not None:
             data = cv2.resize(data, resize, interpolation=cv2.INTER_AREA)
         data = np.expand_dims(data, 2)
     else:
-        data = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-        data = np.reshape(data, (image.height, image.width, 4))
-        data = data[:, :, :3]
-        data = data[:, :, ::-1]
+        data = image[:, :, :3]
         if resize is not None:
             data = cv2.resize(data, resize, interpolation=cv2.INTER_AREA)
         data = (data.astype(np.float32) - 128) / 128

@@ -20,14 +20,16 @@ class CameraManager(object):
     """This class from carla, manual_control.py
     """
 
-    def __init__(self, parent_actor, hud, record=False):
+    def __init__(self, parent_actor, render_dim, record=False):
+        self._parent = parent_actor
+        self._render_dim = render_dim
+        self.sensor = None
         self.image = None  # need image to encode obs.
         self.image_list = []  # for save images later.
-        self.sensor = None
         self._surface = None
-        self._parent = parent_actor
-        self._hud = hud
+        self._img_array = None
         self._recording = record
+        self._screen = None
         self._buffered_recording = False
         # supported through toggle_camera
         self._camera_transforms = [
@@ -71,11 +73,19 @@ class CameraManager(object):
         for item in self._sensors:
             bp = bp_library.find(item[0])
             if item[0].startswith('sensor.camera'):
-                bp.set_attribute('image_size_x', str(hud.dim[0]))
-                bp.set_attribute('image_size_y', str(hud.dim[1]))
+                bp.set_attribute('image_size_x', str(render_dim[0]))
+                bp.set_attribute('image_size_y', str(render_dim[1]))
             item.append(bp)
         self._index = None
         self.callback_count = 0
+
+    @property
+    def surface(self):
+        return self._surface
+
+    @property
+    def img_array(self):
+        return self._img_array
 
     def __del__(self):
         if self.sensor is not None:
@@ -87,7 +97,7 @@ class CameraManager(object):
         self.sensor.set_transform(
             self._camera_transforms[self._transform_index])
 
-    def set_sensor(self, index, pos=0, notify=True):
+    def set_sensor(self, index, pos=0):
         index = index % len(self._sensors)
         needs_respawn = True if self._index is None \
             else list(CAMERA_TYPES)[index] != list(CAMERA_TYPES)[self._index]
@@ -106,8 +116,6 @@ class CameraManager(object):
             weak_self = weakref.ref(self)
             self.sensor.listen(
                 lambda image: CameraManager._parse_image(weak_self, image))
-        if notify:
-            self._hud.notification(self._sensors[index][2])
         self._index = index
 
     def next_sensor(self):
@@ -115,14 +123,29 @@ class CameraManager(object):
 
     def toggle_recording(self):
         self._recording = not self._recording
-        self._hud.notification('Recording %s' %
-                               ('On' if self._recording else 'Off'))
+        print('Recording %s' % ('On' if self._recording else 'Off'))
 
-    def render(self, display, render_pose=(0, 0)):
+    def get_screen(self):
+        if self._screen is None:
+            self._screen = pygame.display.set_mode(self._render_dim, pygame.HWSURFACE | pygame.DOUBLEBUF)
+
+        return self._screen
+
+    def render(self, main_screen=None, render_pose=(0, 0)):
+        """Render in place, otherwise draw a surface without triggering the rendering if a screen is provided.
+
+        Args:
+            main_screen: pygame screen object.
+            render_pose: tuple representing the coordinate where draw the internal surface on the screen.
+
+        Returns:
+            N/A.
+        """
+        screen = main_screen if main_screen is not None else self.get_screen() 
         if self._surface is not None:
-            display.blit(self._surface, render_pose)
-        self._hud.render(display, render_pose)
-        pygame.display.flip()
+            screen.blit(self._surface, render_pose)
+        if main_screen is None:
+            pygame.display.flip()
 
     @staticmethod
     def _parse_image(weak_self, image):
@@ -143,6 +166,7 @@ class CameraManager(object):
             lidar_img_size = (self._hud.dim[0], self._hud.dim[1], 3)
             lidar_img = np.zeros(lidar_img_size)
             lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
+            self._img_array = lidar_img
             self._surface = pygame.surfarray.make_surface(lidar_img)
         else:
             image.convert(self._sensors[self._index][1])
@@ -150,13 +174,11 @@ class CameraManager(object):
             array = np.reshape(array, (image.height, image.width, 4))
             array = array[:, :, :3]
             array = array[:, :, ::-1]
+            self._img_array = array
             self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         if self._recording:
-            image_dir = os.path.join(
-                CARLA_OUT_PATH, 'images/{}/%04d.png'.format(self._parent.id) %
-                image.frame_number)
-            image.save_to_disk(image_dir)  # , env.cc
-            # image.save_to_disk('_out/%08d' % image.frame_number)
+            image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/%04d.png'.format(self._parent.id) % image.frame_number)
+            image.save_to_disk(image_dir)
         elif self._buffered_recording:
             self.image_list.append(image)
         else:

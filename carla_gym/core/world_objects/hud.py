@@ -4,6 +4,7 @@ import pygame
 import datetime
 import math
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +25,7 @@ class HUD(object):
         #  the _notifications and help are not needed for multi_env,
         #   they depends on other classes.
         # self._notifications = FadingText(font, (width, 40), (0, height - 40))
-        # self.help = HelpText(pygame.font.Font(mono, 24), width, height)
+        self.help = HelpText(pygame.font.Font(mono, 24), width, height)
         self.server_fps = 0
         self.frame_number = 0
         self.simulation_time = 0
@@ -32,7 +33,7 @@ class HUD(object):
         self._info_text = []
         self._server_clock = pygame.time.Clock()
 
-    def on_world_tick(self, timestamp):
+    def on_server_tick(self, timestamp):
         self._server_clock.tick()
         self.server_fps = self._server_clock.get_fps()
         self.frame_number = timestamp.frame_count
@@ -88,7 +89,6 @@ class HUD(object):
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
-        # self._notifications.tick(world, clock)
 
     def distance(self, l, t):  # noqa: E741
         return math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 +
@@ -105,11 +105,11 @@ class HUD(object):
         logger.info("Notification error disabled: "+text)
         # self._notifications.set_text('Error: %s' % text, (255, 0, 0))
 
-    def render(self, display, render_pose=(0,0)):
+    def render(self, screen, render_pose=(0, 0)):
         if self._show_info:
             info_surface = pygame.Surface((220, self.dim[1]))
             info_surface.set_alpha(100)
-            display.blit(info_surface, render_pose)
+            screen.blit(info_surface, render_pose)
             v_offset = 4 + render_pose[1]
             bar_h_offset = 100
             bar_width = 106
@@ -120,7 +120,7 @@ class HUD(object):
                     if len(item) > 1:
                         points = [(x + 8, v_offset + 8 + (1.0 - y) * 30)
                                   for x, y in enumerate(item)]
-                        pygame.draw.lines(display, (255, 136, 0), False,
+                        pygame.draw.lines(screen, (255, 136, 0), False,
                                           points, 2)
                     item = None
                     v_offset += 18
@@ -128,12 +128,12 @@ class HUD(object):
                     if isinstance(item[1], bool):
                         rect = pygame.Rect((bar_h_offset, v_offset + 8),
                                            (6, 6))
-                        pygame.draw.rect(display, (255, 255, 255), rect,
+                        pygame.draw.rect(screen, (255, 255, 255), rect,
                                          0 if item[1] else 1)
                     else:
                         rect_border = pygame.Rect((bar_h_offset, v_offset + 8),
                                                   (bar_width, 6))
-                        pygame.draw.rect(display, (255, 255, 255), rect_border,
+                        pygame.draw.rect(screen, (255, 255, 255), rect_border,
                                          1)
                         f = (item[1] - item[2]) / (item[3] - item[2])
                         if item[2] < 0.0:
@@ -143,12 +143,53 @@ class HUD(object):
                         else:
                             rect = pygame.Rect((bar_h_offset, v_offset + 8),
                                                (f * bar_width, 6))
-                        pygame.draw.rect(display, (255, 255, 255), rect)
+                        pygame.draw.rect(screen, (255, 255, 255), rect)
                     item = item[0]
                 if item:  # At this point has to be a str.
                     surface = self._font_mono.render(item, True,
                                                      (255, 255, 255))
-                    display.blit(surface, (8, v_offset))
+                    screen.blit(surface, (8, v_offset))
                 v_offset += 18
-        # self._notifications.render(display)
-        # self.help.render(display)
+        self.help.render(screen, render_pose)
+
+
+class HelpText(object):
+    """
+    Use ARROWS or WASD keys for control.
+
+        W            : throttle
+        S            : brake
+        AD           : steer
+        Q            : toggle reverse
+        Space        : hand-brake
+        P            : toggle autopilot
+
+        TAB          : change camera position
+        `            : next camera sensor
+        [1-9]        : change to camera sensor [1-9]
+
+        R            : toggle recording images to disk
+
+        H/?          : toggle help
+        ESC          : quit
+    """
+    def __init__(self, font, width, height):
+        lines = self.__doc__.split('\n')
+        self.font = font
+        self.dim = (680, len(lines) * 22 + 12)
+        self.pos = (0.5 * width - 0.5 * self.dim[0], 0.5 * height - 0.5 * self.dim[1])
+        self.seconds_left = 0
+        self.surface = pygame.Surface(self.dim)
+        self.surface.fill((0, 0, 0, 0))
+        for n, line in enumerate(lines):
+            text_texture = self.font.render(line, True, (255, 255, 255))
+            self.surface.blit(text_texture, (22, n * 22))
+            self._render = False
+        self.surface.set_alpha(220)
+
+    def toggle(self):
+        self._render = not self._render
+
+    def render(self, display, render_pose):
+        if self._render:
+            display.blit(self.surface, (self.pos[0]+render_pose[0], self.pos[1]+render_pose[1]))
