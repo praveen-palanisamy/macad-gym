@@ -7,7 +7,7 @@
         <actor name="vehicle3" render="True" />
     </actors>
     <scenarios>
-        <scenario name="HomoNcomIndePOIntrxMASS3CTWN3" town="Town03" max_steps="500" npc_pedestrians="0" npc_vehicles="0" weather="Default">
+        <scenario name="HomoNcomIndePOIntrxMASS3CTWN3" town="Town03" npc_pedestrians="0" npc_vehicles="0" weather="Default">
             <object name="car1" type="vehicle_4W" start_x="170.5" start_y="80" start_z="0.4" yaw="0" end_x="144" end_y="59" end_z="0" model="vehicle.*" />            
             <object name="car2" type="vehicle_4W" start_x="188" start_y="59" start_z="0.4" yaw="0" end_x="167" end_y="75.7" end_z="0.13" model="vehicle.*" />            
             <object name="car3" type="vehicle_4W" start_x="147.6" start_y="62.6" start_z="0.4" yaw="0" end_x="191.2" end_y="62.7" end_z="0" model="vehicle.*" />     

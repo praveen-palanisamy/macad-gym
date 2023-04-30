@@ -3,6 +3,8 @@ import math
 import cv2
 import pygame
 
+from core.controllers.manual_controller import ManualController, MANUAL_VIEW_RENDER_X, MANUAL_VIEW_RENDER_Y
+
 pygame.init()
 pygame.display.set_caption("MACAD-Gym")
 
@@ -36,25 +38,6 @@ class MultiViewRenderer:
 
         return self._screen
 
-    def draw(self, image, render_pose=(0, 0)):
-        """Draw the image on the screen.
-
-        Args:
-            image (pygame.Surface | numpy.array | list): image to be drawn
-            render_pose (tuple): position of the image on the screen (left corner)
-
-        Returns:
-            N/A.
-        """
-        screen = self.get_screen()
-
-        if isinstance(image, pygame.Surface):
-            screen.blit(image, render_pose)
-        else:
-            surface = pygame.surfarray.make_surface(image)
-            screen.blit(surface, render_pose)
-        pygame.display.flip()
-
     def set_surface_poses(self, unit_dimension, actor_configs):
         """Calculate the poses of sub-windows of actors
 
@@ -70,11 +53,12 @@ class MultiViewRenderer:
         unit_y = unit_dimension[1]
 
         subwindow_num = 0
+        manual_control_view = False
         for _, config in actor_configs.items():
-            if config.render :
+            if config.render:
                 subwindow_num += 1
             if config.manual_control:
-                subwindow_num += 1
+                manual_control_view = True
 
         if subwindow_num == 0:
             return {}, [0, 0]
@@ -88,6 +72,11 @@ class MultiViewRenderer:
         max_y = row_num * unit_y
 
         self.poses = {}
+        if manual_control_view:
+            self.poses["manual"] = [0, max_y]
+            max_x = max(max_x, MANUAL_VIEW_RENDER_X)
+            max_y = max_y + MANUAL_VIEW_RENDER_Y
+
         for i, a in enumerate(actor_configs.items()):
             id, config = a
             if not config.render and not config.manual_control:
@@ -95,7 +84,7 @@ class MultiViewRenderer:
 
             x_pos = math.floor(i / row_num) * unit_x
             y_pos = math.floor(i % row_num) * unit_y
-            self.poses[id if not config.manual_control else "manual"] = [x_pos, y_pos]
+            self.poses[id] = [x_pos, y_pos]
 
         self.resize_screen(max_x, max_y)
 
@@ -119,7 +108,7 @@ class MultiViewRenderer:
             if isinstance(im, pygame.Surface):
                 surface = im
             else:
-                surface = pygame.surfarray.make_surface(im)
+                surface = pygame.surfarray.make_surface(im.swapaxes(0, 1))
             surface_seq += ((surface, (self.poses[id][0], self.poses[id][1])),)
 
         self.get_screen().blits(blit_sequence=surface_seq, doreturn=1)

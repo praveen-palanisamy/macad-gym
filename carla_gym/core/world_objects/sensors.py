@@ -17,8 +17,7 @@ class LaneInvasionSensor(object):
         self.offroad = 0  # count of off road
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.lane_invasion')
-        self.sensor = world.spawn_actor(
-            bp, carla.Transform(), attach_to=self._parent)
+        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
@@ -37,27 +36,16 @@ class LaneInvasionSensor(object):
         if not self:
             return
 
-        # text = ['%r' % str(x).split()[-1]
-        #  for x in set(event.crossed_lane_markings)]
+        # text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         # self._hud.notification('Crossed line %s' % ' and '.join(text))
-        text = [
-            '%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)
-        ]
+        text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         self.offlane += 1
-        """
-        info_str = ('VEHICLE %s' % self._parent.id +
-                    ' crossed line %s' % ' and '.join(text))
-        logging.info(info_str)
-        """
-
+        # info_str = (f'VEHICLE {self._parent.id} crossed line %s' % ' and '.join(text))
+        # logging.info(info_str)
         if len(set(event.crossed_lane_markings)) == 1:
             self.offroad += 1
-            """
-            info_str = ('VEHICLE %s' % self._parent.id +
-                        ' crossed road %s' % ' and '.join(text))
-            logging.info(info_str)
-            """
-
+            # info_str = (f'VEHICLE {self._parent.id} crossed road %s' % ' and '.join(text))
+            # logging.info(info_str)
         self._history.append((event.frame_number, text))
         if len(self._history) > 4000:
             self._history.pop(0)
@@ -85,13 +73,11 @@ class CollisionSensor(object):
         self.collision_type_id_set = set()
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.collision')
-        self.sensor = world.spawn_actor(
-            bp, carla.Transform(), attach_to=self._parent)
+        self.sensor = world.spawn_actor(bp, carla.Transform(), attach_to=self._parent)
         # We need to pass the lambda a weak reference to self to avoid circular
         # reference.
         weak_self = weakref.ref(self)
-        self.sensor.listen(
-            lambda event: CollisionSensor._on_collision(weak_self, event))
+        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
 
     def get_collision_history(self):
         history = collections.defaultdict(int)
@@ -112,13 +98,8 @@ class CollisionSensor(object):
         self._history.append((event.frame_number, intensity))
         if len(self._history) > 4000:
             self._history.pop(0)
-        """
-        info_str = ('vehicle %s ' % self._parent.id +
-                    ' collision with %2d vehicles, %2d people, %2d others' %
-                    self.dynamic_collided())
-        logging.info(info_str)
-        """
-
+        # info_str = (f'vehicle {self._parent.id} collision with %2d vehicles, %2d people, %2d others' % self.dynamic_collided())
+        # logging.info(info_str)
         _cur = event.other_actor
         if _cur.id == 0:  # the static world objects
             if _cur.type_id in self.collision_type_id_set:

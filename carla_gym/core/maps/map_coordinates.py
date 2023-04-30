@@ -6,7 +6,6 @@ extended (in an automatic way) with the conversion/mappings for new towns as
 they are made available
 
 """
-# TODO: Refactor & Move the utils in env/carla/POS_COOR to env/carla/core/utils
 
 
 TOWN01 = {"0": [271.0400085449219, 129.489990234375, 0.50], "1": [270.79998779296875, 133.43003845214844, 0.50],

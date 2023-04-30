@@ -143,16 +143,13 @@ def get_traffic_lights(loc=carla.Location(0, 0, 0)):
     ans = sorted(tls.items(), key=lambda kv: kv[1][0])
     return ans
 
-    # Main:
-
 
 client = carla.Client('localhost', 2000)
-client.set_timeout(2.0)
+client.set_timeout(10.0)
 world = client.get_world()
 if args.export_node_coord_map:
     node_coord_map = map_spawn_point_to_node(world)
-    json.dump(
-        node_coord_map, open("TOWN04.json", 'w'), indent=2, sort_keys=True)
+    json.dump(node_coord_map, open("TOWN04.json", 'w'), indent=2, sort_keys=True)
 
 if args.viz_map:
     show_map_topology(world.get_map())
@@ -161,20 +158,3 @@ spectator = world.get_spectator()
 spectator_loc = carla.Location(70, -123, 9)
 spectator.set_transform(get_transform(spectator_loc, angle=160.0))
 start_scenario()
-"""
-    try:
-
-
-        angle = 0
-        while angle < 90:
-            timestamp = world.wait_for_tick()
-            angle += timestamp.delta_seconds * 90.0
-            spectator.set_transform(get_transform(vehicle.get_location(),
-             angle - 90))
-        # spectator.set_transform(get_transform(vehicle.get_location(), angle))
-        # input("Enter Key")
-
-    finally:
-
-        vehicle.destroy()
-"""

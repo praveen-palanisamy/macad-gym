@@ -5,7 +5,7 @@ import logging
 
 from carla_gym.multi_env import env, parallel_env
 from gym.envs.registration import register
-
+from carla_gym.carla_api import PythonAPI
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 LOG_DIR = os.path.join(os.getcwd(), "logs")
 if not os.path.isdir(LOG_DIR):
@@ -14,9 +14,9 @@ if not os.path.isdir(LOG_DIR):
 __version__ = "0.0.1"
 
 # Init and setup the root logger
-logging.basicConfig(filename=LOG_DIR + '/macad-gym.log', level=logging.DEBUG)
+logging.basicConfig(filename=LOG_DIR + '/carla-gym.log', level=logging.DEBUG)
 
 # Fix path issues with included CARLA API
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "carla/PythonAPI"))
 
-register(id='carla-v0', entry_point="macad_gym.carla.multi_env:MultiActorCarlaEnvPZ")
+register(id='carla-v0', entry_point="carla_gym.multi_env:MultiActorCarlaEnvPZ")
