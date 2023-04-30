@@ -10,7 +10,7 @@ import math
 import numpy as np
 import networkx as nx
 
-from agents.navigation.local_planner import RoadOption
+from carla_gym.carla_api.PythonAPI.agents.navigation.local_planner import RoadOption
 
 
 class GlobalRoutePlanner(object):

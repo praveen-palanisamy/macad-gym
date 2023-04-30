@@ -5,9 +5,9 @@ import sys
 import carla
 
 sys.path.append("macad_gym/carla/PythonAPI/")
-from macad_gym.carla.PythonAPI.agents.navigation.local_planner import \
+from carla_gym.carla_api.PythonAPI.agents.navigation.local_planner import \
     RoadOption  # noqa: E402
-from macad_gym.carla.PythonAPI.agents.tools.misc import vector  # noqa: E402
+from carla_gym.carla_api.PythonAPI.agents.tools.misc import vector  # noqa: E402
 
 
 def get_shortest_path_distance(world, planner, origin, destination):
@@ -184,7 +184,6 @@ def get_next_waypoint(world, location, distance=1.0):
     Returns:
         The next waypoint as a list of coordinates (x,y,z)
     """
-    # TODO: Use named tuple for location
     current_waypoint = world.get_map().get_waypoint(
         carla.Location(location[0], location[1], location[2]))
     current_coords = current_waypoint.transform.location

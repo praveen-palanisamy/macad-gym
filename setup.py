@@ -1,10 +1,10 @@
 """Setups the project."""
-
+from path import Path
 from setuptools import setup, find_packages
 import os
 
 
-CWD = os.path.abspath(os.path.dirname(__file__))
+CWD = Path(os.path.abspath(os.path.dirname(__file__)))
 
 
 def get_version():

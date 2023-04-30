@@ -1,7 +1,7 @@
 ﻿import math
 
 import carla
-from macad_gym.carla.PythonAPI.agents.navigation.local_planner import (  # noqa:E402, E501
+from carla_gym.carla_api.PythonAPI.agents.navigation.local_planner import (  # noqa:E402, E501
     RoadOption,
 )
 

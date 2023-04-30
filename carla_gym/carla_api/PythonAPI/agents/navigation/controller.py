@@ -14,7 +14,7 @@ import math
 import numpy as np
 
 import carla
-from agents.tools.misc import get_speed
+from carla_gym.carla_api.PythonAPI.agents.tools.misc import get_speed
 
 
 class VehiclePIDController():

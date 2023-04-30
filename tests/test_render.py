@@ -1,5 +1,5 @@
 import math
-from macad_gym.viz.render import Render
+from carla_gym.core.utils.multi_view_renderer import MultiViewRenderer as Render
 
 def test_resize():
     """Test resize_screen() and get_screen()

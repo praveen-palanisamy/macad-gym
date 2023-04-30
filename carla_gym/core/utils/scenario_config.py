@@ -14,9 +14,13 @@ from typing import List, Dict
 import xml.etree.ElementTree as ET
 
 import carla
-from macad_gym.core.world_objects.camera_manager import CAMERA_TYPES
+from carla_gym.core.world_objects.camera_manager import CAMERA_TYPES
 
-from macad_gym.core.constants import WEATHERS
+from carla_gym.core.constants import WEATHERS
+
+
+def strtobool(s):
+    return str(s).lower() == "true"
 
 
 class ActorConfiguration(object):
@@ -75,22 +79,22 @@ class ActorConfiguration(object):
         assert conf.get('framestack', None) is None or int(conf['framestack']) in [1, 2], "Only a framestack in [1,2] is supported."
         assert conf.get('camera_type', None) is None or conf['camera_type'] in [ct.name for ct in CAMERA_TYPES], f"Camera type `{conf['camera_type']}` not available. Choose one between {[ct.name for ct in CAMERA_TYPES]}."
 
-        if conf.get("render", None) is not None: self.render = bool(conf["render"])
-        if conf.get("enable_planner", None) is not None: self.enable_planner = bool(conf["enable_planner"])
+        if conf.get("render", None) is not None: self.render = strtobool(conf["render"])
+        if conf.get("enable_planner", None) is not None: self.enable_planner = strtobool(conf["enable_planner"])
         if conf.get("camera_type", None) is not None: self.camera_type = conf["camera_type"]
         if conf.get("camera_position", None) is not None: self.camera_position = int(conf["camera_position"])
         if conf.get("framestack", None) is not None: self.framestack = int(conf["framestack"])
-        if conf.get("lane_sensor", None) is not None: self.lane_sensor = bool(conf["lane_sensor"])
-        if conf.get("collision_sensor", None) is not None: self.collision_sensor = bool(conf["collision_sensor"])
-        if conf.get("early_terminate_on_collision", None) is not None: self.early_terminate_on_collision = bool(conf["early_terminate_on_collision"])
-        if conf.get("manual_control", None) is not None: self.manual_control = bool(conf["manual_control"])
-        if conf.get("auto_control", None) is not None: self.auto_control = bool(conf["auto_control"])
-        if conf.get("squash_action_logits", None) is not None: self.squash_action_logits = bool(conf["squash_action_logits"])
+        if conf.get("lane_sensor", None) is not None: self.lane_sensor = strtobool(conf["lane_sensor"])
+        if conf.get("collision_sensor", None) is not None: self.collision_sensor = strtobool(conf["collision_sensor"])
+        if conf.get("early_terminate_on_collision", None) is not None: self.early_terminate_on_collision = strtobool(conf["early_terminate_on_collision"])
+        if conf.get("manual_control", None) is not None: self.manual_control = strtobool(conf["manual_control"])
+        if conf.get("auto_control", None) is not None: self.auto_control = strtobool(conf["auto_control"])
+        if conf.get("squash_action_logits", None) is not None: self.squash_action_logits = strtobool(conf["squash_action_logits"])
         if conf.get("reward_function", None) is not None: self.reward_function = conf["reward_function"]
-        if conf.get("send_measurements", None) is not None: self.send_measurements = bool(conf["send_measurements"])
-        if conf.get("log_images", None) is not None: self.log_images = bool(conf["log_images"])
-        if conf.get("log_measurements", None) is not None: self.log_measurements = bool(conf["log_measurements"])
-        if conf.get("verbose", None) is not None: self.verbose = bool(conf["verbose"])
+        if conf.get("send_measurements", None) is not None: self.send_measurements = strtobool(conf["send_measurements"])
+        if conf.get("log_images", None) is not None: self.log_images = strtobool(conf["log_images"])
+        if conf.get("log_measurements", None) is not None: self.log_measurements = strtobool(conf["log_measurements"])
+        if conf.get("verbose", None) is not None: self.verbose = strtobool(conf["verbose"])
 
         return self
 
@@ -147,7 +151,7 @@ class ObjectsConfiguration(object):
         if conf.get("end_y", None) is not None: self.end[1] = float(conf["end_y"])
         if conf.get("end_z", None) is not None: self.end[2] = float(conf["end_z"])
         if conf.get("speed", None) is not None: self.speed = float(conf["speed"])
-        if conf.get("autopilot", None) is not None: self.autopilot = bool(conf["autopilot"])
+        if conf.get("autopilot", None) is not None: self.autopilot = strtobool(conf["autopilot"])
         if conf.get("color", None) is not None: self.color = conf["color"]
 
         return self
@@ -268,8 +272,11 @@ class Configuration(object):
     def parse_xml(config_file_name):
         """
         Parse the  provided as argument.
-        :param config_file_name: configuration xml file, srunner compatible
-        :return: Configuration object
+        Args:
+          config_file_name (str): Configuration XML file name, srunner compatible.
+
+        Returns:
+          A configuration object.
         """
 
         actors = {}
@@ -292,8 +299,11 @@ class Configuration(object):
     def parse(configs):
         """
         Parse the configuration dictionary provided as argument.
-        :param configs: dictionary of configurations
-        :return: Configuration object
+        Args:
+          configs (dict): Dictionary of configurations.
+
+        Returns:
+          A configuration object.
         """
         assert isinstance(configs.get("actors", {}), Iterable) and isinstance(configs.get("scenarios", {}), Iterable), "'actors' and 'scenarios' attributes in the configuration should be iterable objects."
         assert len(configs.get("scenarios", {})) > 0, "'scenarios' attribute should contain at least one element."
