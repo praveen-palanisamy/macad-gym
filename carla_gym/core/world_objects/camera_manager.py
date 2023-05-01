@@ -69,6 +69,7 @@ class CameraManager(object):
             ], ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)']
         ]
         world = self._parent.get_world()
+        # TODO what to del?
         bp_library = world.get_blueprint_library()
         for item in self._sensors:
             bp = bp_library.find(item[0])
@@ -86,10 +87,6 @@ class CameraManager(object):
     @property
     def img_array(self):
         return self._img_array
-
-    def __del__(self):
-        if self.sensor is not None:
-            self.sensor.destroy()
 
     def toggle_camera(self):
         self._transform_index = (self._transform_index + 1) % len(
@@ -183,3 +180,7 @@ class CameraManager(object):
             self.image_list.append(image)
         else:
             pass
+
+    def __del__(self):
+        if self.sensor is not None:
+            self.sensor.destroy()

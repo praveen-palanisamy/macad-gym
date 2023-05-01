@@ -56,6 +56,8 @@ from carla_gym.core.controllers.manual_controller import ManualController
 from carla_gym.carla_api.PythonAPI.agents.navigation.global_route_planner_dao import (  # noqa: E501
     GlobalRoutePlannerDAO,
 )
+from core.world_objects.pedestrian_manager import PedestrianManager
+from core.world_objects.vehicle_manager import VehicleManager
 
 # The following imports depend on these paths being in sys path
 # TODO: Fix this. This probably won't work after packaging/distribution
@@ -299,19 +301,19 @@ class MultiActorCarlaEnv(gym.Env):
         self._end_coord = {}
         self._npc_vehicles = []  # List of NPC vehicles
         self._npc_pedestrians = []  # List of NPC pedestrians
-        self._actor_objects = {}  # Dictionary of CARLA objects of the actors with actor_id as key
-        self._cameras = {}  # Dictionary of sensors with actor_id as key
-        self._path_trackers = {}  # Dictionary of sensors with actor_id as key
-        self._collisions = {}  # Dictionary of sensors with actor_id as key
-        self._lane_invasions = {}  # Dictionary of sensors with actor_id as key
+        self._scenario_objects = {}  # Dictionary of CARLA objects specified in scenario config
+        self._cameras = {}  # Dictionary of camera manager associated to env actors with object_id as key
+        self._vehicles = {}  # Dictionary of camera manager associated to env actors with object_id as key
+        self._pedestrians = {}  # Dictionary of pedestrian manager associated to env actors with object_id as key
+        self._traffic_lights = {}  # Dictionary of tfl manager associated to env actors with object_id as key
         # Execution state related
         self._active_actors = set()
         self._num_steps = {}
         self._dones = {}
         self._total_rewards = {}
-        self._previous_measurements = {}  # Dict with last sensor's state reading for each actor_id key
-        self._previous_observations = {}  # Dict with last sensor's state reading for each actor_id key
-        self._previous_image = {}  # Dict with last camera images for each actor_id key to build a `framestack`
+        self._previous_measurements = {}  # Dict with last sensor's state reading for each object_id key
+        self._previous_observations = {}  # Dict with last sensor's state reading for each object_id key
+        self._previous_image = {}  # Dict with last camera images for each object_id key to build a `framestack`
         self._previous_actions = {}
         self._previous_rewards = {}
 
@@ -516,29 +518,22 @@ class MultiActorCarlaEnv(gym.Env):
 
         :return: N/A
         """
-        for colli in self._collisions.values():
-            if colli.sensor.is_alive:
-                colli.sensor.destroy()
-        for lane in self._lane_invasions.values():
-            if lane.sensor.is_alive:
-                lane.sensor.destroy()
-        for actor in self._actor_objects.values():
-            if actor.is_alive:
-                actor.destroy()
-        for npc in self._npc_vehicles:
-            npc.destroy()
-        for npc in zip(*self._npc_pedestrians):
-            npc[1].stop()  # stop controller
-            npc[0].destroy()  # kill entity
-        # Note: the destroy process for cameras is handled in camera_manager.py
+        def destroy(obj):
+            if obj.is_alive:
+                if getattr(obj, "controller", None) is not None:
+                    obj.controller.stop()
+                obj.destroy()
 
-        self._cameras = {}
-        self._actor_objects = {}
+        for obj in list(self._scenario_objects.values())+self._npc_vehicles+self._npc_pedestrians:
+            destroy(obj)
+
+        self._scenario_objects = {}
         self._npc_vehicles = []
         self._npc_pedestrians = []
-        self._path_trackers = {}
-        self._collisions = {}
-        self._lane_invasions = {}
+        self._cameras = {}
+        self._vehicles = {}
+        self._pedestrians = {}
+        self._traffic_lights = {}
 
         print("Cleaned-up the world...")
 
@@ -562,44 +557,43 @@ class MultiActorCarlaEnv(gym.Env):
             self._server_port = None
             self._server_process = None
 
-    def _spawn_new_actor(self, actor_id: str):
-        """Spawn an actor using `actor_configs` information.
+    def _spawn_world_object(self, object_id: str):
+        """Spawn a CARLA.Actor object using scenario information.
 
         Args:
-          actor_id (str): Actor identifier.
+          object_id (str): Object name identifier.
 
         Returns:
-          An instance of a subclass of `carla.Actor` (e.g. `carla.Vehicle` in the case of a vehicle actor).
+          An instance of a subclass of `carla.Actor` (e.g. `carla.Vehicle` in the case of a vehicle type object).
         """
-        actor_type = self._scenario_config.objects[actor_id].type
-        actor_model = self._scenario_config.objects[actor_id].model
-        if actor_type not in self._supported_active_actor_types:
-            print("Unsupported actor type:{}. Using vehicle_4W as the type")
-            actor_type = "vehicle_4W"
+        object_type = self._scenario_config.objects[object_id].type
+        object_model = self._scenario_config.objects[object_id].model
+        if object_type not in self._supported_active_actor_types:
+            raise Exception(f"Unsupported actor type: {object_type}")
 
-        if actor_type == "traffic_light":
+        if object_type == "traffic_light":
             # Traffic lights already exist in the world & can't be spawned.
-            # Find closest traffic light actor in world.actor_list and return
+            # Find the closest traffic light actor in world.actor_list and return it.
             from carla_gym.core.controllers import traffic_lights
 
             loc = carla.Location(
-                self._start_pos[actor_id][0],
-                self._start_pos[actor_id][1],
-                self._start_pos[actor_id][2],
+                self._start_pos[object_id][0],
+                self._start_pos[object_id][1],
+                self._start_pos[object_id][2],
             )
             rot = (self.world.get_map().get_waypoint(loc, project_to_road=True).transform.rotation)
-            #: If yaw is provided in addition to (X, Y, Z), set yaw
-            if len(self._start_pos[actor_id]) > 3:
-                rot.yaw = self._start_pos[actor_id][3]
+            # If yaw is provided in addition to (X, Y, Z), set yaw
+            if len(self._start_pos[object_id]) > 3:
+                rot.yaw = self._start_pos[object_id][3]
             transform = carla.Transform(loc, rot)
             tls = traffic_lights.get_tls(self.world, transform, sort=True)
-            return tls[0][0]  #: Return the key (carla.TrafficLight object) of closest match
+            return tls[0][0]  # Return the key (carla.TrafficLight object) of closest match
 
-        if actor_type == "pedestrian":
-            blueprints = self.world.get_blueprint_library().filter("walker.pedestrian.*" if actor_model is None else actor_model)
+        if object_type == "pedestrian":
+            blueprints = self.world.get_blueprint_library().filter("walker.pedestrian.*" if object_model is None else object_model)
 
-        elif actor_type == "vehicle_4W":
-            blueprints = self.world.get_blueprint_library().filter("vehicle" if actor_model is None else actor_model)
+        elif object_type == "vehicle_4W":
+            blueprints = self.world.get_blueprint_library().filter("vehicle" if object_model is None else object_model)
             # Further filter down to 4-wheeled vehicles
             blueprints = [b for b in blueprints if int(b.get_attribute("number_of_wheels")) == 4]
             if self.exclude_hard_vehicles:
@@ -611,46 +605,52 @@ class MultiActorCarlaEnv(gym.Env):
                      x.id.endswith('sprinter') or
                      x.id.endswith('firetruck') or
                      x.id.endswith('ambulance')), blueprints))
-        elif actor_type == "vehicle_2W":
-            blueprints = self.world.get_blueprint_library().filter("vehicle" if actor_model is None else actor_model)
+        elif object_type == "vehicle_2W":
+            blueprints = self.world.get_blueprint_library().filter("vehicle" if object_model is None else object_model)
             # Further filter down to 2-wheeled vehicles
             blueprints = [b for b in blueprints if int(b.get_attribute("number_of_wheels")) == 2]
 
         blueprint = random.choice(blueprints)
         loc = carla.Location(
-            x=self._start_pos[actor_id][0],
-            y=self._start_pos[actor_id][1],
-            z=self._start_pos[actor_id][2],
+            x=self._start_pos[object_id][0],
+            y=self._start_pos[object_id][1],
+            z=self._start_pos[object_id][2],
         )
         rot = (self.world.get_map().get_waypoint(loc, project_to_road=True).transform.rotation)
         #: If yaw is provided in addition to (X, Y, Z), set yaw
-        if len(self._start_pos[actor_id]) > 3:
-            rot.yaw = self._start_pos[actor_id][3]
+        if len(self._start_pos[object_id]) > 3:
+            rot.yaw = self._start_pos[object_id][3]
         transform = carla.Transform(loc, rot)
-        vehicle = None
+        world_object = None
         for retry in range(RETRIES_ON_ERROR):
-            vehicle = self.world.try_spawn_actor(blueprint, transform)
-            if self._sync_server:
-                self.world.tick()
-            if vehicle is not None and vehicle.get_location().z > 0.0:
-                # Register it under traffic manager
-                vehicle.set_autopilot(False, self._traffic_manager.get_port())
-                # Register it under traffic manager
-                # Walker vehicle type does not have autopilot. Use walker controller ai
-                if actor_type == "pedestrian":  # TODO review pedestrian behaviour
-                    # vehicle.set_simulate_physics(False)
-                    pass
-                else:
-                    vehicle.set_autopilot(False, self._traffic_manager.get_port())
+            world_object = self.world.try_spawn_actor(blueprint, transform)
+            if self._sync_server: self.world.tick()
+            if world_object is not None and world_object.get_location().z > 0.0:
+                # Register it under traffic manager. Autopilot traffic manager do not support goal-oriented navigation.
+                if object_type == "pedestrian":
+                    world_object.set_simulate_physics(False)
+                    world_object_ctrl = self.world.try_spawn_actor(self.world.get_blueprint_library().find('controller.ai.walker'), carla.Transform(), world_object)
+                    if self._sync_server: self.world.tick()
+                    if world_object_ctrl is not None:
+                        world_object.controller = world_object_ctrl
+                        if self._scenario_config.objects[object_id].autopilot:
+
+                            world_object_ctrl.start()
+                            world_object_ctrl.go_to_location(self.world.get_random_location_from_navigation())
+                            world_object_ctrl.set_max_speed(float(blueprint.get_attribute('speed').recommended_values[1]))
+                    else:
+                        print(f"Error in initializing automatic behaviour for {object_id} pedestrian.")
+                elif "vehicle" in object_type:
+                    world_object.set_autopilot(self._scenario_config.objects[object_id].autopilot, self._traffic_manager.get_port())
                 break
             # Wait to see if spawn area gets cleared before retrying
             # time.sleep(0.5)
             # self._clean_world()
             print("spawn_actor: Retry#:{}/{}".format(retry + 1, RETRIES_ON_ERROR))
-        if vehicle is None:
+        if world_object is None:
             # Request a spawn one last time possibly raising the error
-            vehicle = self.world.spawn_actor(blueprint, transform)
-        return vehicle
+            world_object = self.world.spawn_actor(blueprint, transform)
+        return world_object
 
     def _reset(self, clean_world: bool = True):
         """Reset the state of the actors.
@@ -685,56 +685,46 @@ class MultiActorCarlaEnv(gym.Env):
             self.world.get_weather().wind_intensity,
         ]
 
-        # TODO to implement spawn also for set(scenario_config.vehicles).diff(actor_configs) with proper behaviour
+        # Spawn all scenario objects
+        for object_id, object_config in self._scenario_config.objects.items():
+            self._measurements_file_dict[object_id] = None
+            self._episode_id_dict[object_id] = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
+
+            # Try to spawn actor (soft reset) or fail and reinitialize the server before get back here
+            try:
+                self._scenario_objects[object_id] = self._spawn_world_object(object_id)
+            except RuntimeError as spawn_err:
+                # Chain the exception & re-raise to be handled by the caller `self.reset()`
+                raise spawn_err from RuntimeError(f"Unable to spawn world object: {object_id}")
+
+        # Instantiate the ActorManagers for controllable objects and assign a camera
         for actor_id, actor_config in self.actor_configs.items():
+            self._active_actors.add(actor_id)
             if self._dones.get(actor_id, True):
+                actor_type = self._scenario_config.objects[actor_id].type
+                actor_obj = self._scenario_objects[actor_id]
+                if actor_type not in self._supported_active_actor_types:
+                    raise Exception(f"Unsupported actor type: {actor_type}")
 
-                self._measurements_file_dict[actor_id] = None
-                self._episode_id_dict[actor_id] = datetime.today().strftime("%Y-%m-%d_%H-%M-%S_%f")
-                actor_config = self.actor_configs[actor_id]
-
-                # Try to spawn actor (soft reset) or fail and reinitialize the server before get back here
-                try:
-                    self._actor_objects[actor_id] = self._spawn_new_actor(actor_id)
-                    self._active_actors.add(actor_id)
-                except RuntimeError as spawn_err:
-                    if actor_id in self._dones:
-                        del self._dones[actor_id]
-                    # Chain the exception & re-raise to be handled by the caller `self.reset()`
-                    raise spawn_err from RuntimeError("Unable to spawn actor:{}".format(actor_id))
-
-                self._path_trackers[actor_id] = PathTracker(
-                    self.world,
-                    self.planner,
-                    (
-                        self._start_pos[actor_id][0],
-                        self._start_pos[actor_id][1],
-                        self._start_pos[actor_id][2],
-                    ),
-                    (
-                        self._end_pos[actor_id][0],
-                        self._end_pos[actor_id][1],
-                        self._end_pos[actor_id][2],
-                    ),
-                    self._actor_objects[actor_id],
-                )
-
-                # Spawn collision and lane sensors if necessary
-                if actor_config.collision_sensor:
-                    collision_sensor = CollisionSensor(self._actor_objects[actor_id], 0)
-                    self._collisions.update({actor_id: collision_sensor})
-                if actor_config.lane_sensor:
-                    lane_sensor = LaneInvasionSensor(self._actor_objects[actor_id], 0)
-                    self._lane_invasions.update({actor_id: lane_sensor})
+                # Create ActorManager
+                if "vehicle" in actor_type:
+                    path_tracker = PathTracker(self.world, self.planner, actor_obj, self._start_pos[actor_id][:3],
+                       self._end_pos[actor_id][:3])
+                    vehicle_manager = VehicleManager(actor_config, actor_obj, self._traffic_manager, path_tracker)
+                    self._vehicles.update({actor_id: vehicle_manager})
+                elif actor_type == "pedestrian":
+                    pedestrian_manager = PedestrianManager(
+                        actor_config, actor_obj, self.planner, self._end_pos[actor_id]
+                    )
+                    self._pedestrians.update({actor_id: pedestrian_manager})
+                elif actor_type == "traffic_light":
+                    pass
 
                 # Spawn cameras
                 camera_manager = CameraManager(
-                    self._actor_objects[actor_id], render_dim=(self._render_x_res, self._render_y_res), record=actor_config.log_images
+                    actor_obj, render_dim=(self._render_x_res, self._render_y_res), record=actor_config.log_images
                 )
-                camera_manager.set_sensor(
-                    CAMERA_TYPES[self.actor_configs[actor_id].camera_type].value-1,
-                    self.actor_configs[actor_id].camera_position
-                )
+                camera_manager.set_sensor(CAMERA_TYPES[actor_config.camera_type].value-1, actor_config.camera_position)
                 assert camera_manager.sensor.is_listening
                 self._cameras.update({actor_id: camera_manager})
 
@@ -742,33 +732,23 @@ class MultiActorCarlaEnv(gym.Env):
                 if actor_config.manual_control:
                     # Init objects for manual control
                     self._manual_controller = ManualController(
-                        self._actor_objects[actor_id], start_in_autopilot=actor_config.auto_control
+                        actor_obj, start_in_autopilot=actor_config.auto_control
                     )
                     # Set clock for sync
                     self.world.on_tick(self._manual_controller.hud.on_server_tick)
 
                 self._start_coord.update(
-                    {
-                        actor_id: [
-                            self._start_pos[actor_id][0] // 100,
-                            self._start_pos[actor_id][1] // 100,
-                        ]
-                    }
+                    {actor_id: [self._start_pos[actor_id][0] // 100, self._start_pos[actor_id][1] // 100]}
                 )
                 self._end_coord.update(
-                    {
-                        actor_id: [
-                            self._end_pos[actor_id][0] // 100,
-                            self._end_pos[actor_id][1] // 100,
-                        ]
-                    }
+                    {actor_id: [self._end_pos[actor_id][0] // 100,self._end_pos[actor_id][1] // 100]}
                 )
                 if self.verbose:
                     print(f"Actor: {actor_id}, "
                           f"start_pos_xyz(coordID): {self._start_pos[actor_id]} ({self._start_coord[actor_id]}), "
                           f"end_pos_xyz(coordID): {self._end_pos[actor_id]} ({self._end_coord[actor_id]})")
 
-        print("New episode initialized with actors:{}".format(self._actor_objects.keys()))
+        print("New episode initialized with actors:{}".format(self._scenario_objects.keys()))
 
         self._npc_vehicles, self._npc_pedestrians = apply_traffic(
             self.world, self._traffic_manager,
@@ -830,51 +810,7 @@ class MultiActorCarlaEnv(gym.Env):
         Returns:
           A dictionary of measurement data for the specified actor.
         """
-        cur = self._actor_objects[actor_id]
-        cur_config = self.actor_configs[actor_id]
-        if cur_config.enable_planner:
-            dist = self._path_trackers[actor_id].get_distance_to_end()
-            orientation_diff = self._path_trackers[
-                actor_id
-            ].get_orientation_difference_to_end_in_radians()
-            commands = self.planner.plan_route(
-                (cur.get_location().x, cur.get_location().y),
-                (self._end_pos[actor_id][0], self._end_pos[actor_id][1]),
-            )
-            if len(commands) > 0:
-                next_command = ROAD_OPTION_TO_COMMANDS_MAPPING.get(
-                    commands[0], "LANE_FOLLOW"
-                )
-            elif (dist <= DISTANCE_TO_GOAL_THRESHOLD
-                  and orientation_diff <= ORIENTATION_TO_GOAL_THRESHOLD):
-                next_command = "REACH_GOAL"
-            else:
-                next_command = "LANE_FOLLOW"
-            # DEBUG
-            # self.path_trackers[actor_id].draw()
-        else:
-            next_command = "LANE_FOLLOW"
 
-        collision_vehicles = self._collisions[actor_id].collision_vehicles
-        collision_pedestrians = self._collisions[actor_id].collision_pedestrians
-        collision_other = self._collisions[actor_id].collision_other
-        intersection_otherlane = self._lane_invasions[actor_id].offlane
-        intersection_offroad = self._lane_invasions[actor_id].offroad
-
-        if next_command == "REACH_GOAL":
-            distance_to_goal = 0.0
-        elif cur_config.enable_planner:
-            distance_to_goal = self._path_trackers[actor_id].get_distance_to_end()
-        else:
-            distance_to_goal = -1
-
-        distance_to_goal_euclidean = float(
-            np.linalg.norm([
-                self._actor_objects[actor_id].get_location().x -
-                self._end_pos[actor_id][0],
-                self._actor_objects[actor_id].get_location().y -
-                self._end_pos[actor_id][1],
-            ]))
 
         # Wait for the actor's camera sensor to start streaming (shouldn't take too long)
         cam = self._cameras[actor_id]
@@ -890,19 +826,6 @@ class MultiActorCarlaEnv(gym.Env):
         py_measurements = {
             "episode_id": self._episode_id_dict[actor_id],
             "step": self._num_steps[actor_id],
-            "x": self._actor_objects[actor_id].get_location().x,
-            "y": self._actor_objects[actor_id].get_location().y,
-            "pitch": self._actor_objects[actor_id].get_transform().rotation.pitch,
-            "yaw": self._actor_objects[actor_id].get_transform().rotation.yaw,
-            "roll": self._actor_objects[actor_id].get_transform().rotation.roll,
-            "forward_speed": self._actor_objects[actor_id].get_velocity().x,
-            "distance_to_goal": distance_to_goal,
-            "distance_to_goal_euclidean": distance_to_goal_euclidean,
-            "collision_vehicles": collision_vehicles,
-            "collision_pedestrians": collision_pedestrians,
-            "collision_other": collision_other,
-            "intersection_offroad": intersection_offroad,
-            "intersection_otherlane": intersection_otherlane,
             "weather": self._weather,
             "map": self._scenario_config.town,
             "start_coord": self._start_coord[actor_id],
@@ -912,11 +835,19 @@ class MultiActorCarlaEnv(gym.Env):
             "y_res": self._render_y_res,
             "image": camera_image,
             "max_steps": self.max_steps,
-            "next_command": next_command,
             "previous_action": self._previous_actions.get(actor_id, None),
             "previous_reward": self._previous_rewards.get(actor_id, None),
         }
 
+        v = self._vehicles.get(actor_id, None)
+        py_measurements.update(v.read_observation() if v is not None else {})
+        p = self._pedestrians.get(actor_id, None)
+        py_measurements.update(p.read_observation() if p is not None else {})
+        t = self._traffic_lights.get(actor_id, None)
+        py_measurements.update(t.read_observation() if t is not None else {})
+
+        assert "next_command" in py_measurements,\
+            f"Error in creating the `{actor_id}` observation: `next_command` field is missing."
         return py_measurements
 
     def _encode_obs(self, actor_id: str, py_measurements: dict):
@@ -970,7 +901,7 @@ class MultiActorCarlaEnv(gym.Env):
     def _step(self, actor_id: str, action):
         """Performs the actual step in the CARLA environment.
 
-        Applies control to `actor_id` based on `action`, the processes measurements and computes the rewards and
+        Applies control to `object_id` based on `action`, the processes measurements and computes the rewards and
         terminal state info.
 
         Args:
@@ -1002,45 +933,27 @@ class MultiActorCarlaEnv(gym.Env):
         if self.verbose:
             print("steer", steer, "throttle", throttle, "brake", brake, "reverse", reverse)
 
-
         actor_config = self.actor_configs[actor_id]
-        if actor_config.manual_control:
-            # Inform the controller of world evolution
-            self._manual_controller.tick(
-                self.metadata["render_fps"], self.world, self._actor_objects[actor_id], self._collisions[actor_id]
-            )
-            self._manual_controller.parse_events()
-        elif actor_config.auto_control:
-            if getattr(self._actor_objects[actor_id], "set_autopilot", 0):
-                self._actor_objects[actor_id].set_autopilot(True, self._traffic_manager.get_port())
-        else:
-            agent_type = self._scenario_config.objects[actor_id].type
-            # space of ped actors
-            if agent_type == "pedestrian":
-                # TODO: Add proper support for pedestrian actor according to action
-                rotation = self._actor_objects[actor_id].get_transform().rotation
-                rotation.yaw += steer * 10.0
-                x_dir = math.cos(math.radians(rotation.yaw))
-                y_dir = math.sin(math.radians(rotation.yaw))
-
-                self._actor_objects[actor_id].apply_control(
-                    carla.WalkerControl(
-                        speed=3.0 * throttle,
-                        direction=carla.Vector3D(x_dir, y_dir, 0.0),
-                    )
-                )
-            # To cover vehicle_4W, vehicle_2W, etc
-            elif "vehicle" in agent_type:
-                self._actor_objects[actor_id].apply_control(
-                    carla.VehicleControl(
-                        throttle=throttle,
-                        steer=steer,
-                        brake=brake,
-                        hand_brake=hand_brake,
-                        reverse=reverse,
-                    )
-                )
-        # Asynchronosly (one actor at a time; not all at once in a sync) apply
+        actor_type = self._scenario_config.objects[actor_id].type
+        actor_obj = self._scenario_objects[actor_id]
+        if actor_type == "pedestrian":
+            # TODO Manual control not implemented for pedestrians
+            # if actor_config.manual_control:
+            #     # Inform the controller of world evolution
+            #     self._manual_controller.tick(self.metadata["render_fps"], self.world, actor_obj,
+            #          self._pedestrians[actor_id]._collision_sensor)
+            #     self._manual_controller.parse_events()
+            # else:
+            self._pedestrians[actor_id].apply_control(throttle, steer)
+        elif "vehicle" in actor_type:  # vehicle_4W, vehicle_2W, etc
+            if actor_config.manual_control:
+                # Inform the controller of world evolution
+                self._manual_controller.tick(self.metadata["render_fps"], self.world, actor_obj,
+                     self._vehicles[actor_id]._collision_sensor)
+                self._manual_controller.parse_events()
+            else:
+                self._vehicles[actor_id].apply_control(throttle, steer, brake, hand_brake, reverse)
+        # Asynchronously (one actor at a time; not all at once in a sync) apply
         # actor actions & perform a server tick after each actor's apply_action
         # if running with sync_server steps
         # (see https://carla.readthedocs.io/en/latest/adv_synchrony_timestep/#setting-synchronous-mode)
@@ -1129,18 +1042,14 @@ class MultiActorCarlaEnv(gym.Env):
 
         if (not self._server_process) or (not self._client):
             raise RuntimeError("Cannot call step(...) before calling reset()")
-
-        assert len(
-            self._actor_objects), ("No actors exist in the environment. Either the environment was not properly "
-                "initialized using`reset()` or all the actors have exited. Cannot execute `step()`")
-
+        assert len(self._scenario_objects), ("No object exist in the world. Either the environment was not "
+                "properly initialized using`reset()` or all the actors have exited. Cannot execute `step()`")
         if not isinstance(actions, dict):
             raise ValueError(f"`step(actions)` expected dict of actions. Got {type(actions)}")
-        # Make sure the actions contains actions only for actors that exist in the environment
-        if not set(actions).issubset(set(self._actor_objects)):
+        if not set(actions.keys()).issubset(set(self.actor_configs.keys())):
             raise ValueError(
-                "Cannot execute actions for non-existent actors. "
-                f"Received unexpected actor ids:{ set(actions).difference(set(self._actor_objects))}"
+                "Cannot execute actions for non-existent actors."
+                f"Received unexpected actor ids :{set(actions.keys()).difference(set(self.actor_configs.keys()))}"
             )
 
         try:
@@ -1156,7 +1065,7 @@ class MultiActorCarlaEnv(gym.Env):
                     self._dones[actor_id] = done
                     if done: self._active_actors.discard(actor_id)
                 info_dict[actor_id] = info
-            self._dones["__all__"] = sum(self._dones.values()) >= len(self._actor_objects)
+            self._dones["__all__"] = sum(self._dones.values()) >= len(self._scenario_objects)
             self.render()
 
             return obs_dict, reward_dict, self._dones, info_dict

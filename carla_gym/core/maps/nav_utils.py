@@ -4,6 +4,8 @@ import sys
 
 import carla
 
+from core.constants import ROAD_OPTION_TO_COMMANDS_MAPPING, DISTANCE_TO_GOAL_THRESHOLD, ORIENTATION_TO_GOAL_THRESHOLD
+
 sys.path.append("macad_gym/carla/PythonAPI/")
 from carla_gym.carla_api.PythonAPI.agents.navigation.local_planner import \
     RoadOption  # noqa: E402
@@ -185,7 +187,7 @@ def get_next_waypoint(world, location, distance=1.0):
         The next waypoint as a list of coordinates (x,y,z)
     """
     current_waypoint = world.get_map().get_waypoint(
-        carla.Location(location[0], location[1], location[2]))
+        carla.Location(*location))
     current_coords = current_waypoint.transform.location
     next_waypoints = current_waypoint.next(distance)
     if len(next_waypoints) > 0:
@@ -275,12 +277,12 @@ def draw_shortest_path_old(world, planner, origin, destination):
 
 
 class PathTracker(object):
-    def __init__(self, world, planner, origin, destination, actor):
+    def __init__(self, world, planner, actor_object, origin, destination):
         self.world = world
         self.planner = planner
         self.origin = origin
         self.destination = destination
-        self.actor = actor
+        self.actor_object = actor_object
         self.path = []
         self.path_index = 0
         self.generate_path()
@@ -298,9 +300,9 @@ class PathTracker(object):
     def advance_path_index(self):
         if self.path_index < len(self.path):
             for i in range(self.path_index + 1, len(self.path)):
-                index_dist = self.actor.get_location().\
+                index_dist = self.actor_object.get_location().\
                     distance(self.path[self.path_index][0].transform.location)
-                next_index_dist = self.actor.get_location().\
+                next_index_dist = self.actor_object.get_location().\
                     distance(self.path[i][0].transform.location)
                 step_dist = self.path[self.path_index][0].transform.location.\
                     distance(self.path[i][0].transform.location)
@@ -315,7 +317,7 @@ class PathTracker(object):
         assert len(self.path) > 0, "No waypoints in path list."
         i = 0
         for i in range(1, len(self.path)):
-            index_dist = self.actor.get_location().\
+            index_dist = self.actor_object.get_location().\
                 distance(self.path [ i-1][0].transform.location)
             step_dist = self.path [ i-1][0].transform.location. \
                 distance(self.path[i][0].transform.location)
@@ -325,7 +327,7 @@ class PathTracker(object):
         self.path_index = i
 
     def get_distance_to_end(self):
-        last_loc = self.actor.get_location()
+        last_loc = self.actor_object.get_location()
         if self.last_location is None or \
                 self.last_location.distance(last_loc) >= 0.5:
             self.advance_path_index()
@@ -344,23 +346,37 @@ class PathTracker(object):
         return distance
 
     def get_euclidean_distance_to_end(self):
-        if len(self.path) > 0:
-            node_coords = (self.path[-1][0].transform.location.x,
-                           self.path[-1][0].transform.location.y)
-            actor_coords = self.actor.get_location()
-            actor_coords = (actor_coords.x, actor_coords.y)
-            return self.planner.distance(node_coords, actor_coords)
-        return 9999.0
+        actor_coords = self.actor_object.get_location()
+        dist = float(np.linalg.norm(
+            [actor_coords.x - self.destination[0], actor_coords.y - self.destination[1]]
+        ) / 100)
+        return dist
 
     def get_orientation_difference_to_end_in_radians(self):
         if len(self.path) > 0:
-            current = math.radians(self.actor.get_transform().rotation.yaw)
+            current = math.radians(self.actor_object.get_transform().rotation.yaw)
             target = math.radians(self.path[-1][0].transform.rotation.yaw)
             return math.fabs(math.cos(current) * math.sin(target) - math.sin(current) * math.cos(target))
         return math.pi
 
+    def get_path_commands_seq(self, debug=False):
+        dist = self.get_distance_to_end()
+        orientation_diff = self.get_orientation_difference_to_end_in_radians()
+        actor_coords = self.actor_object.get_location()
+        commands = self.planner.plan_route((actor_coords.x, actor_coords.y), self.destination[:2])
+        commands = [ROAD_OPTION_TO_COMMANDS_MAPPING.get(c, "LANE_FOLLOW") for c in commands]
+        if len(commands) == 0:
+            if dist <= DISTANCE_TO_GOAL_THRESHOLD and orientation_diff <= ORIENTATION_TO_GOAL_THRESHOLD:
+                commands = ["REACH_GOAL"]
+            else:
+                commands = ["LANE_FOLLOW"]
+        if debug:
+            self.draw()
+
+        return commands
+
     def draw(self):
-        actor_z = self.actor.get_location().z
+        actor_z = self.actor_object.get_location().z
         for i in range(self.path_index + 1, len(self.path)):
             hop1 = self.path[i - 1][0].transform.location
             hop2 = self.path[i][0].transform.location
@@ -392,9 +408,3 @@ class PathTracker(object):
 
     def set_path(self, path):
         self.path = path
-        # self.path = []
-
-        # for p in path:
-        #    self.path.append(carla.Location(p[0].transform.location.x,
-        #                                    p[0].transform.location.y,
-        #                                    p[0].transform.location.z))

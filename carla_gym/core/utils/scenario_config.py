@@ -139,7 +139,7 @@ class ObjectsConfiguration(object):
         return ObjectsConfiguration(name).update(config)
 
     def update(self, conf):
-        if conf.get("type", None) is not None: self.model = conf["type"]
+        if conf.get("type", None) is not None: self.type = conf["type"]
         if conf.get("model", None) is not None: self.model = conf["model"]
         if conf.get("start", None) is not None: self.start = conf["start"]
         if conf.get("start_x", None) is not None: self.start[0] = float(conf["start_x"])
