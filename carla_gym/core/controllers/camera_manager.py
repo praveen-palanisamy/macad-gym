@@ -1,26 +1,31 @@
-from __future__ import absolute_import
 import os
+import weakref
 from enum import Enum
 
+import carla
 import numpy as np
 import pygame
-import weakref
-import carla
 
 CARLA_OUT_PATH = os.environ.get("CARLA_OUT", os.path.expanduser("~/carla_out"))
 if CARLA_OUT_PATH and not os.path.exists(CARLA_OUT_PATH):
     os.makedirs(CARLA_OUT_PATH)
 
-CAMERA_TYPES = Enum('CameraType', ['rgb', 'depth', 'depth_raw', 'semseg', 'semseg_raw'])
+CAMERA_TYPES = Enum("CameraType", ["rgb", "depth", "depth_raw", "semseg", "semseg_raw"])
 
-DEPTH_CAMERAS = ['depth', 'depth_raw']
+DEPTH_CAMERAS = ["depth", "depth_raw"]
 
 
-class CameraManager(object):
-    """This class from carla, manual_control.py
-    """
+class CameraManager:
+    """Controller for camera objects."""
 
     def __init__(self, parent_actor, render_dim, record=False):
+        """Constructor.
+
+        Args:
+            parent_actor: actor configuration
+            render_dim: world object
+            record: flag if the images should saved
+        """
         self._parent = parent_actor
         self._render_dim = render_dim
         self.sensor = None
@@ -34,48 +39,34 @@ class CameraManager(object):
         # supported through toggle_camera
         self._camera_transforms = [
             carla.Transform(carla.Location(x=1.8, z=1.7)),
-            carla.Transform(carla.Location(x=-5.5, z=2.8),
-                            carla.Rotation(pitch=-15)),
-            carla.Transform(carla.Location(
-                x=-2.0*(0.5 + self._parent.bounding_box.extent.x),
-                y=0.0,
-                z=2.0*(0.5 + self._parent.bounding_box.extent.z)),
-                carla.Rotation(pitch=8.0))
+            carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
+            carla.Transform(
+                carla.Location(
+                    x=-2.0*(0.5 + self._parent.bounding_box.extent.x),
+                    y=0.0,
+                    z=2.0*(0.5 + self._parent.bounding_box.extent.z)
+                ), carla.Rotation(pitch=8.0)
+            )
         ]
         # 0 is dashcam view; 1 is tethered view; 2 for spring arm view (manual_control)
         self._transform_index = 0
         self._sensors = [
-            ['sensor.camera.rgb', carla.ColorConverter.Raw, 'Camera RGB'],
-            [
-                'sensor.camera.depth', carla.ColorConverter.Raw,
-                'Camera Depth (Raw)'
-            ],
-            [
-                'sensor.camera.depth', carla.ColorConverter.Depth,
-                'Camera Depth (Gray Scale)'
-            ],
-            [
-                'sensor.camera.depth', carla.ColorConverter.LogarithmicDepth,
-                'Camera Depth (Logarithmic Gray Scale)'
-            ],
-            [
-                'sensor.camera.semantic_segmentation',
-                carla.ColorConverter.Raw, 'Camera Semantic Segmentation (Raw)'
-            ],
-            [
-                'sensor.camera.semantic_segmentation',
-                carla.ColorConverter.CityScapesPalette,
-                'Camera Semantic Segmentation (CityScapes Palette)'
-            ], ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)']
+            ["sensor.camera.rgb", carla.ColorConverter.Raw, "Camera RGB"],
+            ["sensor.camera.depth", carla.ColorConverter.Raw, "Camera Depth (Raw)"],
+            ["sensor.camera.depth", carla.ColorConverter.Depth, "Camera Depth (Gray Scale)"],
+            ["sensor.camera.depth", carla.ColorConverter.LogarithmicDepth, "Camera Depth (Logarithmic Gray Scale)"],
+            ["sensor.camera.semantic_segmentation", carla.ColorConverter.Raw, "Camera Semantic Segmentation (Raw)"],
+            ["sensor.camera.semantic_segmentation", carla.ColorConverter.CityScapesPalette,
+                "Camera Semantic Segmentation (CityScapes Palette)"],
+            ["sensor.lidar.ray_cast", None, "Lidar (Ray-Cast)"],
         ]
         world = self._parent.get_world()
-        # TODO what to del?
         bp_library = world.get_blueprint_library()
         for item in self._sensors:
             bp = bp_library.find(item[0])
-            if item[0].startswith('sensor.camera'):
-                bp.set_attribute('image_size_x', str(render_dim[0]))
-                bp.set_attribute('image_size_y', str(render_dim[1]))
+            if item[0].startswith("sensor.camera"):
+                bp.set_attribute("image_size_x", str(render_dim[0]))
+                bp.set_attribute("image_size_y", str(render_dim[1]))
             item.append(bp)
         self._index = None
         self.callback_count = 0
@@ -89,10 +80,8 @@ class CameraManager(object):
         return self._img_array
 
     def toggle_camera(self):
-        self._transform_index = (self._transform_index + 1) % len(
-            self._camera_transforms)
-        self.sensor.set_transform(
-            self._camera_transforms[self._transform_index])
+        self._transform_index = (self._transform_index + 1) % len(self._camera_transforms)
+        self.sensor.set_transform(self._camera_transforms[self._transform_index])
 
     def set_sensor(self, index, pos=0):
         index = index % len(self._sensors)
@@ -119,10 +108,20 @@ class CameraManager(object):
         self.set_sensor(self._index + 1)
 
     def toggle_recording(self):
+        """Toggle for the internal images recording flag.
+
+        Returns:
+            N/A.
+        """
         self._recording = not self._recording
-        print('Recording %s' % ('On' if self._recording else 'Off'))
+        print("Recording %s" % ("On" if self._recording else "Off"))
 
     def get_screen(self):
+        """Retrieve PyGame screen following internal class sizes.
+
+        Returns:
+            PyGame screen instance.
+        """
         if self._screen is None:
             self._screen = pygame.display.set_mode(self._render_dim, pygame.HWSURFACE | pygame.DOUBLEBUF)
 
@@ -138,7 +137,7 @@ class CameraManager(object):
         Returns:
             N/A.
         """
-        screen = main_screen if main_screen is not None else self.get_screen() 
+        screen = main_screen if main_screen is not None else self.get_screen()
         if self._surface is not None:
             screen.blit(self._surface, render_pose)
         if main_screen is None:
@@ -151,8 +150,8 @@ class CameraManager(object):
         self.callback_count += 1
         if not self:
             return
-        if self._sensors[self._index][0].startswith('sensor.lidar'):
-            points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
+        if self._sensors[self._index][0].startswith("sensor.lidar"):
+            points = np.frombuffer(image.raw_data, dtype=np.dtype("f4"))
             points = np.reshape(points, (int(points.shape[0] / 3), 3))
             lidar_data = np.array(points[:, :2])
             lidar_data *= min(self._hud.dim) / 100.0
@@ -182,5 +181,6 @@ class CameraManager(object):
             pass
 
     def __del__(self):
+        """Delete instantiated sub-elements."""
         if self.sensor is not None:
             self.sensor.destroy()

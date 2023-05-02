@@ -1,13 +1,22 @@
 import math
 
 import carla
-
 from core.constants import DISTANCE_TO_GOAL_THRESHOLD
 from core.world_objects.sensors import CollisionSensor, LaneInvasionSensor
 
 
-class PedestrianManager(object):
+class PedestrianManager:
+    """Controller for pedestrian objects."""
+
     def __init__(self, pedestrian_config, pedestrian_object, planner, destination):
+        """Constructor.
+
+        Args:
+            pedestrian_config: actor configuration
+            pedestrian_object: world object
+            planner: global planner instance
+            destination: carla.Location object 
+        """
         self._config = pedestrian_config
         self._pedestrian = pedestrian_object
         self._planner = planner
@@ -60,6 +69,15 @@ class PedestrianManager(object):
         return py_measurements
 
     def apply_control(self, throttle, steer):
+        """Apply new control commands to the pedestrian object.
+
+        Args:
+            throttle: throttle value
+            steer: steer value
+
+        Returns:
+            N/A.
+        """
         if not self._config.auto_control:
             rotation = self._pedestrian.get_transform().rotation
             rotation.yaw += steer * 10.0
@@ -71,5 +89,6 @@ class PedestrianManager(object):
             )
 
     def __del__(self):
+        """Delete instantiated sub-elements."""
         if self._collision_sensor is not None and self._collision_sensor.sensor.is_alive:
             self._collision_sensor.sensor.destroy()

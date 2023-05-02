@@ -1,9 +1,19 @@
+# noqa
 import math
+
 import carla
 
 
-class TrafficLightManager(object):
+class TrafficLightManager:
+    """Controller for traffic light objects."""
+
     def __init__(self, tl_config, tl_object):
+        """Constructor.
+
+        Args:
+            tl_config: actor configuration
+            tl_object: world object
+        """
         self._config = tl_config
         self._tl = tl_object
 
@@ -16,20 +26,20 @@ class TrafficLightManager(object):
         pass
 
     def apply_control(self, traffic_light_state):
-        """Apply new state to a traffic light object
+        """Apply new state to a traffic light object.
 
         Args:
             traffic_light_state: new state
 
         Returns:
-
+            N/A.
         """
         pass
 
     # def is_traffic_light_active(self, light, orientation):
     #     x_agent = light.transform.location.x
     #     y_agent = light.transform.location.y
-    # 
+    #
     #     def search_closest_lane_point(x_agent, y_agent, depth):
     #         step_size = 4
     #         if depth > 1:
@@ -39,7 +49,7 @@ class TrafficLightManager(object):
     #         # print (degrees)
     #         # except:
     #         #    return None
-    # 
+    #
     #         if not self._map.is_point_on_lane([x_agent, y_agent, 38]):
     #             # print (" Not on lane ")
     #             result = search_closest_lane_point(x_agent + step_size, y_agent, depth + 1)
@@ -72,15 +82,15 @@ class TrafficLightManager(object):
     #                 return [x_agent, y_agent]
     #             else:
     #                 return None
-    # 
+    #
     #     closest_lane_point = search_closest_lane_point(x_agent, y_agent, 0)
     #     car_direction = math.atan2(orientation.y, orientation.x) + 3.1415
     #     if car_direction > 6.0:
     #         car_direction -= 6.0
-    # 
+    #
     #     return math.fabs(car_direction - self._map.get_lane_orientation_degrees(
     #         [closest_lane_point[0], closest_lane_point[1], 38])) < 1
-    # 
+    #
     # def _test_for_traffic_light(self, vehicle):
     #     """
     #     test if car passed into a traffic light,
@@ -88,40 +98,40 @@ class TrafficLightManager(object):
     #         returnning 'green' if it crossed a green light
     #         or none otherwise
     #     """
-    # 
+    #
     #     def is_on_burning_point(_map, location):  # location of vehicle
     #         # We get the current lane orientation
     #         ori_x, ori_y = _map.get_lane_orientation([location.x, location.y, 38])
-    # 
+    #
     #         # We test to walk in direction of the lane
     #         future_location_x = location.x
     #         future_location_y = location.y
-    # 
+    #
     #         for i in range(3):
     #             future_location_x += ori_x
     #             future_location_y += ori_y
     #         # Take a point on a intersection in the future
     #         location_on_intersection_x = future_location_x + 2 * ori_x
     #         location_on_intersection_y = future_location_y + 2 * ori_y
-    # 
+    #
     #         if not _map.is_point_on_intersection(
     #                 [future_location_x, future_location_y, 38]) and _map.is_point_on_intersection(
     #             [location_on_intersection_x, location_on_intersection_y, 38]):
     #             return True
-    # 
+    #
     #         return False
-    # 
+    #
     #     # check nearest traffic light with the correct orientation state
     #     player_x = vehicle.get_location().x
     #     player_y = vehicle.get_location().y
-    # 
+    #
     #     for light in self.lights:
     #         if light is not None:
     #             if not self._map.is_point_on_intersection([player_x, player_y, 38]):  # noqa: E125 yapf bug
     #                 #  light_x and light_y never used
     #                 # light_x = light.transform.location.x
     #                 # light_y = light.transform.location.y
-    # 
+    #
     #                 #  unknow func get_vec_dist
     #                 # t1_vector, t1_dist = get_vec_dist(light_x, light_y,
     #                 #                                 player_x, player_y)
@@ -136,6 +146,7 @@ class TrafficLightManager(object):
     #     return None
 
     def __del__(self):
+        """Delete instantiated sub-elements."""
         pass
 
     @staticmethod
@@ -182,11 +193,7 @@ class TrafficLightManager(object):
 
     @staticmethod
     def get_all_traffic_lights(world):
-        """Get a list of traffic lights that will affect an actor
-
-        Helpful when the actor is approaching a signal controlled intersection. May
-        not work well when the actor is turning unless the angle_threshold is
-        appropriate.
+        """Get a list of all traffic lights in the map.
 
         Args:
             world (carla.world): Carla World object

@@ -1,3 +1,4 @@
+import carla
 from core.controllers.camera_manager import CAMERA_TYPES, CameraManager
 from core.world_objects.hud import HUD
 
@@ -28,15 +29,13 @@ try:
     from pygame.locals import K_s
     from pygame.locals import K_w
 except ImportError:
-    raise RuntimeError(
-        'cannot import pygame, make sure pygame package is installed')
-import carla
+    raise RuntimeError("cannot import pygame, make sure pygame package is installed")
 
 MANUAL_VIEW_RENDER_X = 600
 MANUAL_VIEW_RENDER_Y = 600
 
 
-class ManualController(object):
+class ManualController:
     """Self-contained class inspired from carla library manual_control.py
     It instantiate keyboard handlers, HUD and Camera objects to let the dev interact/observe the world.
     """
@@ -54,8 +53,7 @@ class ManualController(object):
         self.camera_manager.set_sensor(CAMERA_TYPES["rgb"].value - 1, pos=2)
 
     def tick(self, fps, world, vehicle, collision_sensor):
-        """Tick from the client. Ideally it should be called at each environment step.
-        """
+        """Tick from the client. Ideally it should be called at each environment step."""
         # Sync with env evolution
         self._control_clock.tick(fps)
         # Update information in the hud
@@ -153,7 +151,7 @@ class ManualController(object):
         self._control.brake = 1.0 if keys[K_DOWN] else 0.0
         self._control.hand_brake = keys[K_SPACE]
 
-    def render(self, main_screen=None, render_pose=(0,0)):
+    def render(self, main_screen=None, render_pose=(0, 0)):
         screen = main_screen if main_screen is not None else self.camera_manager.get_screen()
         self.camera_manager.render(screen, render_pose)
         self.hud.render(screen, render_pose)

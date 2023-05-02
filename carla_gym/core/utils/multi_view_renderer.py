@@ -2,8 +2,7 @@ import math
 
 import cv2
 import pygame
-
-from core.controllers.manual_controller import ManualController, MANUAL_VIEW_RENDER_X, MANUAL_VIEW_RENDER_Y
+from core.controllers.manual_controller import MANUAL_VIEW_RENDER_X, MANUAL_VIEW_RENDER_Y, ManualController
 
 pygame.init()
 pygame.display.set_caption("MACAD-Gym")
@@ -33,7 +32,9 @@ class MultiViewRenderer:
 
     def get_screen(self):
         if self._screen is None or self._update_size:
-            self._screen = pygame.display.set_mode((self.width, self.height), pygame.HWSURFACE | pygame.DOUBLEBUF)
+            self._screen = pygame.display.set_mode(
+                (self.width, self.height), pygame.HWSURFACE | pygame.DOUBLEBUF
+            )
             self._update_size = False
 
         return self._screen
@@ -68,7 +69,7 @@ class MultiViewRenderer:
             max_x = row_num * unit_x
         else:
             row_num = 1
-            max_x = subwindow_num*unit_x
+            max_x = subwindow_num * unit_x
         max_y = row_num * unit_y
 
         self.poses = {}

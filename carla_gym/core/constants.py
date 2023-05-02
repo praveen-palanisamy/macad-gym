@@ -1,29 +1,65 @@
-﻿import math
+﻿"""Global constant values."""
+
+import math
 
 import carla
-from carla_gym.carla_api.PythonAPI.agents.navigation.local_planner import (  # noqa:E402, E501
-    RoadOption,
-)
+from carla_gym.carla_api.PythonAPI.agents.navigation.local_planner import RoadOption
 
 # of env
 DEFAULT_MULTIENV_CONFIG = {
     "scenarios": {
-        "scenario1" : {
+        "scenario1": {
             "max_steps": 500,
             "town": "Town01",
             "objects": {
-                "vehicle1": {"start_x": 115, "start_y": 132, "start_z": 0.5, "yaw": 0, "end_x": 125, "end_y": 142, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"},
-                "vehicle2": {"start_x": 107, "start_y": 133.5, "start_z": 0.5, "yaw": 0, "end_x": 117, "end_y": 143.5, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"}
+                "vehicle1": {
+                    "start_x": 115,
+                    "start_y": 132,
+                    "start_z": 0.5,
+                    "yaw": 0,
+                    "end_x": 125,
+                    "end_y": 142,
+                    "end_z": 0.5,
+                    "model": "vehicle.lincoln.mkz_2017",
+                },
+                "vehicle2": {
+                    "start_x": 107,
+                    "start_y": 133.5,
+                    "start_z": 0.5,
+                    "yaw": 0,
+                    "end_x": 117,
+                    "end_y": 143.5,
+                    "end_z": 0.5,
+                    "model": "vehicle.lincoln.mkz_2017",
+                },
             },
         },
-        "scenario2" : {
+        "scenario2": {
             "max_steps": 500,
             "town": "Town01",
             "objects": {
-                "vehicle1": {"start_x": 115, "start_y": 132, "start_z": 0.5, "yaw": 0, "end_x": 125, "end_y": 142, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"},
-                "vehicle2": {"start_x": 107, "start_y": 133.5, "start_z": 0.5, "yaw": 0, "end_x": 117, "end_y": 143.5, "end_z": 0.5, "model": "vehicle.lincoln.mkz_2017"}
+                "vehicle1": {
+                    "start_x": 115,
+                    "start_y": 132,
+                    "start_z": 0.5,
+                    "yaw": 0,
+                    "end_x": 125,
+                    "end_y": 142,
+                    "end_z": 0.5,
+                    "model": "vehicle.lincoln.mkz_2017",
+                },
+                "vehicle2": {
+                    "start_x": 107,
+                    "start_y": 133.5,
+                    "start_z": 0.5,
+                    "yaw": 0,
+                    "end_x": 117,
+                    "end_y": 143.5,
+                    "end_z": 0.5,
+                    "model": "vehicle.lincoln.mkz_2017",
+                },
             },
-        }
+        },
     },
     "actors": {
         "vehicle1": {
@@ -101,8 +137,24 @@ WEATHERS = {
     "SoftRainSunset": carla.WeatherParameters.SoftRainSunset,
 }
 
-TEST_WEATHERS = ["ClearNoon", "WetNoon", "HardRainNoon", "ClearSunset", "WetSunset", "WetCloudySunset", "MidRainSunset", "HardRainSunset", "SoftRainSunset"]
-TRAIN_WEATHERS = ["CloudyNoon", "WetCloudyNoon", "MidRainyNoon", "SoftRainNoon", "CloudySunset"]
+TEST_WEATHERS = [
+    "ClearNoon",
+    "WetNoon",
+    "HardRainNoon",
+    "ClearSunset",
+    "WetSunset",
+    "WetCloudySunset",
+    "MidRainSunset",
+    "HardRainSunset",
+    "SoftRainSunset",
+]
+TRAIN_WEATHERS = [
+    "CloudyNoon",
+    "WetCloudyNoon",
+    "MidRainyNoon",
+    "SoftRainNoon",
+    "CloudySunset",
+]
 
 PAPER_TEST_WEATHERS = ["ClearNoon", "WetCloudyNoon", "HardRainNoon", "ClearSunset"]
 PAPER_TRAIN_WEATHERS = ["CloudyNoon", "SoftRainSunset"]

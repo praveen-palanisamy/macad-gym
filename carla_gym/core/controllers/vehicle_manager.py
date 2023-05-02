@@ -1,7 +1,6 @@
+# noqa
 import carla
-
 from core.world_objects.sensors import CollisionSensor, LaneInvasionSensor
-
 
 DISCRETE_ACTIONS = {
     # coast
@@ -27,8 +26,18 @@ DISCRETE_ACTIONS = {
 GROUND_Z = 22
 
 
-class VehicleManager(object):
+class VehicleManager:
+    """Controller for vehicle objects."""
+
     def __init__(self, vehicle_config, vehicle_object, traffic_manager, path_tracker):
+        """Constructor.
+
+        Args:
+            vehicle_config: actor configuration
+            vehicle_object: world object
+            traffic_manager: world traffic manager instance
+            path_tracker: path tracker object attached to the actor
+        """
         self._config = vehicle_config
         self._vehicle = vehicle_object
         self._traffic_manager = traffic_manager
@@ -44,7 +53,7 @@ class VehicleManager(object):
         """Read observation and return measurement.
 
         Returns:
-            dict: measurement data.
+            dict: Measurement data.
         """
         if self._config.enable_planner:
             next_command = self._path_tracker.get_path_commands_seq()[-1]
@@ -87,6 +96,18 @@ class VehicleManager(object):
         return py_measurements
 
     def apply_control(self, throttle, steer, brake, hand_brake, reverse):
+        """Apply new control commands to the vehicle object.
+
+        Args:
+            throttle: throttle value
+            steer: steer value
+            brake: brake value
+            hand_brake: hand_brake bool value
+            reverse: reverse bool value
+
+        Returns:
+            N/A.
+        """
         if self._config.auto_control:
             if getattr(self._vehicle, "set_autopilot", 0):
                 self._vehicle.set_autopilot(True, self._traffic_manager.get_port())
@@ -96,6 +117,7 @@ class VehicleManager(object):
             )
 
     def __del__(self):
+        """Delete instantiated sub-elements."""
         if self._collision_sensor is not None and self._collision_sensor.sensor.is_alive:
             self._collision_sensor.sensor.destroy()
         if self._lane_invasion_sensor is not None and self._lane_invasion_sensor.sensor.is_alive:

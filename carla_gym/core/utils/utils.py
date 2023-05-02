@@ -1,7 +1,9 @@
-import numpy as np
-import cv2
+"""Utility methods."""
+
 import sys
 
+import cv2
+import numpy as np
 from carla_gym.core.controllers.camera_manager import DEPTH_CAMERAS
 
 
@@ -34,7 +36,7 @@ def preprocess_image(image, config, resize=None):
 
 
 def get_transform_from_nearest_way_point(cur_map, cur_location, dst_location):
-    """Get the transform of the nearest way_point
+    """Get the transform of the nearest way_point.
 
     Args:
         cur_map (carla.Map): current map.
@@ -49,7 +51,7 @@ def get_transform_from_nearest_way_point(cur_map, cur_location, dst_location):
     # Get next possible way_points
     way_points = cur_map.get_waypoint(cur_location)
     nexts = list(way_points.next(1.0))
-    print('Next(1.0) --> %d waypoints' % len(nexts))
+    print("Next(1.0) --> %d waypoints" % len(nexts))
     if not nexts:
         raise RuntimeError("No more waypoints!")
 
@@ -75,10 +77,7 @@ def get_transform_from_nearest_way_point(cur_map, cur_location, dst_location):
 
 
 def collided_done(py_measurements):
-    """Define the main episode termination criteria"""
+    """Define the main episode termination criteria."""
     m = py_measurements
-    collided = (m["collision_vehicles"] > 0
-            or m["collision_pedestrians"] > 0
-            or m["collision_other"] > 0)
+    collided = (m["collision_vehicles"] > 0 or m["collision_pedestrians"] > 0 or m["collision_other"] > 0)
     return bool(collided)  # or m["total_reward"] < -100)
-

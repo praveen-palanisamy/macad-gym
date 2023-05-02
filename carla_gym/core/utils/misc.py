@@ -2,11 +2,27 @@
 
 
 def sigmoid(x):
+    """Apply sigmoid to input value.
+
+    Args:
+        x: input value
+
+    Returns:
+        Value after applied sigmoid function.
+    """
     x = float(x)
     return np.exp(x) / (1 + np.exp(x))
 
 
 def print_measurements(measurements):
+    """Pretty print measurements dictionary.
+
+    Args:
+        measurements: dictionary of measures information
+
+    Returns:
+        N/A.
+    """
     number_of_agents = len(measurements.non_player_agents)
     player_measurements = measurements.player_measurements
     message = "Vehicle at ({pos_x:.1f}, {pos_y:.1f}), "
