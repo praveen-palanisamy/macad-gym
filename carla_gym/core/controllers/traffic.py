@@ -47,6 +47,7 @@ def apply_traffic(world, traffic_manager, num_vehicles, num_pedestrians, safe=Fa
 
         # spawn the cars and set their autopilot and light state all together
         vehicle = world.try_spawn_actor(blueprint, transform)
+        world.tick()
         if vehicle is not None:
             vehicle.set_autopilot(True, traffic_manager.get_port())
             vehicles_list.append(vehicle)
@@ -79,7 +80,6 @@ def apply_traffic(world, traffic_manager, num_vehicles, num_pedestrians, safe=Fa
             spawn_points.append(spawn_point)
     # Spawn the walker object
     pedestrians_list = []
-    controllers_list = []
     pedestrians_speed = []
     failed_p = 0
     for spawn_point in spawn_points:
@@ -89,19 +89,22 @@ def apply_traffic(world, traffic_manager, num_vehicles, num_pedestrians, safe=Fa
             pedestrian_bp.set_attribute('is_invincible', 'false')
         # set the max speed
         if pedestrian_bp.has_attribute('speed'):
-            if random.random() > percentagePedestriansRunning:
-                speed = pedestrian_bp.get_attribute('speed').recommended_values[1]  # walking
-            else:
+            if random.random() <= percentagePedestriansRunning:
                 speed = pedestrian_bp.get_attribute('speed').recommended_values[2]  # running
+            else:
+                speed = pedestrian_bp.get_attribute('speed').recommended_values[1]  # walking
         else:
             speed = 0.0
         pedestrian = world.try_spawn_actor(pedestrian_bp, spawn_point)
+        world.tick()
         if pedestrian is not None:
             controller = world.try_spawn_actor(pedestrian_controller_bp, carla.Transform(), pedestrian)
+            world.tick()
             if controller is not None:
+                controller.go_to_location(world.get_random_location_from_navigation())
+                controller.set_max_speed(float(speed))
+                pedestrian.controller = controller
                 pedestrians_list.append(pedestrian)
-                controllers_list.append(controller)
-                pedestrians_speed.append(speed)
             else:
                 pedestrian.destroy()
                 failed_p += 1
@@ -109,15 +112,12 @@ def apply_traffic(world, traffic_manager, num_vehicles, num_pedestrians, safe=Fa
             failed_p += 1
 
     logger.info("{}/{} pedestrians correctly spawned.".format(num_pedestrians-failed_p, num_pedestrians))
-    world.tick()
 
     # Initialize each controller and set target to walk
     world.set_pedestrians_cross_factor(percentagePedestriansCrossing)
-    for i, controller in enumerate(controllers_list):
-        controller.start()  # start walker
-        controller.go_to_location(world.get_random_location_from_navigation())  # set walk to random point
-        controller.set_max_speed(float(pedestrians_speed[int(i / 2)]))  # max speed
+    for pedestrian in pedestrians_list:
+        pedestrian.controller.start()  # start walker
 
     traffic_manager.global_percentage_speed_difference(30.0)
 
-    return vehicles_list, (pedestrians_list, controllers_list)
+    return vehicles_list, pedestrians_list
