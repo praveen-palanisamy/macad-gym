@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import sys
 
-from carla_gym.core.world_objects.camera_manager import DEPTH_CAMERAS
+from carla_gym.core.controllers.camera_manager import DEPTH_CAMERAS
 
 
 def preprocess_image(image, config, resize=None):

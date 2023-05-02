@@ -14,7 +14,7 @@ from typing import List, Dict
 import xml.etree.ElementTree as ET
 
 import carla
-from carla_gym.core.world_objects.camera_manager import CAMERA_TYPES
+from carla_gym.core.controllers.camera_manager import CAMERA_TYPES
 
 from carla_gym.core.constants import WEATHERS
 

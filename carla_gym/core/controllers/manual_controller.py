@@ -1,4 +1,4 @@
-from core.world_objects.camera_manager import CAMERA_TYPES, CameraManager
+from core.controllers.camera_manager import CAMERA_TYPES, CameraManager
 from core.world_objects.hud import HUD
 
 try:

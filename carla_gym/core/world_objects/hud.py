@@ -68,11 +68,9 @@ class HUD(object):
             'Speed:   % 15.0f km/h' %
             (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
             u'Heading:% 16.0f\N{DEGREE SIGN} % 2s' % (t.rotation.yaw, heading),
-            'Location:% 20s' % ('(% 5.1f, % 5.1f)' %
-                                (t.location.x, t.location.y)),
+            'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
             'Height:  % 18.0f m' % t.location.z, '',
-            ('Throttle:', c.throttle, 0.0, 1.0), ('Steer:', c.steer, -1.0,
-                                                  1.0),
+            ('Throttle:', c.throttle, 0.0, 1.0), ('Steer:', c.steer, -1.0,1.0),
             ('Brake:', c.brake, 0.0, 1.0), ('Reverse:', c.reverse),
             ('Hand brake:', c.hand_brake), '', 'Collision:', collision, '',
             'Number of vehicles: % 8d' % len(vehicles)

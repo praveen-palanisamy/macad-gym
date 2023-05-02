@@ -2,23 +2,6 @@ import carla
 
 from core.world_objects.sensors import CollisionSensor, LaneInvasionSensor
 
-# Mapping from string repr to one-hot encoding index to feed to the model
-COMMAND_ORDINAL = {
-    "REACH_GOAL": 0,
-    "GO_STRAIGHT": 1,
-    "TURN_RIGHT": 2,
-    "TURN_LEFT": 3,
-    "LANE_FOLLOW": 4,
-}
-
-# Carla planner commands
-COMMANDS_ENUM = {
-    0.0: "REACH_GOAL",
-    5.0: "GO_STRAIGHT",
-    4.0: "TURN_RIGHT",
-    3.0: "TURN_LEFT",
-    2.0: "LANE_FOLLOW",
-}
 
 DISCRETE_ACTIONS = {
     # coast

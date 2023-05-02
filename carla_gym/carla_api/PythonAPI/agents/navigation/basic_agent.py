@@ -15,12 +15,12 @@ import math
 import numpy as np
 
 import carla
-from agents.navigation.agent import Agent, AgentState
-from agents.navigation.local_planner import LocalPlanner
-from agents.navigation.local_planner import RoadOption
-from agents.navigation.global_route_planner import GlobalRoutePlanner
-from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
-from agents.tools.misc import vector
+from carla_gym.carla_api.PythonAPI.agents.navigation.agent import Agent, AgentState
+from carla_gym.carla_api.PythonAPI.agents.navigation.local_planner import LocalPlanner
+from carla_gym.carla_api.PythonAPI.agents.navigation.local_planner import RoadOption
+from carla_gym.carla_api.PythonAPI.agents.navigation.global_route_planner import GlobalRoutePlanner
+from carla_gym.carla_api.PythonAPI.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from carla_gym.carla_api.PythonAPI.agents.tools.misc import vector
 
 
 class BasicAgent(Agent):

@@ -38,26 +38,26 @@ from pettingzoo import AECEnv
 from pettingzoo.utils import wrappers, agent_selector
 from pettingzoo.utils.env import ActionDict
 
-from carla_gym.core.constants import DEFAULT_MULTIENV_CONFIG, RETRIES_ON_ERROR, DISCRETE_ACTIONS, COMMANDS_ENUM, \
+from carla_gym.core.constants import DEFAULT_MULTIENV_CONFIG, RETRIES_ON_ERROR, COMMANDS_ENUM, \
     ROAD_OPTION_TO_COMMANDS_MAPPING, DISTANCE_TO_GOAL_THRESHOLD, ORIENTATION_TO_GOAL_THRESHOLD, COMMAND_ORDINAL
 from carla_gym.core.controllers.traffic import apply_traffic
 # from carla_gym import LOG_DIR
-from carla_gym.core.world_objects.utils import preprocess_image, collided_done
+from carla_gym.core.utils.utils import preprocess_image, collided_done
 
 from carla_gym.carla_api.reward import Reward
 from carla_gym.core.utils.misc import sigmoid
 from carla_gym.core.utils.scenario_config import Configuration
 from carla_gym.core.utils.multi_view_renderer import MultiViewRenderer
 
-from carla_gym.core.world_objects.camera_manager import CameraManager, CAMERA_TYPES, DEPTH_CAMERAS
+from carla_gym.core.controllers.camera_manager import CameraManager, CAMERA_TYPES, DEPTH_CAMERAS
 from carla_gym.core.world_objects.sensors import LaneInvasionSensor
 from carla_gym.core.world_objects.sensors import CollisionSensor
 from carla_gym.core.controllers.manual_controller import ManualController
 from carla_gym.carla_api.PythonAPI.agents.navigation.global_route_planner_dao import (  # noqa: E501
     GlobalRoutePlannerDAO,
 )
-from core.world_objects.pedestrian_manager import PedestrianManager
-from core.world_objects.vehicle_manager import VehicleManager
+from core.controllers.pedestrian_manager import PedestrianManager
+from core.controllers.vehicle_manager import VehicleManager, DISCRETE_ACTIONS
 
 # The following imports depend on these paths being in sys path
 # TODO: Fix this. This probably won't work after packaging/distribution
@@ -256,7 +256,7 @@ class MultiActorCarlaEnv(gym.Env):
         self._actors_renderer = MultiViewRenderer(self._render_x_res, self._render_y_res)
         self._actors_renderer.set_surface_poses((self._actor_render_x_res, self._actor_render_y_res), self.actor_configs)
 
-        # Action space (common for all actors)
+        # Using the action space of a vehicle (common for all actors)
         if self.discrete_action_space:
             n = len(DISCRETE_ACTIONS)
             self.action_spaces = Dict({
@@ -564,7 +564,8 @@ class MultiActorCarlaEnv(gym.Env):
           object_id (str): Object name identifier.
 
         Returns:
-          An instance of a subclass of `carla.Actor` (e.g. `carla.Vehicle` in the case of a vehicle type object).
+          An instance of a subclass of `carla.Actor` spawned in the world
+          (e.g. `carla.Vehicle` in the case of a vehicle type object).
         """
         object_type = self._scenario_config.objects[object_id].type
         object_model = self._scenario_config.objects[object_id].model
@@ -574,7 +575,7 @@ class MultiActorCarlaEnv(gym.Env):
         if object_type == "traffic_light":
             # Traffic lights already exist in the world & can't be spawned.
             # Find the closest traffic light actor in world.actor_list and return it.
-            from carla_gym.core.controllers import traffic_lights
+            from carla_gym.core.controllers.traffic_light_manager import TrafficLightManager
 
             loc = carla.Location(
                 self._start_pos[object_id][0],
@@ -586,12 +587,13 @@ class MultiActorCarlaEnv(gym.Env):
             if len(self._start_pos[object_id]) > 3:
                 rot.yaw = self._start_pos[object_id][3]
             transform = carla.Transform(loc, rot)
-            tls = traffic_lights.get_tls(self.world, transform, sort=True)
-            return tls[0][0]  # Return the key (carla.TrafficLight object) of closest match
-
+            tfl = TrafficLightManager.get_traffic_light(self.world, transform, sort=True)
+            return tfl[0][0]  # Return since already spawned
+        if object_type == "traffic_lights":
+            from carla_gym.core.controllers.traffic_light_manager import TrafficLightManager
+            return TrafficLightManager.get_all_traffic_lights(self.world)  # Return since already spawned
         if object_type == "pedestrian":
             blueprints = self.world.get_blueprint_library().filter("walker.pedestrian.*" if object_model is None else object_model)
-
         elif object_type == "vehicle_4W":
             blueprints = self.world.get_blueprint_library().filter("vehicle" if object_model is None else object_model)
             # Further filter down to 4-wheeled vehicles
@@ -610,6 +612,7 @@ class MultiActorCarlaEnv(gym.Env):
             # Further filter down to 2-wheeled vehicles
             blueprints = [b for b in blueprints if int(b.get_attribute("number_of_wheels")) == 2]
 
+        # Spawn actors given the blueprint
         blueprint = random.choice(blueprints)
         loc = carla.Location(
             x=self._start_pos[object_id][0],
@@ -624,17 +627,16 @@ class MultiActorCarlaEnv(gym.Env):
         world_object = None
         for retry in range(RETRIES_ON_ERROR):
             world_object = self.world.try_spawn_actor(blueprint, transform)
-            if self._sync_server: self.world.tick()
+            self.world.tick()
             if world_object is not None and world_object.get_location().z > 0.0:
                 # Register it under traffic manager. Autopilot traffic manager do not support goal-oriented navigation.
                 if object_type == "pedestrian":
                     world_object.set_simulate_physics(False)
                     world_object_ctrl = self.world.try_spawn_actor(self.world.get_blueprint_library().find('controller.ai.walker'), carla.Transform(), world_object)
-                    if self._sync_server: self.world.tick()
+                    self.world.tick()
                     if world_object_ctrl is not None:
                         world_object.controller = world_object_ctrl
                         if self._scenario_config.objects[object_id].autopilot:
-
                             world_object_ctrl.start()
                             world_object_ctrl.go_to_location(self.world.get_random_location_from_navigation())
                             world_object_ctrl.set_max_speed(float(blueprint.get_attribute('speed').recommended_values[1]))
@@ -650,6 +652,7 @@ class MultiActorCarlaEnv(gym.Env):
         if world_object is None:
             # Request a spawn one last time possibly raising the error
             world_object = self.world.spawn_actor(blueprint, transform)
+
         return world_object
 
     def _reset(self, clean_world: bool = True):

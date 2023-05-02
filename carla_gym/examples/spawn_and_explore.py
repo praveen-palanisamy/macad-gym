@@ -145,7 +145,7 @@ def get_traffic_lights(loc=carla.Location(0, 0, 0)):
 
 
 client = carla.Client('localhost', 2000)
-client.set_timeout(10.0)
+client.set_timeout(60.0)
 world = client.get_world()
 if args.export_node_coord_map:
     node_coord_map = map_spawn_point_to_node(world)
