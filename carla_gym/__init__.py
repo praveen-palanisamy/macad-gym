@@ -3,9 +3,7 @@ import logging
 import os
 import sys
 
-from carla_gym.carla_api import PythonAPI
-from carla_gym.multi_env import env, parallel_env
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 LOG_DIR = os.path.join(os.getcwd(), "logs")

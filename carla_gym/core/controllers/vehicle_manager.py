@@ -44,8 +44,8 @@ class VehicleManager:
         self._path_tracker = path_tracker
 
         # Spawn collision and lane sensors if necessary
-        self._collision_sensor = CollisionSensor(self._vehicle, 0) if vehicle_config.collision_sensor else None
-        self._lane_invasion_sensor = LaneInvasionSensor(self._vehicle, 0) if vehicle_config.lane_sensor else None
+        self._collision_sensor = CollisionSensor(self._vehicle) if vehicle_config.collision_sensor else None
+        self._lane_invasion_sensor = LaneInvasionSensor(self._vehicle) if vehicle_config.lane_sensor else None
 
         self._vehicle.set_autopilot(self._config.auto_control, self._traffic_manager.get_port())
 

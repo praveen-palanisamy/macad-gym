@@ -121,6 +121,7 @@ def apply_npc(world, traffic_manager, num_vehicles, num_pedestrians, safe=False)
             controller = world.try_spawn_actor(pedestrian_controller_bp, carla.Transform(), pedestrian)
             world.tick()
             if controller is not None:
+                controller.start()  # start walker
                 controller.go_to_location(world.get_random_location_from_navigation())
                 controller.set_max_speed(float(speed))
                 pedestrian.controller = controller
@@ -135,9 +136,6 @@ def apply_npc(world, traffic_manager, num_vehicles, num_pedestrians, safe=False)
 
     # Initialize each controller and set target to walk
     world.set_pedestrians_cross_factor(percentagePedestriansCrossing)
-    for pedestrian in pedestrians_list:
-        pedestrian.controller.start()  # start walker
-
     traffic_manager.global_percentage_speed_difference(30.0)
 
     return vehicles_list, pedestrians_list

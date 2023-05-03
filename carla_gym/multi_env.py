@@ -24,7 +24,7 @@ from typing import Optional
 import carla
 import cv2
 import GPUtil
-import gym
+import gymnasium as gym
 import numpy as np
 import psutil
 from carla_gym.carla_api.PythonAPI.agents.navigation.global_route_planner import GlobalRoutePlanner
@@ -42,7 +42,7 @@ from carla_gym.core.utils.scenario_config import Configuration
 from carla_gym.core.utils.utils import collided_done, preprocess_image
 from core.controllers.pedestrian_manager import PedestrianManager
 from core.controllers.vehicle_manager import DISCRETE_ACTIONS, VehicleManager
-from gym.spaces import Box, Dict, Discrete, Tuple
+from gymnasium.spaces import Box, Dict, Discrete, Tuple
 from gymnasium.utils import EzPickle
 from path import Path
 from pettingzoo import AECEnv
@@ -1041,7 +1041,7 @@ class MultiActorCarlaEnv(gym.Env):
         py_measurements["total_reward"] = self._total_rewards[actor_id]
 
         # Compute output observation
-        obs = (self._encode_obs(actor_id, py_measurements),)  # TODO this is a tuple?
+        obs = self._encode_obs(actor_id, py_measurements)
 
         # End iteration updating parameters and logging
         self._previous_actions[actor_id] = action
@@ -1114,7 +1114,7 @@ class MultiActorCarlaEnv(gym.Env):
                     if done:
                         self._active_actors.discard(actor_id)
                 info_dict[actor_id] = info
-            self._dones["__all__"] = sum(self._dones.values()) >= len(self._scenario_objects)
+            self._dones["__all__"] = sum(self._dones.values()) >= self.max_num_agents
             self.render()
 
             return obs_dict, reward_dict, self._dones, info_dict

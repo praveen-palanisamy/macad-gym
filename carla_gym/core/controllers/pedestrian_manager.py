@@ -24,7 +24,7 @@ class PedestrianManager:
         self._destination = destination
 
         # Spawn collision and lane sensors if necessary
-        self._collision_sensor = CollisionSensor(self._pedestrian, 0) if pedestrian_config.collision_sensor else None
+        self._collision_sensor = CollisionSensor(self._pedestrian) if pedestrian_config.collision_sensor else None
         if self._config.auto_control:
             self._pedestrian.controller.start()
             self._pedestrian.controller.go_to_location(carla.Location(*self._destination[:3]))
