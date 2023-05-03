@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<config>
+    <actors>
+        <actor name="vehicle1" render="True" early_terminate_on_collision="False" camera_type="rgb" auto_control="True"/>
+    </actors>
+    <scenarios>
+        <scenario name="FollowLeadingVehicle_1" type="FollowLeadingVehicle" town="Town01" npc_vehicles="2">
+            <object name="vehicle1" start_x="88.6" start_y="212.9" start_z="0.5" yaw="90" end_x="125" end_y="142" end_z="0.5" model="vehicle.lincoln.mkz_2017" autopilot="False"/>
+            <object name="pedestrian" type="pedestrian" start_x="299.4" start_y="126.0" start_z="1" yaw="0" end_x="117" end_y="143" end_z="0.5" />
+            <weather cloudiness="0" precipitation="0" precipitation_deposits="0" wind_intensity="0" sun_azimuth_angle="0" sun_altitude_angle="75" />
+        </scenario>
+        <scenario name="FollowLeadingVehicleWithObstacle_1" type="FollowLeadingVehicleWithObstacle" town="Town01" npc_pedestrians="2">
+            <object name="vehicle1" start_x="88.6" start_y="212.9" start_z="0.5" yaw="90" end_x="125" end_y="142" end_z="0.5" model="vehicle.lincoln.mkz_2017" autopilot="False" />
+            <object name="pedestrian" type="pedestrian" start_x="299.4" start_y="126.0" start_z="1" yaw="0" end_x="117" end_y="143" end_z="0.5"/>
+        </scenario>
+    </scenarios>
+</config>
