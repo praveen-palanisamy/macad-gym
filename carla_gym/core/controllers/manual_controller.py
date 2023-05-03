@@ -1,3 +1,4 @@
+# noqa
 import carla
 from core.controllers.camera_manager import CAMERA_TYPES, CameraManager
 from core.world_objects.hud import HUD
@@ -9,7 +10,6 @@ try:
     from pygame.locals import K_0
     from pygame.locals import K_9
     from pygame.locals import K_BACKQUOTE
-    from pygame.locals import K_BACKSPACE
     from pygame.locals import K_DOWN
     from pygame.locals import K_ESCAPE
     from pygame.locals import K_F1
@@ -20,7 +20,6 @@ try:
     from pygame.locals import K_TAB
     from pygame.locals import K_UP
     from pygame.locals import K_a
-    from pygame.locals import K_c
     from pygame.locals import K_d
     from pygame.locals import K_h
     from pygame.locals import K_p
@@ -36,11 +35,19 @@ MANUAL_VIEW_RENDER_Y = 600
 
 
 class ManualController:
-    """Self-contained class inspired from carla library manual_control.py
-    It instantiate keyboard handlers, HUD and Camera objects to let the dev interact/observe the world.
+    """Manual controller attached to an actor object.
+
+    Self-contained class inspired from carla library manual_control.py.
+    It instantiates a keyboard handler, HUD and Camera objects to let the dev interact/observe the world.
     """
 
     def __init__(self, actor_obj, start_in_autopilot):
+        """Constructor.
+
+        Args:
+            actor_obj: actor object
+            start_in_autopilot: boolean flag specifying weather to start with autopilot enabled
+        """
         self._vehicle = actor_obj
         self._autopilot_enabled = start_in_autopilot
 
@@ -60,6 +67,7 @@ class ManualController:
         self.hud.tick(world, vehicle, collision_sensor, self._control_clock)
 
     def parse_events(self):
+        """Parse keyboard events."""
         self._vehicle.set_autopilot(self._autopilot_enabled)
         if pygame.get_init():
             for event in pygame.event.get():
@@ -152,6 +160,18 @@ class ManualController:
         self._control.hand_brake = keys[K_SPACE]
 
     def render(self, main_screen=None, render_pose=(0, 0)):
+        """Render the internal camera view.
+
+        If a screen is provided the image will be rendered in there in the specified position without triggering
+        the screen pixel effective render update. If the screen is not provided the rendering process will be executed
+        internally, obtaining a screen object and updating the screen pixels.
+        Args:
+            main_screen: (optional) PyGame screen object
+            render_pose: position where to render the image in the screen
+
+        Returns:
+            N/A.
+        """
         screen = main_screen if main_screen is not None else self.camera_manager.get_screen()
         self.camera_manager.render(screen, render_pose)
         self.hud.render(screen, render_pose)

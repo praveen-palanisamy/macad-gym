@@ -1,9 +1,12 @@
+# noqa
 import numpy as np
 
 
 class Reward:
+    """Class containing the policies for the available reward structures."""
+
     def __init__(self):
-        """"""
+        """Constructor."""
         self.reward = 0.0
         self.prev = None
         self.curr = None
@@ -36,8 +39,13 @@ class Reward:
         self.reward += np.clip(prev_dist - cur_dist, -10.0, 10.0)
         self.reward += np.clip(self.curr["forward_speed"], 0.0, 30.0) / 10
         new_damage = (
-            self.curr["collision_vehicles"] + self.curr["collision_pedestrians"] + self.curr["collision_other"] -
-            self.prev["collision_vehicles"] - self.prev["collision_pedestrians"] - self.prev["collision_other"])
+            self.curr["collision_vehicles"]
+            + self.curr["collision_pedestrians"]
+            + self.curr["collision_other"]
+            - self.prev["collision_vehicles"]
+            - self.prev["collision_pedestrians"]
+            - self.prev["collision_other"]
+        )
         if new_damage:
             self.reward -= 100.0
 
@@ -58,9 +66,14 @@ class Reward:
         # Change in speed (km/h)
         self.reward += 0.05 * (self.curr["forward_speed"] - self.prev["forward_speed"])
         # New collision damage
-        self.reward -= .00002 * (
-            self.curr["collision_vehicles"] + self.curr["collision_pedestrians"] + self.curr["collision_other"] -
-            self.prev["collision_vehicles"] -self.prev["collision_pedestrians"] - self.prev["collision_other"])
+        self.reward -= 0.00002 * (
+            self.curr["collision_vehicles"]
+            + self.curr["collision_pedestrians"]
+            + self.curr["collision_other"]
+            - self.prev["collision_vehicles"]
+            - self.prev["collision_pedestrians"]
+            - self.prev["collision_other"]
+        )
 
         # New sidewalk intersection
         self.reward -= 2 * (self.curr["intersection_offroad"] - self.prev["intersection_offroad"])
@@ -76,8 +89,13 @@ class Reward:
         self.reward += np.clip(self.curr["forward_speed"], 0.0, 30.0) / 10
         # New collision damage
         new_damage = (
-            self.curr["collision_vehicles"] + self.curr["collision_pedestrians"] + self.curr["collision_other"] -
-            self.prev["collision_vehicles"] - self.prev["collision_pedestrians"] - self.prev["collision_other"])
+            self.curr["collision_vehicles"]
+            + self.curr["collision_pedestrians"]
+            + self.curr["collision_other"]
+            - self.prev["collision_vehicles"]
+            - self.prev["collision_pedestrians"]
+            - self.prev["collision_other"]
+        )
         if new_damage:
             self.reward -= 100.0
         # Sidewalk intersection
@@ -86,6 +104,3 @@ class Reward:
         self.reward -= self.curr["intersection_otherlane"]
 
         return self.reward
-
-    def destory(self):
-        pass

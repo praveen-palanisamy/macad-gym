@@ -16,10 +16,13 @@ from carla_gym.core.controllers.camera_manager import CAMERA_TYPES
 
 
 def strtobool(s):
+    """Convert a string to a bool."""
     return str(s).lower() == "true"
 
 
 class ActorConfiguration:
+    """Configuration class for actors."""
+
     def __init__(
         self,
         name,
@@ -40,6 +43,7 @@ class ActorConfiguration:
         log_measurements=False,
         verbose=False,
     ):
+        """Constructor."""
         self.name = name
         self.render = render
         self.enable_planner = enable_planner
@@ -60,16 +64,18 @@ class ActorConfiguration:
 
     @staticmethod
     def parse_xml_node(node):
-        """
-        static method to initialize an ActorConfiguration from a given ET tree
-        """
-        assert node.attrib.get("name", None) is not None,\
-            "XML attribute error. The 'actor' elements require a 'name' key."
-        assert node.attrib.get('framestack', 1) in [1, 2],\
-            "XML attribute error. Only a framestack in [1,2] is supported."
-        assert node.attrib.get('camera_type', 'rgb') in [ct.name for ct in CAMERA_TYPES], \
-            f"XML attribute error. Camera type `{node.attrib['camera_type']}` not available. " \
+        """Static method to initialize an ActorConfiguration from a given ET tree."""
+        assert (
+            node.attrib.get("name", None) is not None
+        ), "XML attribute error. The 'actor' elements require a 'name' key."
+        assert node.attrib.get("framestack", 1) in [
+            1,
+            2,
+        ], "XML attribute error. Only a framestack in [1,2] is supported."
+        assert node.attrib.get("camera_type", "rgb") in [ct.name for ct in CAMERA_TYPES], (
+            f"XML attribute error. Camera type `{node.attrib['camera_type']}` not available. "
             f"Choose one between {[ct.name for ct in CAMERA_TYPES]}."
+        )
 
         name = node.attrib.get("name", None)
         config = {
@@ -94,10 +100,14 @@ class ActorConfiguration:
         return ActorConfiguration(name).update(config)
 
     def update(self, conf):
-        assert conf.get("framestack", None) is None or int(conf["framestack"]) in [1,2], \
-            "Only a framestack in [1,2] is supported."
-        assert conf.get("camera_type", None) is None or conf["camera_type"] in [ct.name for ct in CAMERA_TYPES], \
-            f"Camera type `{conf['camera_type']}` not available. Choose one between {[ct.name for ct in CAMERA_TYPES]}."
+        """Update internal variables given a configuration dict."""
+        assert conf.get("framestack", None) is None or int(conf["framestack"]) in [
+            1,
+            2,
+        ], "Only a framestack in [1,2] is supported."
+        assert conf.get("camera_type", None) is None or conf["camera_type"] in [
+            ct.name for ct in CAMERA_TYPES
+        ], f"Camera type `{conf['camera_type']}` not available. Choose one between {[ct.name for ct in CAMERA_TYPES]}."
 
         if conf.get("render", None) is not None:
             self.render = strtobool(conf["render"])
@@ -136,10 +146,10 @@ class ActorConfiguration:
 
 
 class ObjectsConfiguration:
-    """
-    This is a configuration base class to hold model and transform attributes
-    """
+    """Configuration class for scenario objects."""
+
     def __init__(self, name, type="vehicle_4W", model=None, start=None, end=None, speed=0, autopilot=False, color=None):
+        """Constructor."""
         self.name = name
         self.type = type
         self.model = model
@@ -151,11 +161,10 @@ class ObjectsConfiguration:
 
     @staticmethod
     def parse_xml_node(node):
-        """
-        static method to initialize an ActorConfigurationData from a given ET tree
-        """
-        assert node.attrib.get("name", None) is not None, \
-            "XML attribute error. The 'object' elements require a 'name' key."
+        """Static method to initialize an ActorConfigurationData from a given ET tree."""
+        assert (
+            node.attrib.get("name", None) is not None
+        ), "XML attribute error. The 'object' elements require a 'name' key."
 
         name = node.attrib.get("name", None)
         config = {
@@ -176,6 +185,7 @@ class ObjectsConfiguration:
         return ObjectsConfiguration(name).update(config)
 
     def update(self, conf):
+        """Update internal variables given a configuration dict."""
         if conf.get("type", None) is not None:
             self.type = conf["type"]
         if conf.get("model", None) is not None:
@@ -209,15 +219,10 @@ class ObjectsConfiguration:
 
 
 class ScenarioConfiguration:
-    """
-    This class provides a basic scenario configuration incl.:
-    - configurations for all actors
-    - town, where the scenario should be executed
-    - name of the scenario (e.g. ControlLoss_1)
-    - type is the class of scenario (e.g. ControlLoss)
-    """
+    """Scenario configuration class containing configuration detailsa and scenario objects."""
 
     def __init__(self, name, type=None, town="Town01", objects=None, num_pedestrians=0, num_vehicles=0, weathers=None):
+        """Constructor."""
         self.name = name
         self.type = type
         self.town = town
@@ -228,11 +233,10 @@ class ScenarioConfiguration:
 
     @staticmethod
     def parse_xml_node(node):
-        """
-        static method to initialize an ActorConfigurationData from a given ET tree
-        """
-        assert node.attrib.get("name", None) is not None, \
-            "XML attribute error. The 'scenario' elements require a 'name' key."
+        """Static method to initialize an ActorConfigurationData from a given ET tree."""
+        assert (
+            node.attrib.get("name", None) is not None
+        ), "XML attribute error. The 'scenario' elements require a 'name' key."
 
         name = node.attrib.get("name", None)
         config = {
@@ -266,6 +270,7 @@ class ScenarioConfiguration:
         return ScenarioConfiguration(name, objects=objects, weathers=weathers).update(config)
 
     def update(self, conf):
+        """Update internal variables given a configuration dict."""
         if conf.get("type", None) is not None:
             self.type = conf["type"]
         if conf.get("town", None) is not None:
@@ -275,8 +280,7 @@ class ScenarioConfiguration:
             self.objects = {}
             if isinstance(conf["objects"], list):
                 for new_object_dict in conf["objects"]:
-                    assert new_object_dict.get("name", None) is not None, \
-                            "The 'object' elements require a 'name' key."
+                    assert new_object_dict.get("name", None) is not None, "The 'object' elements require a 'name' key."
                     new_object = ObjectsConfiguration(new_object_dict["name"]).update(new_object_dict)
                     self.objects.update({new_object.name: new_object})
             elif isinstance(conf["objects"], dict):
@@ -339,13 +343,13 @@ class Configuration:
     @staticmethod
     def parse_xml(config_file_name):
         """Parse the  provided as argument.
+
         Args:
-          config_file_name (str): Configuration XML file name, srunner compatible.
+            config_file_name (str): Configuration XML file name, srunner compatible.
 
         Returns:
-          A configuration object.
+            A configuration object.
         """
-
         actors = {}
         scenarios = {}
         tree_node = ET.parse(config_file_name)
@@ -364,20 +368,18 @@ class Configuration:
 
     @staticmethod
     def parse(configs):
-        """ Parse the configuration dictionary provided as argument.
+        """Parse the configuration dictionary provided as argument.
 
         Args:
-          configs (dict): Dictionary of configurations.
+            configs (dict): Dictionary of configurations.
 
         Returns:
-          A configuration object.
+            A configuration object.
         """
         assert isinstance(configs.get("actors", {}), Iterable) and isinstance(
             configs.get("scenarios", {}), Iterable
         ), "'actors' and 'scenarios' attributes in the configuration should be iterable objects."
-        assert (
-            len(configs.get("scenarios", {})) > 0
-        ), "'scenarios' attribute should contain at least one element."
+        assert len(configs.get("scenarios", {})) > 0, "'scenarios' attribute should contain at least one element."
 
         actors = {}
         scenarios = {}
@@ -410,8 +412,10 @@ class Configuration:
         return Configuration(actors, scenarios)
 
     def update(self, conf):
-        assert isinstance(conf.get("actors", {}), Iterable) and isinstance(conf.get("scenarios", []), Iterable), \
-            "'actors' and 'scenarios' attributes in the configuration should be iterable objects"
+        """Update internal variables given a configuration dict."""
+        assert isinstance(conf.get("actors", {}), Iterable) and isinstance(
+            conf.get("scenarios", []), Iterable
+        ), "'actors' and 'scenarios' attributes in the configuration should be iterable objects"
 
         # update actors configuration inserting new actors or overwriting them individually
         if len(conf.get("actors", [])) > 0:

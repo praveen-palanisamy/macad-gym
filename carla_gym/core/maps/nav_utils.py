@@ -1,3 +1,5 @@
+"""Utilities to help the navigation process."""
+
 import math
 import sys
 
@@ -11,17 +13,18 @@ sys.path.append("macad_gym/carla/PythonAPI/")
 
 
 def get_shortest_path_distance(world, planner, origin, destination):
-    """This function calculates the distance of the shortest path connecting
-    origin and destination using A* search with distance heuristic.
+    """Compute the distance of the shortest path connecting origin and destination.
+
+    It uses A* search algorithm with a distance heuristic.
 
     Args:
-        world: carla world object
-        planner: carla.macad_agents.navigation's Global route planner object
-        origin (tuple): Origin (x, y, z) position on the map
-        destination (tuple): Destination (x, y, z) position on the map
+        world (carla.World): Carla world object.
+        planner (carla.macad_agents.navigation.GlobalRoutePlanner): Global route planner object.
+        origin (tuple): Origin (x, y, z) position on the map.
+        destination (tuple): Destination (x, y, z) position on the map.
 
     Returns:
-        The shortest distance from origin to destination along a feasible path.
+        float: The shortest distance from origin to destination along a feasible path.
     """
     waypoints = get_shortest_path_waypoints(world, planner, origin, destination)
     distance = 0.0
@@ -30,17 +33,15 @@ def get_shortest_path_distance(world, planner, origin, destination):
         l2 = waypoints[i][0].transform.location
 
         distance += math.sqrt(
-            (l1.x - l2.x) * (l1.x - l2.x)
-            + (l1.y - l2.y) * (l1.y - l2.y)
-            + (l1.z - l2.z) * (l1.z - l2.z)
+            (l1.x - l2.x) * (l1.x - l2.x) + (l1.y - l2.y) * (l1.y - l2.y) + (l1.z - l2.z) * (l1.z - l2.z)
         )
     return distance
 
 
 def get_shortest_path_waypoints(world, planner, origin, destination):
     """Return a list of waypoints along a shortest-path.
-    Adapted from BasicAgent.set_destination.
 
+    Adapted from BasicAgent.set_destination.
     Uses A* planner to find the shortest path and returns a list of waypoints.
     Useful for trajectory planning and control or for drawing the waypoints.
 
@@ -54,7 +55,6 @@ def get_shortest_path_waypoints(world, planner, origin, destination):
         A list of waypoints with corresponding actions connecting the origin
         and the destination on the map along the shortest path.
     """
-
     start_waypoint = world.get_map().get_waypoint(carla.Location(*origin))
     end_waypoint = world.get_map().get_waypoint(carla.Location(*destination))
     solution = []
@@ -182,8 +182,9 @@ def get_next_waypoint(world, location, distance=1.0):
 
 
 def get_shortest_path_distance_old(planner, origin, destination):
-    """This function calculates the distance of the shortest path connecting
-    origin and destination using A* search with distance heuristic.
+    """Compute the distance of the shortest path connecting origin and destination.
+
+    It uses A* search algorithm with a distance heuristic.
     Args:
         planner: Global route planner
         origin (tuple): Tuple containing x, y co-ordinates of start position
@@ -219,7 +220,6 @@ def get_shortest_path_waypoints_old(planner, origin, destination):
         A list of waypoints connecting the origin and the destination on the map
         along the shortest path.
     """
-
     graph, xy_id_map = planner.build_graph()
     path = planner.path_search(origin, destination)
     xy_list = []
@@ -234,7 +234,7 @@ def draw_shortest_path_old(world, planner, origin, destination):
     Args:
         world:
         planner:
-        origin (typle): (x, y, z)
+        origin (tuple): (x, y, z)
         destination:
 
     Returns:
@@ -260,7 +260,18 @@ def draw_shortest_path_old(world, planner, origin, destination):
 
 
 class PathTracker:
+    """Class to manage navigation using waypoints path."""
+
     def __init__(self, world, planner, actor_object, origin, destination):
+        """Constructor.
+
+        Args:
+            world: world object
+            planner: global planner
+            actor_object: object in the space
+            origin: origin location of the path
+            destination:  destination location of the path
+        """
         self.world = world
         self.planner = planner
         self.origin = origin
@@ -273,6 +284,7 @@ class PathTracker:
         self.distance_cache = 0.0
 
     def generate_path(self):
+        """Generate a waypoint path for the actor object location."""
         self.last_location = None
         self.set_path(
             get_shortest_path_waypoints(
@@ -285,17 +297,12 @@ class PathTracker:
         self.path_index = 0
 
     def advance_path_index(self):
+        """Update the internal path index following the position of the actor object in the world."""
         if self.path_index < len(self.path):
             for i in range(self.path_index + 1, len(self.path)):
-                index_dist = self.actor_object.get_location().distance(
-                    self.path[self.path_index][0].transform.location
-                )
-                next_index_dist = self.actor_object.get_location().distance(
-                    self.path[i][0].transform.location
-                )
-                step_dist = self.path[self.path_index][0].transform.location.distance(
-                    self.path[i][0].transform.location
-                )
+                index_dist = self.actor_object.get_location().distance(self.path[self.path_index][0].transform.location)
+                next_index_dist = self.actor_object.get_location().distance(self.path[i][0].transform.location)
+                step_dist = self.path[self.path_index][0].transform.location.distance(self.path[i][0].transform.location)
                 if step_dist <= index_dist and index_dist > next_index_dist:
                     self.path_index = i
                 else:
@@ -304,21 +311,19 @@ class PathTracker:
                     break
 
     def seek_next_waypoint(self):
+        """Update the internal path index, setting the nearest waypoint in the path."""
         assert len(self.path) > 0, "No waypoints in path list."
         i = 0
         for i in range(1, len(self.path)):
-            index_dist = self.actor_object.get_location().distance(
-                self.path[i - 1][0].transform.location
-            )
-            step_dist = self.path[i - 1][0].transform.location.distance(
-                self.path[i][0].transform.location
-            )
+            index_dist = self.actor_object.get_location().distance(self.path[i - 1][0].transform.location)
+            step_dist = self.path[i - 1][0].transform.location.distance(self.path[i][0].transform.location)
             if step_dist > index_dist and i + 1 < len(self.path):
                 i += 1
                 break
         self.path_index = i
 
     def get_distance_to_end(self):
+        """Compute the distance from the actor location to the end of the path as sum of waypoints distances."""
         last_loc = self.actor_object.get_location()
         if self.last_location is None or self.last_location.distance(last_loc) >= 0.5:
             self.advance_path_index()
@@ -327,13 +332,9 @@ class PathTracker:
             return self.distance_cache
 
         if self.path_index < len(self.path):
-            distance = self.last_location.distance(
-                self.path[self.path_index][0].transform.location
-            )
+            distance = self.last_location.distance(self.path[self.path_index][0].transform.location)
             for i in range(self.path_index + 1, len(self.path)):
-                distance += self.path[i - 1][0].transform.location.distance(
-                    self.path[i][0].transform.location
-                )
+                distance += self.path[i - 1][0].transform.location.distance(self.path[i][0].transform.location)
         else:
             return 9999.9
 
@@ -341,11 +342,13 @@ class PathTracker:
         return distance
 
     def get_euclidean_distance_to_end(self):
+        """Compute the air distance from the actor location to the end of the path as euclidean norm."""
         actor_coords = self.actor_object.get_location()
         dist = float(np.linalg.norm([actor_coords.x - self.destination[0], actor_coords.y - self.destination[1]]) / 100)
         return dist
 
     def get_orientation_difference_to_end_in_radians(self):
+        """Compute the air distance from the actor location to the end of the path in radians."""
         if len(self.path) > 0:
             current = math.radians(self.actor_object.get_transform().rotation.yaw)
             target = math.radians(self.path[-1][0].transform.rotation.yaw)
@@ -353,6 +356,7 @@ class PathTracker:
         return math.pi
 
     def get_path_commands_seq(self, debug=False):
+        """Get next command to reach the next waypoint in the path."""
         dist = self.get_distance_to_end()
         orientation_diff = self.get_orientation_difference_to_end_in_radians()
         actor_coords = self.actor_object.get_location()
@@ -369,6 +373,7 @@ class PathTracker:
         return commands
 
     def draw(self):
+        """Debug method to draw the path in the world."""
         actor_z = self.actor_object.get_location().z
         for i in range(self.path_index + 1, len(self.path)):
             hop1 = self.path[i - 1][0].transform.location
@@ -381,6 +386,7 @@ class PathTracker:
                 self.world.debug.draw_line(hop1, hop2, life_time=0.5, color=carla.Color(0, 255, 0), thickness=0.5)
 
     def plot(self):
+        """Debug method to plot coordinates of the path in a 2D graph."""
         import matplotlib.pyplot as plt
 
         plt.scatter([i[0].transform.location.x for i in self.path], [i[0].transform.location.y for i in self.path])
@@ -388,7 +394,9 @@ class PathTracker:
         plt.show()
 
     def reset(self):
+        """Reset path index."""
         self.path_index = 0
 
     def set_path(self, path):
+        """Set a path."""
         self.path = path

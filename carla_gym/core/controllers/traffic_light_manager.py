@@ -1,8 +1,6 @@
 # noqa
 import math
 
-import carla
-
 
 class TrafficLightManager:
     """Controller for traffic light objects."""
@@ -95,7 +93,7 @@ class TrafficLightManager:
     #     """
     #     test if car passed into a traffic light,
     #         returning 'red' if it crossed a red light
-    #         returnning 'green' if it crossed a green light
+    #         returning 'green' if it crossed a green light
     #         or none otherwise
     #     """
     #
@@ -132,7 +130,7 @@ class TrafficLightManager:
     #                 # light_x = light.transform.location.x
     #                 # light_y = light.transform.location.y
     #
-    #                 #  unknow func get_vec_dist
+    #                 #  unknown func get_vec_dist
     #                 # t1_vector, t1_dist = get_vec_dist(light_x, light_y,
     #                 #                                 player_x, player_y)
     #                 if self.is_traffic_light_active(light, vehicle.transform.orientation):
@@ -150,9 +148,10 @@ class TrafficLightManager:
         pass
 
     @staticmethod
-    def get_traffic_light(world, candidate_transform, sort=False, distance_threshold=50.0,
-                          angle_threshold=math.pi / 4.0):
-        """Get a list of traffic lights that will affect an actor
+    def get_traffic_light(
+        world, candidate_transform, sort=False, distance_threshold=50.0, angle_threshold=math.pi / 4.0
+    ):
+        """Get a list of traffic lights that will affect an actor.
 
         Helpful when the actor is approaching a signal controlled intersection. May
         not work well when the actor is turning unless the angle_threshold is
@@ -169,7 +168,6 @@ class TrafficLightManager:
 
         Returns:
             list: Containing carla.TrafficLights that affect the actor
-
         """
         tls = {}
         ax, ay = candidate_transform.location.x, candidate_transform.location.y
@@ -181,7 +179,8 @@ class TrafficLightManager:
                 actor_orientation = math.radians(candidate_transform.rotation.yaw)
                 traffic_light_orientation = math.radians(t.get_transform().rotation.yaw)
                 angle = math.fabs(
-                    ((traffic_light_orientation - actor_orientation + math.pi) % (math.pi * 2.0)) - math.pi)
+                    ((traffic_light_orientation - actor_orientation + math.pi) % (math.pi * 2.0)) - math.pi
+                )
 
                 if math.fabs(angle) > angle_threshold and math.fabs(angle) < math.pi - angle_threshold:
                     tls[t] = (dist, angle)

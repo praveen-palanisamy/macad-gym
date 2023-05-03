@@ -1,3 +1,4 @@
+# noqa
 import os
 import weakref
 from enum import Enum
@@ -42,11 +43,12 @@ class CameraManager:
             carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
             carla.Transform(
                 carla.Location(
-                    x=-2.0*(0.5 + self._parent.bounding_box.extent.x),
+                    x=-2.0 * (0.5 + self._parent.bounding_box.extent.x),
                     y=0.0,
-                    z=2.0*(0.5 + self._parent.bounding_box.extent.z)
-                ), carla.Rotation(pitch=8.0)
-            )
+                    z=2.0 * (0.5 + self._parent.bounding_box.extent.z),
+                ),
+                carla.Rotation(pitch=8.0),
+            ),
         ]
         # 0 is dashcam view; 1 is tethered view; 2 for spring arm view (manual_control)
         self._transform_index = 0
@@ -56,8 +58,11 @@ class CameraManager:
             ["sensor.camera.depth", carla.ColorConverter.Depth, "Camera Depth (Gray Scale)"],
             ["sensor.camera.depth", carla.ColorConverter.LogarithmicDepth, "Camera Depth (Logarithmic Gray Scale)"],
             ["sensor.camera.semantic_segmentation", carla.ColorConverter.Raw, "Camera Semantic Segmentation (Raw)"],
-            ["sensor.camera.semantic_segmentation", carla.ColorConverter.CityScapesPalette,
-                "Camera Semantic Segmentation (CityScapes Palette)"],
+            [
+                "sensor.camera.semantic_segmentation",
+                carla.ColorConverter.CityScapesPalette,
+                "Camera Semantic Segmentation (CityScapes Palette)",
+            ],
             ["sensor.lidar.ray_cast", None, "Lidar (Ray-Cast)"],
         ]
         world = self._parent.get_world()
@@ -73,20 +78,30 @@ class CameraManager:
 
     @property
     def surface(self):
+        """Get current camera view as np.array."""
         return self._surface
 
     @property
     def img_array(self):
+        """Get current camera view as np.array."""
         return self._img_array
 
     def toggle_camera(self):
+        """Switch current camera position."""
         self._transform_index = (self._transform_index + 1) % len(self._camera_transforms)
         self.sensor.set_transform(self._camera_transforms[self._transform_index])
 
     def set_sensor(self, index, pos=0):
+        """Set camera sensor.
+
+        Args:
+            index: integer specifying new camera sensor
+            pos: integer index pf new camera position
+        Returns:
+            N/A.
+        """
         index = index % len(self._sensors)
-        needs_respawn = True if self._index is None \
-            else list(CAMERA_TYPES)[index] != list(CAMERA_TYPES)[self._index]
+        needs_respawn = True if self._index is None else list(CAMERA_TYPES)[index] != list(CAMERA_TYPES)[self._index]
         if needs_respawn:
             if self.sensor is not None:
                 self.sensor.destroy()
@@ -96,23 +111,20 @@ class CameraManager:
                 self._sensors[index][-1],
                 self._camera_transforms[self._transform_index],
                 attach_to=self._parent,
-                attachment_type=carla.AttachmentType.Rigid if pos != 2 else carla.AttachmentType.SpringArm)
+                attachment_type=carla.AttachmentType.Rigid if pos != 2 else carla.AttachmentType.SpringArm,
+            )
             # We need to pass the lambda a weak reference to self to avoid
             # circular reference.
             weak_self = weakref.ref(self)
-            self.sensor.listen(
-                lambda image: CameraManager._parse_image(weak_self, image))
+            self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
         self._index = index
 
     def next_sensor(self):
+        """Switch between camera sensors."""
         self.set_sensor(self._index + 1)
 
     def toggle_recording(self):
-        """Toggle for the internal images recording flag.
-
-        Returns:
-            N/A.
-        """
+        """Toggle for the internal images recording flag."""
         self._recording = not self._recording
         print("Recording %s" % ("On" if self._recording else "Off"))
 
@@ -173,7 +185,7 @@ class CameraManager:
             self._img_array = array
             self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         if self._recording:
-            image_dir = os.path.join(CARLA_OUT_PATH, 'images/{}/%04d.png'.format(self._parent.id) % image.frame_number)
+            image_dir = os.path.join(CARLA_OUT_PATH, f"images/{self._parent.id}/%04d.png" % image.frame_number)
             image.save_to_disk(image_dir)
         elif self._buffered_recording:
             self.image_list.append(image)

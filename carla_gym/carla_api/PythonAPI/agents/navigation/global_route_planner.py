@@ -16,7 +16,7 @@ from carla_gym.carla_api.PythonAPI.agents.navigation.local_planner import RoadOp
 class GlobalRoutePlanner(object):
     """
     This class provides a very high level route plan.
-    Instantiate the calss by passing a reference to
+    Instantiate the class by passing a reference to
     A GlobalRoutePlannerDAO object.
     """
 
@@ -35,7 +35,7 @@ class GlobalRoutePlanner(object):
         and builds graph representation of the world map.
         """
         self._topology = self._dao.get_topology()
-        # Creating graph of the world map and also a maping from
+        # Creating graph of the world map and also a mapping from
         # node co-ordinates to node id
         self._graph, self._id_map = self.build_graph()
 

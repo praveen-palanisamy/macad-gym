@@ -1,4 +1,5 @@
-﻿import random
+﻿"""Methods related to NPC and props filler in the map."""
+import random
 import logging
 
 import carla
@@ -6,7 +7,7 @@ import carla
 logger = logging.getLogger(__name__)
 
 
-def apply_traffic(world, traffic_manager, num_vehicles, num_pedestrians, safe=False):
+def apply_npc(world, traffic_manager, num_vehicles, num_pedestrians, safe=False):
     """Spawn npc pedestrians and vehicles with random targets.
 
     Args:
@@ -24,14 +25,21 @@ def apply_traffic(world, traffic_manager, num_vehicles, num_pedestrians, safe=Fa
     # --------------
     blueprints = world.get_blueprint_library().filter("vehicle.*")
     if safe:
-        blueprints = list(filter(lambda x: int(x.get_attribute('number_of_wheels')) == 4 and not
-                (x.id.endswith('microlino') or
-                 x.id.endswith('carlacola') or
-                 x.id.endswith('cybertruck') or
-                 x.id.endswith('t2') or
-                 x.id.endswith('sprinter') or
-                 x.id.endswith('firetruck') or
-                 x.id.endswith('ambulance')), blueprints))
+        blueprints = list(
+            filter(
+                lambda x: int(x.get_attribute("number_of_wheels")) == 4
+                and not (
+                    x.id.endswith("microlino")
+                    or x.id.endswith("carlacola")
+                    or x.id.endswith("cybertruck")
+                    or x.id.endswith("t2")
+                    or x.id.endswith("sprinter")
+                    or x.id.endswith("firetruck")
+                    or x.id.endswith("ambulance")
+                ),
+                blueprints,
+            )
+        )
 
     blueprints = sorted(blueprints, key=lambda bp: bp.id)
 
@@ -54,9 +62,7 @@ def apply_traffic(world, traffic_manager, num_vehicles, num_pedestrians, safe=Fa
             color = random.choice(blueprint.get_attribute("color").recommended_values)
             blueprint.set_attribute("color", color)
         if blueprint.has_attribute("driver_id"):
-            driver_id = random.choice(
-                blueprint.get_attribute("driver_id").recommended_values
-            )
+            driver_id = random.choice(blueprint.get_attribute("driver_id").recommended_values)
             blueprint.set_attribute("driver_id", driver_id)
         blueprint.set_attribute("role_name", "autopilot")
 
@@ -95,7 +101,6 @@ def apply_traffic(world, traffic_manager, num_vehicles, num_pedestrians, safe=Fa
             spawn_points.append(spawn_point)
     # Spawn the walker object
     pedestrians_list = []
-    pedestrians_speed = []
     failed_p = 0
     for spawn_point in spawn_points:
         pedestrian_bp = random.choice(blueprints)

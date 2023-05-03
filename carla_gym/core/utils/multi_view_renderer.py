@@ -1,17 +1,23 @@
+# noqa
 import math
 
-import cv2
 import pygame
-from core.controllers.manual_controller import MANUAL_VIEW_RENDER_X, MANUAL_VIEW_RENDER_Y, ManualController
+from core.controllers.manual_controller import MANUAL_VIEW_RENDER_X, MANUAL_VIEW_RENDER_Y
 
 pygame.init()
 pygame.display.set_caption("MACAD-Gym")
 
 
 class MultiViewRenderer:
-    """Handle rendering of pygame window."""
+    """Handle rendering of multiple camera sensors in a single PyGame window."""
 
     def __init__(self, screen_width=640, screen_height=480):
+        """Constructor.
+
+        Args:
+            screen_width: maximum width value of the screen allowed
+            screen_height: maximum height value of the screen allowed
+        """
         self.width = screen_width
         self.height = screen_height
         self.poses = {}
@@ -20,27 +26,32 @@ class MultiViewRenderer:
         self.save_counter = 0
 
     def reset_frame_counter(self):
+        """Set the internal frame counter to 0.
+
+        This can cause the overwrite of images saved in the future.
+        """
         self.save_counter = 0
 
     def resize_screen(self, screen_width, screen_height):
-        """
-        Resize the screen.
-        """
+        """Set a new size for the screen that will be used in the first new rendering."""
         self.width = screen_width
         self.height = screen_height
         self._update_size = True
 
     def get_screen(self):
+        """Retrieve PyGame screen following internal class sizes.
+
+        Returns:
+            PyGame screen instance.
+        """
         if self._screen is None or self._update_size:
-            self._screen = pygame.display.set_mode(
-                (self.width, self.height), pygame.HWSURFACE | pygame.DOUBLEBUF
-            )
+            self._screen = pygame.display.set_mode((self.width, self.height), pygame.HWSURFACE | pygame.DOUBLEBUF)
             self._update_size = False
 
         return self._screen
 
     def set_surface_poses(self, unit_dimension, actor_configs):
-        """Calculate the poses of sub-windows of actors
+        """Calculate the poses of sub-windows of actors.
 
         Args:
             unit_dimension (list): size of each view, E.g., [84, 84]
@@ -102,7 +113,6 @@ class MultiViewRenderer:
         Returns:
             N/A.
         """
-
         # Get all surfaces.
         surface_seq = ()
         for id, im in images.items():

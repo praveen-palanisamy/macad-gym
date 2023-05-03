@@ -255,7 +255,7 @@ def retrieve_options(list_waypoints, current_waypoint):
     options = []
     for next_waypoint in list_waypoints:
         # this is needed because something we are linking to
-        # the beggining of an intersection, therefore the
+        # the beginning of an intersection, therefore the
         # variation in angle is small
         next_next_waypoint = next_waypoint.next(3.0)[0]
         link = compute_connection(current_waypoint, next_next_waypoint)

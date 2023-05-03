@@ -1,3 +1,4 @@
+"""Overlay interface Objects."""
 import datetime
 import logging
 import math
@@ -8,12 +9,29 @@ logger = logging.getLogger(__name__)
 
 
 def get_actor_display_name(actor, truncate=250):
+    """Prettified actor name.
+
+    Args:
+        actor: actor object
+        truncate: maximum str output length.
+
+    Returns:
+        String representing the actor.
+    """
     name = " ".join(actor.type_id.replace("_", ".").title().split(".")[1:])
     return (name[: truncate - 1] + "\u2026") if len(name) > truncate else name
 
 
 class HUD:
+    """Overlay Interface."""
+
     def __init__(self, width, height):
+        """Constructor.
+
+        Args:
+            width: width size
+            height: height size
+        """
         self.dim = (width, height)
         # font = pygame.font.Font(pygame.font.get_default_font(), 20)
         fonts = [x for x in pygame.font.get_fonts()]
@@ -33,12 +51,14 @@ class HUD:
         self._server_clock = pygame.time.Clock()
 
     def on_server_tick(self, timestamp):
+        """Method to sync client with server."""
         self._server_clock.tick()
         self.server_fps = self._server_clock.get_fps()
         self.frame_number = timestamp.frame_count
         self.simulation_time = timestamp.elapsed_seconds
 
     def tick(self, world, vehicle, collision_sensor, clock):
+        """Step the world objects with provided clock updating the information in overlay."""
         if not self._show_info:
             return
 
@@ -60,8 +80,7 @@ class HUD:
             "Client:  % 16d FPS" % clock.get_fps(),
             "",
             "Vehicle: % 20s" % get_actor_display_name(vehicle, truncate=20),
-            "Simulation time: % 12s"
-            % datetime.timedelta(seconds=int(self.simulation_time)),
+            "Simulation time: % 12s" % datetime.timedelta(seconds=int(self.simulation_time)),
             "",
             "Speed:   % 15.0f km/h" % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
             "Heading:% 16.0f\N{DEGREE SIGN} % 2s" % (t.rotation.yaw, heading),
@@ -91,21 +110,24 @@ class HUD:
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append("% 4dm %s" % (d, vehicle_type))
 
-    def distance(self, l, t):  # noqa: E741
+    def distance(self, l, t):
+        """Get distance between two points."""
         return math.sqrt((l.x - t.location.x) ** 2 + (l.y - t.location.y) ** 2 + (l.z - t.location.z) ** 2)
 
     def toggle_info(self):
+        """Toggle for the overlay information layer."""
         self._show_info = not self._show_info
 
-    def notification(self, text, seconds=2.0):
-        logger.info("Notification disabled: " + text)
-        # self._notifications.set_text(text, seconds=seconds)
+    # def notification(self, text, seconds=2.0):
+    #     logger.info("Notification disabled: " + text)
+    #     # self._notifications.set_text(text, seconds=seconds)
 
-    def error(self, text):
-        logger.info("Notification error disabled: " + text)
-        # self._notifications.set_text('Error: %s' % text, (255, 0, 0))
+    # def error(self, text):
+    #     logger.info("Notification error disabled: " + text)
+    #     # self._notifications.set_text('Error: %s' % text, (255, 0, 0))
 
     def render(self, screen, render_pose=(0, 0)):
+        """Render method."""
         if self._show_info:
             info_surface = pygame.Surface((220, self.dim[1]))
             info_surface.set_alpha(100)
@@ -144,27 +166,33 @@ class HUD:
 
 
 class HelpText:
-    """
-    Use ARROWS or WASD keys for control.
+    """Use ARROWS or WASD keys for control.
 
-        W            : throttle
-        S            : brake
-        AD           : steer
-        Q            : toggle reverse
-        Space        : hand-brake
-        P            : toggle autopilot
+    W            : throttle
+    S            : brake
+    AD           : steer
+    Q            : toggle reverse
+    Space        : hand-brake
+    P            : toggle autopilot
 
-        TAB          : change camera position
-        `            : next camera sensor
-        [1-9]        : change to camera sensor [1-9]
+    TAB          : change camera position
+    `            : next camera sensor
+    [1-9]        : change to camera sensor [1-9]
 
-        R            : toggle recording images to disk
+    R            : toggle recording images to disk
 
-        H/?          : toggle help
-        ESC          : quit
+    H/?          : toggle help
+    ESC          : quit
     """
 
     def __init__(self, font, width, height):
+        """Constructor for the overlay help interface.
+
+        Args:
+            font: font type
+            width: width of the screen
+            height: height of the screen
+        """
         lines = self.__doc__.split("\n")
         self.font = font
         self.dim = (680, len(lines) * 22 + 12)
@@ -179,9 +207,10 @@ class HelpText:
         self.surface.set_alpha(220)
 
     def toggle(self):
+        """Toggle for the overlay help layer."""
         self._render = not self._render
 
     def render(self, display, render_pose):
+        """Render method."""
         if self._render:
             display.blit(self.surface, (self.pos[0] + render_pose[0], self.pos[1] + render_pose[1]))
-

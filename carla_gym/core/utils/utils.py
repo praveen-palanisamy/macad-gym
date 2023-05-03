@@ -17,7 +17,6 @@ def preprocess_image(image, config, resize=None):
     Returns:
         list: Image array.
     """
-
     use_depth_camera = config.camera_type in DEPTH_CAMERAS
 
     # Process image based on config data
@@ -47,7 +46,6 @@ def get_transform_from_nearest_way_point(cur_map, cur_location, dst_location):
         carla.Transform: the transform of the nearest way_point
             to the destination location.
     """
-
     # Get next possible way_points
     way_points = cur_map.get_waypoint(cur_location)
     nexts = list(way_points.next(1.0))
@@ -79,5 +77,5 @@ def get_transform_from_nearest_way_point(cur_map, cur_location, dst_location):
 def collided_done(py_measurements):
     """Define the main episode termination criteria."""
     m = py_measurements
-    collided = (m["collision_vehicles"] > 0 or m["collision_pedestrians"] > 0 or m["collision_other"] > 0)
+    collided = m["collision_vehicles"] > 0 or m["collision_pedestrians"] > 0 or m["collision_other"] > 0
     return bool(collided)  # or m["total_reward"] < -100)

@@ -1,3 +1,5 @@
+"""Classes to ease the management of CARLA sensor objects."""
+
 import collections
 import math
 import weakref
@@ -8,11 +10,15 @@ import carla
 class LaneInvasionSensor:
     """Lane Invasion sensor class."""
 
-    def __init__(self, parent_actor, hud):
+    def __init__(self, parent_actor):
+        """Constructor.
+
+        Args:
+            parent_actor: actor object to which the sensor is attached
+        """
         self.sensor = None
         self._history = []
         self._parent = parent_actor
-        self._hud = hud
         self.offlane = 0  # count of off lane
         self.offroad = 0  # count of off road
         world = self._parent.get_world()
@@ -24,6 +30,7 @@ class LaneInvasionSensor:
         self.sensor.listen(lambda event: LaneInvasionSensor._on_invasion(weak_self, event))
 
     def get_invasion_history(self):
+        """Get list of past invasion texts messages."""
         history = collections.defaultdict(int)
         for frame, text in self._history:
             history[frame] = text
@@ -36,7 +43,6 @@ class LaneInvasionSensor:
             return
 
         # text = ['%r' % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
-        # self._hud.notification('Crossed line %s' % ' and '.join(text))
         text = ["%r" % str(x).split()[-1] for x in set(event.crossed_lane_markings)]
         self.offlane += 1
         # info_str = (f'VEHICLE {self._parent.id} crossed line %s' % ' and '.join(text))
@@ -50,7 +56,7 @@ class LaneInvasionSensor:
             self._history.pop(0)
 
     def _reset(self):
-        """Reset off-lane and off-road counts"""
+        """Reset off-lane and off-road counts."""
         self.offlane = 0
         self.offroad = 0
         self._history = []
@@ -59,11 +65,15 @@ class LaneInvasionSensor:
 class CollisionSensor:
     """Collision sensor class."""
 
-    def __init__(self, parent_actor, hud):
+    def __init__(self, parent_actor):
+        """Constructor.
+
+        Args:
+            parent_actor: actor object to which the sensor is attached
+        """
         self.sensor = None
         self._history = []
         self._parent = parent_actor
-        self._hud = hud
         self.collision_vehicles = 0
         self.collision_pedestrians = 0
         self.collision_other = 0
@@ -78,6 +88,7 @@ class CollisionSensor:
         self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
 
     def get_collision_history(self):
+        """Get list of past collision texts messages."""
         history = collections.defaultdict(int)
         for frame, intensity in self._history:
             history[frame] += intensity
@@ -90,7 +101,6 @@ class CollisionSensor:
             return
 
         # actor_type = get_actor_display_name(event.other_actor)
-        # self._hud.notification('Collision with %r' % actor_type)
         impulse = event.normal_impulse
         intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
         self._history.append((event.frame_number, intensity))
@@ -128,4 +138,5 @@ class CollisionSensor:
         self.collision_type_id_set = set()
 
     def dynamic_collided(self):
+        """Get values of collisions."""
         return self.collision_vehicles, self.collision_pedestrians, self.collision_other

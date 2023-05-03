@@ -1,8 +1,9 @@
+# noqa
 import math
 
 import carla
 from core.constants import DISTANCE_TO_GOAL_THRESHOLD
-from core.world_objects.sensors import CollisionSensor, LaneInvasionSensor
+from core.world_objects.sensors import CollisionSensor
 
 
 class PedestrianManager:
@@ -15,7 +16,7 @@ class PedestrianManager:
             pedestrian_config: actor configuration
             pedestrian_object: world object
             planner: global planner instance
-            destination: carla.Location object 
+            destination: carla.Location object
         """
         self._config = pedestrian_config
         self._pedestrian = pedestrian_object
@@ -40,7 +41,7 @@ class PedestrianManager:
         collision_pedestrians = self._collision_sensor.collision_pedestrians
         collision_other = self._collision_sensor.collision_other
 
-        distance_to_goal_euclidean =  self._planner.distance(
+        distance_to_goal_euclidean = self._planner.distance(
             (self._pedestrian.get_location().x, self._pedestrian.get_location().y), self._destination[:2]
         )
 

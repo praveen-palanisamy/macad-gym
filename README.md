@@ -3,7 +3,7 @@
  Driving (MACAD) built on top of the CARLA Autonomous Driving simulator.
 
 MACAD-Gym provides OpenAI Gym-compatible learning environments for various
-driving scenarios for training Deep RL algorithms in homogeneous/heterogenous,
+driving scenarios for training Deep RL algorithms in homogeneous/heterogeneous,
 communicating/non-communicating and other multi-agent settings. New environments and scenarios
  can be easily added using a simple, JSON-like configuration.
 
@@ -47,7 +47,7 @@ python -m macad_gym.envs.homo.ncom.inde.po.intrx.ma.stop_sign_3c_town03
 
 ### Getting Started
 
-> Assumes an Ubuntu (18.04/20.04/22.04 or later) system. 
+> Assumes an Ubuntu (18.04/20.04/22.04 or later) system.
 > If you are on Windows 10/11, use the CARLA Windows package and set the `CARLA_SERVER` environment variable to the CARLA installation directory.
 
 1. Install the system requirements:
@@ -56,14 +56,14 @@ python -m macad_gym.envs.homo.ncom.inde.po.intrx.ma.stop_sign_3c_town03
 	- cmake (`sudo apt install cmake`)
 	- zlib (`sudo apt install zlib1g-dev`)
 	- [optional] ffmpeg (`sudo apt install ffmpeg`)
-   
+
 1. Setup CARLA (0.9.x)
 
     3.1 `mkdir ~/software && cd ~/software`
 
     3.2 Example: Download the 0.9.13 release version from: [Here](https://github.com/carla-simulator/carla/releases)
     Extract it into `~/software/CARLA_0.9.13`
-    
+
     3.3 `echo "export CARLA_SERVER=${HOME}/software/CARLA_0.9.13/CarlaUE4.sh" >> ~/.bashrc`
 
 1. Install MACAD-Gym:
@@ -79,12 +79,12 @@ python -m macad_gym.envs.homo.ncom.inde.po.intrx.ma.stop_sign_3c_town03
 	  `pip install -e .`
      - Install CARLA PythonAPI: `pip install carla==0.9.13`
      > NOTE: Change the carla client PyPI package version number to match with your CARLA server version
-     
+
 
 ### Learning Platform and Agent Interface
 
 The MACAD-Gym platform provides learning environments for training agents in both,
-single-agent and multi-agent settings for various autonomous driving tasks and 
+single-agent and multi-agent settings for various autonomous driving tasks and
 scenarios that enables training agents in homogeneous/heterogeneous
 The learning environments follows naming convention for the ID to be consistent
 and to support versioned benchmarking of agent algorithms.
@@ -93,12 +93,12 @@ as an example:
 ![MACAD-Gym Naming Conventions](docs/images/macad-gym-naming-conventions.png)
 
 The number of training environments in MACAD-Gym is expected to grow over time
-(PRs are very welcome!). 
+(PRs are very welcome!).
 
 #### Environments
 
 The environment interface is simple and follows the widely adopted OpenAI-Gym
-interface. You can create an instance of a learning environment using the 
+interface. You can create an instance of a learning environment using the
 following 3 lines of code:
 
 ```python
@@ -143,7 +143,7 @@ Environment-ID: Short description
 
 #### Agent interface
 The Agent-Environment interface is compatible with the OpenAI-Gym interface
-thus, allowing for easy experimentation with existing RL agent algorithm 
+thus, allowing for easy experimentation with existing RL agent algorithm
 implementations and libraries. You can use any existing Deep RL library that supports the Open AI Gym API to train your agents.
 
 The basic agent-environment interaction loop is as follows:
