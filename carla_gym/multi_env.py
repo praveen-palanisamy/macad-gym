@@ -155,7 +155,7 @@ def env(**kwargs):
     return env
 
 
-class MultiActorCarlaEnv(gym.Env):
+class MultiActorCarlaEnv:
     """Carla-Gym environment."""
 
     def __init__(
@@ -307,10 +307,12 @@ class MultiActorCarlaEnv(gym.Env):
         # Execution state related
         self._active_actors = set()
         self._num_steps = {}
-        self._dones = {}
-        self._total_rewards = {}
-        self._previous_measurements = {}  # Dict with last sensor's state reading for each object_id key
-        self._previous_observations = {}  # Dict with last sensor's state reading for each object_id key
+        self._dones = {}  # Dictionary with a boolean for each possible actor
+        self._terminations = {}  # Dictionary with a boolean for each possible actor
+        self._truncations = {}  # Dictionary with a boolean for each possible actor
+        self._total_rewards = {}  # Dictionary with cumulated rewards for each possible actor
+        self._previous_measurements = {}  # Dict with last sensor's state reading for each actor
+        self._previous_observations = {}  # Dict with last sensor's state reading for each actor
         self._previous_image = {}  # Dict with last camera images for each object_id key to build a `framestack`
         self._previous_actions = {}
         self._previous_rewards = {}
@@ -705,9 +707,13 @@ class MultiActorCarlaEnv(gym.Env):
                         (e.g. due to collision with an existing object on that spot). This error will be handled by
                         the caller `self.reset()` which will perform a "hard" reset by creating a new server instance.
         """
-        self._dones["__all__"] = False
         if clean_world:
             self._clean_world()
+            self._dones = {"__all__": False}
+            self._terminations = {}
+            self._truncations = {}
+        else:
+            self._dones["__all__"] = False
 
         self.world.set_weather(random.choice(self._scenario_config.weathers))
 
@@ -791,11 +797,12 @@ class MultiActorCarlaEnv(gym.Env):
             self._scenario_config.num_pedestrians,
         )
 
-    def reset(self, seed: Optional[int] = None):
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         """Reset the carla world.
 
         Args:
           seed (int): Seed for random.
+          options (dict): Additional settings.
 
         Returns:
           None.
@@ -826,13 +833,17 @@ class MultiActorCarlaEnv(gym.Env):
                 self._total_rewards[actor_id] = 0
                 self._num_steps[actor_id] = 0
 
-                py_measurement = self._read_observation(actor_id)
-                self._previous_measurements[actor_id] = py_measurement
+                py_measurements = self._read_observation(actor_id)
+                py_measurements["terminated"] = False
+                py_measurements["truncated"] = False
+                self._previous_measurements[actor_id] = py_measurements
 
-                obs = self._encode_obs(actor_id, py_measurement)
+                obs = self._encode_obs(actor_id, py_measurements)
                 self._previous_observations[actor_id] = obs
                 # Actor correctly reset
                 self._dones[actor_id] = False
+                self._terminations[actor_id] = False
+                self._truncations[actor_id] = False
 
         return self._previous_observations
 
@@ -957,48 +968,50 @@ class MultiActorCarlaEnv(gym.Env):
             done (bool): Done value for specified actor.
             info (dict): Info for specified actor.
         """
-        if self.discrete_action_space:
-            action = DISCRETE_ACTIONS[int(action)]
+        if action is not None:
+            if self.discrete_action_space:
+                action = DISCRETE_ACTIONS[int(action)]
 
-        assert len(action) == 2, f"Invalid action {action}"
-        if self.actor_configs[actor_id].squash_action_logits:
-            forward = 2 * float(sigmoid(action[0]) - 0.5)
-            throttle = float(np.clip(forward, 0, 1))
-            brake = float(np.abs(np.clip(forward, -1, 0)))
-            steer = 2 * float(sigmoid(action[1]) - 0.5)
-        else:
-            throttle = float(np.clip(action[0], 0, 0.6))
-            brake = float(np.abs(np.clip(action[0], -1, 0)))
-            steer = float(np.clip(action[1], -1, 1))
-        reverse = False
-        hand_brake = False
-        if self.verbose:
-            print("steer", steer, "throttle", throttle, "brake", brake, "reverse", reverse)
-
-        actor_config = self.actor_configs[actor_id]
-        actor_type = self._scenario_config.objects[actor_id].type
-        actor_obj = self._scenario_objects[actor_id]
-        if actor_type == "pedestrian":
-            # TODO Manual control not implemented for pedestrians
-            # if actor_config.manual_control:
-            #     # Inform the controller of world evolution
-            #     self._manual_controller.tick(self.metadata["render_fps"], self.world, actor_obj,
-            #          self._pedestrians[actor_id]._collision_sensor)
-            #     self._manual_controller.parse_events()
-            # else:
-            self._pedestrians[actor_id].apply_control(throttle, steer)
-        elif "vehicle" in actor_type:  # vehicle_4W, vehicle_2W, etc
-            if actor_config.manual_control:
-                # Inform the controller of world evolution
-                self._manual_controller.tick(
-                    self.metadata["render_fps"],
-                    self.world,
-                    actor_obj,
-                    self._vehicles[actor_id]._collision_sensor,
-                )
-                self._manual_controller.parse_events()
+            assert len(action) == 2, f"Invalid action {action}"
+            if self.actor_configs[actor_id].squash_action_logits:
+                forward = 2 * float(sigmoid(action[0]) - 0.5)
+                throttle = float(np.clip(forward, 0, 1))
+                brake = float(np.abs(np.clip(forward, -1, 0)))
+                steer = 2 * float(sigmoid(action[1]) - 0.5)
             else:
-                self._vehicles[actor_id].apply_control(throttle, steer, brake, hand_brake, reverse)
+                throttle = float(np.clip(action[0], 0, 0.6))
+                brake = float(np.abs(np.clip(action[0], -1, 0)))
+                steer = float(np.clip(action[1], -1, 1))
+            reverse = False
+            hand_brake = False
+            if self.verbose:
+                print("steer", steer, "throttle", throttle, "brake", brake, "reverse", reverse)
+
+            actor_config = self.actor_configs[actor_id]
+            actor_type = self._scenario_config.objects[actor_id].type
+            actor_obj = self._scenario_objects[actor_id]
+            if actor_type == "pedestrian":
+                # TODO Manual control not implemented for pedestrians
+                # if actor_config.manual_control:
+                #     # Inform the controller of world evolution
+                #     self._manual_controller.tick(self.metadata["render_fps"], self.world, actor_obj,
+                #          self._pedestrians[actor_id]._collision_sensor)
+                #     self._manual_controller.parse_events()
+                # else:
+                self._pedestrians[actor_id].apply_control(throttle, steer)
+            elif "vehicle" in actor_type:  # vehicle_4W, vehicle_2W, etc
+                if actor_config.manual_control:
+                    # Inform the controller of world evolution
+                    self._manual_controller.tick(
+                        self.metadata["render_fps"],
+                        self.world,
+                        actor_obj,
+                        self._vehicles[actor_id]._collision_sensor,
+                    )
+                    self._manual_controller.parse_events()
+                else:
+                    self._vehicles[actor_id].apply_control(throttle, steer, brake, hand_brake, reverse)
+
         # Asynchronously (one actor at a time; not all at once in a sync) apply
         # actor actions & perform a server tick after each actor's apply_action
         # if running with sync_server steps
@@ -1023,12 +1036,12 @@ class MultiActorCarlaEnv(gym.Env):
         }
 
         # Compute and store done
-        done = (
-            self._num_steps[actor_id] > self.max_steps
-            or py_measurements["next_command"] == "REACH_GOAL"
-            or (actor_config.early_terminate_on_collision and collided_done(py_measurements))
+        terminated = py_measurements["next_command"] == "REACH_GOAL" or (
+            actor_config.early_terminate_on_collision and collided_done(py_measurements)
         )
-        py_measurements["done"] = done
+        truncated = self._num_steps[actor_id] > self.max_steps
+        py_measurements["terminated"] = terminated
+        py_measurements["truncated"] = truncated
 
         # Compute and store reward
         reward = self._reward_policy.compute_reward(
@@ -1059,11 +1072,11 @@ class MultiActorCarlaEnv(gym.Env):
                 )
             self._measurements_file_dict[actor_id].write(json.dumps(py_measurements))
             self._measurements_file_dict[actor_id].write("\n")
-            if done:
+            if terminated or truncated:
                 self._measurements_file_dict[actor_id].close()
                 self._measurements_file_dict[actor_id] = None
 
-        return obs, reward, done, py_measurements
+        return obs, reward, terminated, truncated, py_measurements
 
     def step(self, actions: dict):
         """Executes one environment step for the specified actors.
@@ -1106,18 +1119,24 @@ class MultiActorCarlaEnv(gym.Env):
             info_dict = {}
 
             for actor_id, action in actions.items():
-                obs, reward, done, info = self._step(actor_id, action)
+                assert (
+                    action is None and self._dones[actor_id] or (action is not None)
+                ), f"The action provided to agent `{actor_id}` is not correct: {action}"
+                if self._dones[actor_id]:
+                    self._active_actors.discard(actor_id)
+
+                obs, reward, term, trunc, info = self._step(actor_id, action)
                 obs_dict[actor_id] = obs
                 reward_dict[actor_id] = reward
                 if not self._dones.get(actor_id, False):
-                    self._dones[actor_id] = done
-                    if done:
-                        self._active_actors.discard(actor_id)
+                    self._dones[actor_id] = term or trunc
+                    self._terminations[actor_id] = term
+                    self._truncations[actor_id] = trunc
                 info_dict[actor_id] = info
             self._dones["__all__"] = sum(self._dones.values()) >= self.max_num_agents
             self.render()
 
-            return obs_dict, reward_dict, self._dones, info_dict
+            return obs_dict, reward_dict, self._terminations, self._truncations, info_dict
         except Exception:
             print("Error during step, terminating episode early.", traceback.format_exc())
             self._clear_server_state()
@@ -1186,22 +1205,45 @@ class MultiActorCarlaEnvPZ(AECEnv, EzPickle):
         return self.env.action_space(agent)
 
     @property
+    def possible_agents(self):  # Gym accessor
+        """Return the initial list of agents."""
+        return self.env.possible_agents
+
+    @property
+    def max_num_agents(self):  # Gym accessor
+        """Return the initial number of agents."""
+        return self.env.possible_agents
+
+    @property
+    def agents(self):  # Gym accessor
+        """Return the list of currently active agents."""
+        return self.env.agents
+
+    @property
+    def num_agents(self):  # Gym accessor
+        """Return the number of currently active agents."""
+        return self.env.num_agents
+
+    @property
     def terminations(self):
         """Return the action space for the agent."""
-        return self.env._dones.copy()
+        return self.env._terminations.copy()
 
-    def reset(self, seed: Optional[int] = None):
+    @property
+    def truncations(self):
+        """Return the action space for the agent."""
+        return self.env._truncations.copy()
+
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None, **kwarg):
         """Reset the environment."""
         self._observations = self.env.reset(seed=seed)
-        self.agents = self.env.agents[:]
-        self._live_agents = self.agents[:]
         self._actions: ActionDict = {agent: None for agent in self.agents}
-        self._agent_selector = agent_selector(self._live_agents)
+        self._agent_selector = agent_selector(self.agents)
         self.agent_selection = self._agent_selector.reset()
         # _Observations are saved in the wrapped env or read on the fly
         self.rewards = {a: 0 for a in self.agents}
         # Terminations are saved in the wrapped env
-        self.truncations = {a: False for a in self.agents}
+        # Truncations are saved in the wrapped env
         self.infos = {a: {} for a in self.agents}
         self._cumulative_rewards = {a: 0 for a in self.agents}
         self.new_agents = []
@@ -1222,15 +1264,23 @@ class MultiActorCarlaEnvPZ(AECEnv, EzPickle):
     def step(self, action):
         """Step the environment for current `agent_selection`."""
         if self.terminations[self.agent_selection] or self.truncations[self.agent_selection]:
+            if action is not None:
+                raise ValueError("when an agent is dead, the only valid action is None")
+
+            del self.infos[self.agent_selection]
             del self._actions[self.agent_selection]
-            return self._was_dead_step(action)
+            del self.env._terminations[self.agent_selection]
+            del self.env._truncations[self.agent_selection]
+            del self.rewards[self.agent_selection]
+            del self._cumulative_rewards[self.agent_selection]
+            self.env._active_actors.discard(self.agent_selection)
+            return
 
         self._actions[self.agent_selection] = action
         if self._agent_selector.is_last():
-            _, rewards, _, infos = self.env.step(self._actions)
+            _, rewards, _, _, infos = self.env.step(self._actions)
 
             self.rewards = rewards.copy()
-            self.truncation = {k: v > self.env.max_steps for k, v in self.env._num_steps.items()}
             self.infos = deepcopy(infos)
             self._accumulate_rewards()
 
@@ -1251,7 +1301,7 @@ class MultiActorCarlaEnvPZ(AECEnv, EzPickle):
         observation = self.observe(agent) if observe else None
         return (
             observation,
-            self._cumulative_rewards[agent],
+            self.rewards[agent],
             self.terminations[agent],
             self.truncations[agent],
             self.infos[agent],

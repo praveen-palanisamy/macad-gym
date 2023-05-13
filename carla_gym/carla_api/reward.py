@@ -25,12 +25,18 @@ class Reward:
         self.prev = prev_measurement
         self.curr = curr_measurement
 
+        if self.prev["terminated"] or self.prev["truncated"]:
+            return 0.0
+
         if flag == "corl2017":
-            return self._compute_reward_corl2017()
+            rew = self._compute_reward_corl2017()
         elif flag == "lane_keep":
-            return self._compute_reward_lane_keep()
+            rew = self._compute_reward_lane_keep()
         elif flag == "custom":
-            return self._compute_reward_custom()
+            rew = self._compute_reward_custom()
+        else:
+            raise Exception(f"Reward policy not implemented: {flag}")
+        return round(rew, 2)
 
     def _compute_reward_custom(self):
         self.reward = 0.0

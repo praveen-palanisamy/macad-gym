@@ -5,7 +5,7 @@
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
-"""This module provides the key configuration parameters for an XML-based scenario."""
+"""This module provides the key configuration parameters for a XML-based scenario."""
 import warnings
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
@@ -64,7 +64,7 @@ class ActorConfiguration:
 
     @staticmethod
     def parse_xml_node(node):
-        """Static method to initialize an ActorConfiguration from a given ET tree."""
+        """Static method to initialize a ActorConfiguration from a given ET tree."""
         assert (
             node.attrib.get("name", None) is not None
         ), "XML attribute error. The 'actor' elements require a 'name' key."
@@ -161,7 +161,7 @@ class ObjectsConfiguration:
 
     @staticmethod
     def parse_xml_node(node):
-        """Static method to initialize an ActorConfigurationData from a given ET tree."""
+        """Static method to initialize a ObjectsConfiguration from a given ET tree."""
         assert (
             node.attrib.get("name", None) is not None
         ), "XML attribute error. The 'object' elements require a 'name' key."
@@ -218,6 +218,63 @@ class ObjectsConfiguration:
         return self
 
 
+class WeatherConfiguration(carla.WeatherParameters):
+    """Weather configuration class containing weathers parameters configs."""
+
+    def __init__(self, name="Default"):
+        """Constructor."""
+        super().__init__()
+        weather = WEATHERS[name]
+        self.cloudiness = weather.cloudiness
+        self.fog_density = weather.fog_density
+        self.fog_distance = weather.fog_distance
+        self.fog_falloff = weather.fog_falloff
+        self.mie_scattering_scale = weather.mie_scattering_scale
+        self.precipitation = weather.precipitation
+        self.precipitation_deposits = weather.precipitation_deposits
+        self.rayleigh_scattering_scale = weather.rayleigh_scattering_scale
+        self.scattering_intensity = weather.scattering_intensity
+        self.sun_altitude_angle = weather.sun_altitude_angle
+        self.sun_azimuth_angle = weather.sun_azimuth_angle
+        self.wetness = weather.wetness
+        self.wind_intensity = weather.wind_intensity
+
+    def __deepcopy__(self, *args, **kwargs):
+        """Deep copy method."""
+        # Overridden to avoid recursion error during deep copy
+        return {
+            "cloudiness": self.cloudiness,
+            "fog_density": self.fog_density,
+            "fog_distance": self.fog_distance,
+            "fog_falloff": self.fog_falloff,
+            "mie_scattering_scale": self.mie_scattering_scale,
+            "precipitation": self.precipitation,
+            "precipitation_deposits": self.precipitation_deposits,
+            "sun_azimuth_angle": self.sun_azimuth_angle,
+            "rayleigh_scattering_scale": self.rayleigh_scattering_scale,
+            "sun_altitude_angle": self.sun_altitude_angle,
+            "wind_intensity": self.wind_intensity,
+            "scattering_intensity": self.scattering_intensity,
+            "wetness": self.wetness,
+        }
+
+    @staticmethod
+    def parse_xml_node(weather_node):
+        """Static method to initialize a WeatherConfiguration from a given ET tree."""
+        weather = WeatherConfiguration()
+        weather.cloudiness = float(weather_node.attrib.get("cloudiness", 0))
+        weather.precipitation = float(weather_node.attrib.get("precipitation", 0))
+        weather.precipitation_deposits = float(weather_node.attrib.get("precipitation_deposits", 0))
+        weather.wind_intensity = float(weather_node.attrib.get("wind_intensity", 0.35))
+        weather.sun_azimuth_angle = float(weather_node.attrib.get("sun_azimuth_angle", 0.0))
+        weather.sun_altitude_angle = float(weather_node.attrib.get("sun_altitude_angle", 15.0))
+        weather.fog_density = float(weather_node.attrib.get("fog_density", 0.0))
+        weather.fog_distance = float(weather_node.attrib.get("fog_distance", 0.0))
+        weather.wetness = float(weather_node.attrib.get("wetness", 0.0))
+
+        return weather
+
+
 class ScenarioConfiguration:
     """Scenario configuration class containing configuration detailsa and scenario objects."""
 
@@ -229,11 +286,11 @@ class ScenarioConfiguration:
         self.objects = objects if objects is not None else {}
         self.num_pedestrians = num_pedestrians
         self.num_vehicles = num_vehicles
-        self.weathers = weathers if weathers is not None else [carla.WeatherParameters.Default]
+        self.weathers = weathers if weathers is not None else [WeatherConfiguration()]
 
     @staticmethod
     def parse_xml_node(node):
-        """Static method to initialize an ActorConfigurationData from a given ET tree."""
+        """Static method to initialize a ScenarioConfiguration from a given ET tree."""
         assert (
             node.attrib.get("name", None) is not None
         ), "XML attribute error. The 'scenario' elements require a 'name' key."
@@ -247,25 +304,18 @@ class ScenarioConfiguration:
         }
 
         objects = {}
-        for object in node.iter("object"):
-            o = ObjectsConfiguration.parse_xml_node(object)
+        for object_node in node.iter("object"):
+            o = ObjectsConfiguration.parse_xml_node(object_node)
             if o.name in objects:
                 warnings.warn("Multiple `object` elements with same name identifier in XML configuration.")
             objects.update({o.name: o})
 
-        weathers = [] if len(list(node.iter("weather"))) > 0 else [WEATHERS[node.attrib.get("weather", "Default")]]
+        weathers = (
+            [] if len(list(node.iter("weather"))) > 0 else [WeatherConfiguration(node.attrib.get("weather", "Default"))]
+        )
         for weather_node in node.iter("weather"):
-            weather = carla.WeatherParameters()
-            weather.cloudiness = float(weather_node.attrib.get("cloudiness", 0))
-            weather.precipitation = float(weather_node.attrib.get("precipitation", 0))
-            weather.precipitation_deposits = float(weather_node.attrib.get("precipitation_deposits", 0))
-            weather.wind_intensity = float(weather_node.attrib.get("wind_intensity", 0.35))
-            weather.sun_azimuth_angle = float(weather_node.attrib.get("sun_azimuth_angle", 0.0))
-            weather.sun_altitude_angle = float(weather_node.attrib.get("sun_altitude_angle", 15.0))
-            weather.fog_density = float(weather_node.attrib.get("fog_density", 0.0))
-            weather.fog_distance = float(weather_node.attrib.get("fog_distance", 0.0))
-            weather.wetness = float(weather_node.attrib.get("wetness", 0.0))
-            weathers.append(weather)
+            w = WeatherConfiguration.parse_xml_node(weather_node)
+            weathers.append(w)
 
         return ScenarioConfiguration(name, objects=objects, weathers=weathers).update(config)
 
