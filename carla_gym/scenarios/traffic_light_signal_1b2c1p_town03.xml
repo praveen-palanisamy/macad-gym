@@ -7,8 +7,8 @@
     </actors>
     <scenarios>
         <scenario name="HeteNcomIndePOIntrxMATLS1B2C1PTWN3" town="Town03" npc_pedestrians="0" npc_vehicles="0" weather="Default">
-            <object name="car1" type="vehicle_4W" start_x="94" start_y="-132.7" start_z="10" yaw="0" end_x="106" end_y="-132.7" end_z="8" model="vehicle.*" />
-            <object name="car2" type="vehicle_4W" start_x="84" start_y="-115" start_z="10" yaw="0" end_x="41" end_y="-137" end_z="8" model="vehicle.*" />
+            <object name="vehicle1" type="vehicle_4W" start_x="94" start_y="-132.7" start_z="10" yaw="0" end_x="106" end_y="-132.7" end_z="8" model="vehicle.*" />
+            <object name="vehicle2" type="vehicle_4W" start_x="84" start_y="-115" start_z="10" yaw="0" end_x="41" end_y="-137" end_z="8" model="vehicle.*" />
             <object name="pedestrian1" type="pedestrian" start_x="74" start_y="-126" start_z="10" yaw="0" end_x="92" end_y="-125" end_z="8" />
             <object name="bike1" type="vehicle_2W" start_x="69" start_y="-132" start_z="8" yaw="0" end_x="104" end_y="-132" end_z="8" />
         </scenario>
