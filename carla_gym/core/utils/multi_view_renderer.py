@@ -100,7 +100,7 @@ class MultiViewRenderer:
 
         self.resize_screen(max_x, max_y)
 
-        return max_x, max_y
+        return {}, [max_x, max_y]
 
     def render(self, images, enable_save=False):
         """Render multiple views of actors.

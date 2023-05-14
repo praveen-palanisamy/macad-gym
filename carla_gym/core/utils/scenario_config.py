@@ -68,9 +68,9 @@ class ActorConfiguration:
         assert (
             node.attrib.get("name", None) is not None
         ), "XML attribute error. The 'actor' elements require a 'name' key."
-        assert node.attrib.get("framestack", 1) in [
-            1,
-            2,
+        assert node.attrib.get("framestack", "1") in [
+            "1",
+            "2",
         ], "XML attribute error. Only a framestack in [1,2] is supported."
         assert node.attrib.get("camera_type", "rgb") in [ct.name for ct in CAMERA_TYPES], (
             f"XML attribute error. Camera type `{node.attrib['camera_type']}` not available. "

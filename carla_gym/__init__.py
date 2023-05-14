@@ -2,8 +2,7 @@
 import logging
 import os
 import sys
-
-from gymnasium.envs.registration import register
+from multi_env import (env, parallel_env)
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 LOG_DIR = os.path.join(os.getcwd(), "logs")
@@ -17,5 +16,3 @@ logging.basicConfig(filename=LOG_DIR + "/carla-gym.log", level=logging.DEBUG)
 
 # Fix path issues with included CARLA API
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "carla/PythonAPI"))
-
-register(id="carla-v0", entry_point="carla_gym.multi_env:MultiActorCarlaEnvPZ")

@@ -24,7 +24,6 @@ from typing import Optional
 import carla
 import cv2
 import GPUtil
-import gymnasium as gym
 import numpy as np
 import psutil
 from carla_gym.carla_api.PythonAPI.agents.navigation.global_route_planner import GlobalRoutePlanner
@@ -50,7 +49,6 @@ from pettingzoo.utils import agent_selector, wrappers
 from pettingzoo.utils.env import ActionDict
 
 # The following imports depend on these paths being in sys path
-# TODO: Fix this. This probably won't work after packaging/distribution
 sys.path.append("carla_gym/carla_api/PythonAPI")
 LOG_DIR = os.path.join(os.getcwd(), "logs")
 # Check if is using on Windows
@@ -307,7 +305,7 @@ class MultiActorCarlaEnv:
         # Execution state related
         self._active_actors = set()
         self._num_steps = {}
-        self._dones = {}  # Dictionary with a boolean for each possible actor
+        self.dones = {}  # Dictionary with a boolean for each possible actor and '__all__' key
         self._terminations = {}  # Dictionary with a boolean for each possible actor
         self._truncations = {}  # Dictionary with a boolean for each possible actor
         self._total_rewards = {}  # Dictionary with cumulated rewards for each possible actor
@@ -709,11 +707,11 @@ class MultiActorCarlaEnv:
         """
         if clean_world:
             self._clean_world()
-            self._dones = {"__all__": False}
+            self.dones = {"__all__": False}
             self._terminations = {}
             self._truncations = {}
         else:
-            self._dones["__all__"] = False
+            self.dones["__all__"] = False
 
         self.world.set_weather(random.choice(self._scenario_config.weathers))
 
@@ -739,7 +737,7 @@ class MultiActorCarlaEnv:
         # Instantiate the ActorManagers for controllable objects and assign a camera
         for actor_id, actor_config in self.actor_configs.items():
             self._active_actors.add(actor_id)
-            if self._dones.get(actor_id, True):
+            if self.dones.get(actor_id, True):
                 actor_type = self._scenario_config.objects[actor_id].type
                 actor_obj = self._scenario_objects[actor_id]
                 if actor_type not in self._supported_active_actor_types:
@@ -827,7 +825,7 @@ class MultiActorCarlaEnv:
 
         # Set appropriate initial values for all actors
         for actor_id, actor_config in self.actor_configs.items():
-            if self._dones.get(actor_id, True):
+            if self.dones.get(actor_id, True):
                 self._previous_actions[actor_id] = None
                 self._previous_rewards[actor_id] = None
                 self._total_rewards[actor_id] = 0
@@ -841,7 +839,7 @@ class MultiActorCarlaEnv:
                 obs = self._encode_obs(actor_id, py_measurements)
                 self._previous_observations[actor_id] = obs
                 # Actor correctly reset
-                self._dones[actor_id] = False
+                self.dones[actor_id] = False
                 self._terminations[actor_id] = False
                 self._truncations[actor_id] = False
 
@@ -965,7 +963,8 @@ class MultiActorCarlaEnv:
           A tuple of the form (obs, reward, done, info), where
             obs: Observation for the specified actor.
             reward (float): Reward for specified actor.
-            done (bool): Done value for specified actor.
+            termination (bool): Termination value for specified actor.
+            truncation (bool): Truncation value for specified actor.
             info (dict): Info for specified actor.
         """
         if action is not None:
@@ -1089,10 +1088,11 @@ class MultiActorCarlaEnv:
           actions (dict): Actions to be executed for each actor. {agent_id (str): action, ...}.
 
         Returns:
-          A tuple of the form (obs, reward, done, info), where
-            obs: Observation for each actor.
-            reward (float): Reward values for each actor.
-            done (bool): Done values for each actor. Special key "__all__" is used to indicate env termination.
+          A tuple of the form (obs, reward, term, trunc, info), where
+            obs (dict): Observation for each actor.
+            reward (dict[float]): Reward values for each actor.
+            terminations (dict[bool]): Termination values for each actor.
+            truncations (dict[bool]): Truncation values for each actor.
             info (dict): Info for each actor.
 
         Raises:
@@ -1120,20 +1120,20 @@ class MultiActorCarlaEnv:
 
             for actor_id, action in actions.items():
                 assert (
-                    action is None and self._dones[actor_id] or (action is not None)
+                    action is None and self.dones[actor_id] or (action is not None)
                 ), f"The action provided to agent `{actor_id}` is not correct: {action}"
-                if self._dones[actor_id]:
+                if self.dones[actor_id]:
                     self._active_actors.discard(actor_id)
 
                 obs, reward, term, trunc, info = self._step(actor_id, action)
                 obs_dict[actor_id] = obs
                 reward_dict[actor_id] = reward
-                if not self._dones.get(actor_id, False):
-                    self._dones[actor_id] = term or trunc
+                if not self.dones.get(actor_id, False):
+                    self.dones[actor_id] = term or trunc
                     self._terminations[actor_id] = term
                     self._truncations[actor_id] = trunc
                 info_dict[actor_id] = info
-            self._dones["__all__"] = sum(self._dones.values()) >= self.max_num_agents
+            self.dones["__all__"] = sum(self.dones.values()) >= self.max_num_agents
             self.render()
 
             return obs_dict, reward_dict, self._terminations, self._truncations, info_dict

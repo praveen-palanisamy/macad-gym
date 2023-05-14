@@ -8,8 +8,8 @@ CWD = Path(os.path.abspath(os.path.dirname(__file__)))
 
 
 def get_version():
-    """Gets the pettingzoo version."""
-    path = CWD / "pettingzoo" / "__init__.py"
+    """Gets the lib version."""
+    path = CWD / "carla_gym" / "__init__.py"
     content = path.read_text()
 
     for line in content.splitlines():
@@ -24,7 +24,9 @@ setup(
     url="https://github.com/johnMinelli/macad-gym",
     packages=find_packages("carla_gym"),
     package_dir={"": "carla_gym"},
-    python_requires=">=3.0",
+    setup_requires=["setuptools_scm"],
+    include_package_data=True,
+    package_data={"carla_gym": ["*.xml"]},
     install_requires=["gym", "carla>=0.9.3", "GPUtil", "pygame", "opencv-python", "networkx"],
     extras_require={"test": ["tox", "pytest", "pytest-xdist", "tox"]},
 )

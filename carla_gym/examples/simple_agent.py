@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     args = vars(argparser.parse_args())
     env = MultiActorCarlaEnv(**args)
-    # otherwise: env = gym.make("carla-v0", **args)
+    # otherwise for PZ AEC: env = carla_gym.env(**args)
 
     for _ in range(2):
         obs = env.reset()
@@ -61,10 +61,10 @@ if __name__ == "__main__":
 
         start = time.time()
         step = 0
-        done = {"__all__": False}
+        done = env.dones
         while not done["__all__"]:
             step += 1
-            obs, reward, done, info = env.step(action_dict)
+            obs, reward, term, trunc, info = env.step(action_dict)
             action_dict = get_next_actions(info, env.discrete_action_space)
             for actor_id in total_reward_dict.keys():
                 total_reward_dict[actor_id] += reward[actor_id]

@@ -1,6 +1,10 @@
 # noqa
 import numpy as np
 
+REWARD_CORL2017 = "corl2017"
+REWARD_LANE_KEEP = "lane_keep"
+REWARD_CUSTOM = "custom"
+
 
 class Reward:
     """Class containing the policies for the available reward structures."""
@@ -28,11 +32,11 @@ class Reward:
         if self.prev["terminated"] or self.prev["truncated"]:
             return 0.0
 
-        if flag == "corl2017":
+        if flag == REWARD_CORL2017:
             rew = self._compute_reward_corl2017()
-        elif flag == "lane_keep":
+        elif flag == REWARD_LANE_KEEP:
             rew = self._compute_reward_lane_keep()
-        elif flag == "custom":
+        elif flag == REWARD_CUSTOM:
             rew = self._compute_reward_custom()
         else:
             raise Exception(f"Reward policy not implemented: {flag}")

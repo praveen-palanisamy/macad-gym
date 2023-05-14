@@ -47,7 +47,7 @@ if __name__ == "__main__":
     args["discrete_action_space"] = True
     # The scenario xml config should have "enable_planner" flag
     env = MultiActorCarlaEnv(**args)
-    # otherwise: env = gym.make("carla-v0", **args)
+    # otherwise for PZ AEC: env = carla_gym.env(**args)
 
     for _ in range(2):
         agent_dict = {}
@@ -64,13 +64,13 @@ if __name__ == "__main__":
 
         start = time.time()
         step = 0
-        done = {"__all__": False}
+        done = env.dones
         while not done["__all__"]:
             step += 1
             action_dict = {}
             for actor_id, agent in agent_dict.items():
                 action_dict[actor_id] = vehicle_control_to_action(agent.run_step(), env.discrete_action_space)
-            obs, reward, done, info = env.step(action_dict)
+            obs, reward, term, trunc, info = env.step(action_dict)
             for actor_id in total_reward_dict.keys():
                 total_reward_dict[actor_id] += reward[actor_id]
             print(":{}\n\t".join(["Step#", "rew", "ep_rew", "done{}"]).format(step, reward, total_reward_dict, done))
