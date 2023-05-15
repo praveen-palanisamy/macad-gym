@@ -7,7 +7,11 @@ import carla
 import numpy as np
 from carla_gym.carla_api.PythonAPI.agents.navigation.local_planner import RoadOption
 from carla_gym.carla_api.PythonAPI.agents.tools.misc import vector
-from core.constants import DISTANCE_TO_GOAL_THRESHOLD, ORIENTATION_TO_GOAL_THRESHOLD, ROAD_OPTION_TO_COMMANDS_MAPPING
+from carla_gym.core.constants import (
+    DISTANCE_TO_GOAL_THRESHOLD,
+    ORIENTATION_TO_GOAL_THRESHOLD,
+    ROAD_OPTION_TO_COMMANDS_MAPPING,
+)
 
 sys.path.append("macad_gym/carla/PythonAPI/")
 

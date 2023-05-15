@@ -2,8 +2,8 @@
 import math
 
 import carla
-from core.constants import DISTANCE_TO_GOAL_THRESHOLD
-from core.world_objects.sensors import CollisionSensor
+from carla_gym.core.constants import DISTANCE_TO_GOAL_THRESHOLD
+from carla_gym.core.world_objects.sensors import CollisionSensor
 
 
 class PedestrianManager:

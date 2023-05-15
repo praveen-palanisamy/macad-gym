@@ -1,7 +1,7 @@
 # noqa
 import carla
-from core.controllers.camera_manager import CAMERA_TYPES, CameraManager
-from core.world_objects.hud import HUD
+from carla_gym.core.controllers.camera_manager import CAMERA_TYPES, CameraManager
+from carla_gym.core.world_objects.hud import HUD
 
 try:
     import pygame

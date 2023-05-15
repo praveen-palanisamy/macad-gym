@@ -2,7 +2,7 @@
 import math
 
 import pygame
-from core.controllers.manual_controller import MANUAL_VIEW_RENDER_X, MANUAL_VIEW_RENDER_Y
+from carla_gym.core.controllers.manual_controller import MANUAL_VIEW_RENDER_X, MANUAL_VIEW_RENDER_Y
 
 pygame.init()
 pygame.display.set_caption("MACAD-Gym")

@@ -16,7 +16,6 @@ import carla_gym
 from core.constants import DEFAULT_MULTIENV_CONFIG
 from multi_env import MultiActorCarlaEnv
 
-MAPS_PATH = "/Game/Carla/Maps/"
 EXAMPLE_CONFIG_PATH = "../carla_gym/examples/configs.xml"
 
 
@@ -113,7 +112,7 @@ def parallel_api_test(env, num_cycles=1000):
 
 @pytest.fixture
 def make_default_raw_env():
-    env = MultiActorCarlaEnv(xml_config_path=EXAMPLE_CONFIG_PATH, maps_path=MAPS_PATH)
+    env = MultiActorCarlaEnv(xml_config_path=EXAMPLE_CONFIG_PATH)
     return env
 
 
@@ -165,14 +164,14 @@ def test_configs_behaviour():
 
     # XML or JSON config should be provided
     with pytest.raises(AssertionError):
-        env = MultiActorCarlaEnv(configs={}, maps_path=MAPS_PATH)
+        env = MultiActorCarlaEnv(configs={})
         return False
     # At least one scenario
     with pytest.raises(AssertionError):
-        env = MultiActorCarlaEnv(configs=err_noScenarios_config, maps_path=MAPS_PATH)
+        env = MultiActorCarlaEnv(configs=err_noScenarios_config)
         return False
     # No actor is fine (e.g. only autopilot objects can be used)
-    env = MultiActorCarlaEnv(configs=noActors_config, maps_path=MAPS_PATH)
+    env = MultiActorCarlaEnv(configs=noActors_config)
     env.reset()
     for _ in range(10):
         env.step({})
@@ -180,10 +179,10 @@ def test_configs_behaviour():
     time.sleep(5)
     # Agents config should match
     with pytest.raises(ValueError):
-        env = MultiActorCarlaEnv(configs=err_mismatchActorsKey_config, maps_path=MAPS_PATH)
+        env = MultiActorCarlaEnv(configs=err_mismatchActorsKey_config)
         return False
 
-    env = MultiActorCarlaEnv(configs=base_config, maps_path=MAPS_PATH)
+    env = MultiActorCarlaEnv(configs=base_config)
 
     return True
 
@@ -198,14 +197,14 @@ def test_exported_xml():
 
 # Petting Zoo tests
 def test_petting_zoo_aec_api():
-    env = carla_gym.env(xml_config_path=EXAMPLE_CONFIG_PATH, maps_path=MAPS_PATH, max_steps=500)
+    env = carla_gym.env(xml_config_path=EXAMPLE_CONFIG_PATH, max_steps=500)
     api_test(env, num_cycles=1000, verbose_progress=True)
     env.close()
     time.sleep(5)
 
 
 def test_petting_zoo_parallel_api():
-    env = carla_gym.parallel_env(xml_config_path=EXAMPLE_CONFIG_PATH, maps_path=MAPS_PATH, max_steps=500)
+    env = carla_gym.parallel_env(xml_config_path=EXAMPLE_CONFIG_PATH, max_steps=500)
     parallel_api_test(env, num_cycles=1000)
     env.close()
     time.sleep(5)

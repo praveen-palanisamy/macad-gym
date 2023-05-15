@@ -1,6 +1,6 @@
 # noqa
 import carla
-from core.world_objects.sensors import CollisionSensor, LaneInvasionSensor
+from carla_gym.core.world_objects.sensors import CollisionSensor, LaneInvasionSensor
 
 DISCRETE_ACTIONS = {
     # coast

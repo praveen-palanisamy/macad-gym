@@ -39,8 +39,8 @@ from carla_gym.core.utils.multi_view_renderer import MultiViewRenderer
 from carla_gym.core.utils.scenario_config import Configuration
 
 from carla_gym.core.utils.utils import collided_done, preprocess_image
-from core.controllers.pedestrian_manager import PedestrianManager
-from core.controllers.vehicle_manager import DISCRETE_ACTIONS, VehicleManager
+from carla_gym.core.controllers.pedestrian_manager import PedestrianManager
+from carla_gym.core.controllers.vehicle_manager import DISCRETE_ACTIONS, VehicleManager
 from gymnasium.spaces import Box, Dict, Discrete, Tuple
 from gymnasium.utils import EzPickle
 from path import Path
@@ -160,7 +160,7 @@ class MultiActorCarlaEnv:
         self,
         configs: dict = None,
         xml_config_path: str = None,
-        maps_path: str = "./",
+        maps_path: str = "/Game/Carla/Maps/",
         render_mode: str = None,
         render_width: int = 800,
         render_height: int = 600,
@@ -431,7 +431,10 @@ class MultiActorCarlaEnv:
                         f"Args: {self._server_process.args}"
                     )
 
-                print("Running CARLA server in headless mode" + ("with multi-GPU support" if multi_gpu else ""))
+                print(
+                    f"Running CARLA server in headless mode (:{self._server_port})"
+                    + ("with multi-GPU support" if multi_gpu else "")
+                )
 
             except Exception as e:
                 print(e)
@@ -464,7 +467,7 @@ class MultiActorCarlaEnv:
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if IS_WINDOWS_PLATFORM else 0,
                     stdout=open(log_file, "w"),
                 )
-                print("Running CARLA server in single-GPU mode")
+                print(f"Running CARLA server in single-GPU mode (:{self._server_port})")
             except Exception as e:
                 logger.debug(e)
                 print("FATAL ERROR while launching server:", sys.exc_info()[0])
@@ -487,13 +490,17 @@ class MultiActorCarlaEnv:
                 )
             except RuntimeError as re:
                 if "timeout" not in str(re) and "time-out" not in str(re):
-                    print("Could not connect to Carla server because:", re)
+                    raise Exception("Could not connect to Carla server:", re)
                 self._client = None
 
         self._client.set_timeout(60.0)
         # load map using client api since 0.9.6+
-        self._client.load_world(self.server_maps_path / self._scenario_config.town)
-        self.world = self._client.get_world()
+        try:
+            self._client.load_world(self.server_maps_path / self._scenario_config.town)
+            self.world = self._client.get_world()
+        except Exception:
+            raise Exception(f"Error loading the world: {self.server_maps_path/self._scenario_config.town}")
+
         world_settings = self.world.get_settings()
         # Synchronous_mode available with CARLA version>=0.9.6
         world_settings.synchronous_mode = self._sync_server
@@ -821,7 +828,8 @@ class MultiActorCarlaEnv:
                 print(f"Error during reset: {traceback.format_exc()}")
                 print(f"reset(): Retry #: {retry + 1}/{RETRIES_ON_ERROR}")
                 self._clear_server_state()
-                raise e
+                if retry >= RETRIES_ON_ERROR:
+                    raise e
 
         # Set appropriate initial values for all actors
         for actor_id, actor_config in self.actor_configs.items():
