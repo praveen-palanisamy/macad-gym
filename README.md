@@ -9,9 +9,9 @@
 
 Carla-gym is an interface to instantiate Reinforcement Learning (RL) environments on top of the CARLA Autonomous Driving simulator. It allows the training of agents (single or multi), the use of predefined or custom scenarios for reproducibility and benchmarking, and extensive control and customization over the virtual world. New environments and scenarios can be easily configured through XML documents (OPENScenario-like) or JSON configurations.
 
-### Installation
+## Installation
 ##### Prerequisites
-- **CARLA Autonomous Driving Simulator Server** installed locally. Otherwise, refer to the [Getting started](#getting-started) section below.
+- **CARLA Autonomous Driving Simulator Server** installed locally. Otherwise, refer to the [Guide](#guide) section below.
 - `CARLA_SERVER` environment variable pointing to the CARLA executable.
 
 You can install the package in the Python virtual environment of your choice with the following command:
@@ -19,7 +19,7 @@ You can install the package in the Python virtual environment of your choice wit
 `pip install carla-gym`
 
 
-### Usage
+## Usage
 The package allows you to interact with the CARLA simulator as a PettingZoo environment. You can instantiate an environment as follows:
 
 ```python
@@ -46,7 +46,7 @@ env = carla_gym.env(configs=DEFAULT_MULTIENV_CONFIG)
 ```
 For additional information about the configuration, please refer to [Scenario configuration](#scenario-configuration) section, or for information about the initialization settings, refer to [Arguments](#arguments) section.
 
-##### Functionalities:
+### Functionalities:
 - CARLA server self-hosting
 - Multi-GPU support
 - Configuration through XML OpenScenario-like or JSON
@@ -57,9 +57,11 @@ For additional information about the configuration, please refer to [Scenario co
 - Random traffic of vehicles and pedestrians
 - Camera rendering for multiple agents and spectator view
 
-### Guide
+---
+
+## Guide
 - [CARLA setup](#carla-setup)
-- [Environment specifications](#Environment-specifications)
+- [Environment specifications](#environment-specifications)
   - [Arguments](#arguments)
   - [Action space](#action-space)
   - [Observation space](#observation-space)
@@ -76,7 +78,7 @@ CARLA server supports Ubuntu (18.04/20.04/22.04 or later)/Debian/W10/W11. You ca
 	- cmake : `sudo apt install cmake`
 	- zlib : `sudo apt install zlib1g-dev`
 	- [optional] ffmpeg : `sudo apt install ffmpeg`
-2. Install CARLA (0.9.x)
+2. Install CARLA (0.9.x):
     - `mkdir ~/software && cd ~/software`
     - Download the 0.9.13 release version from [official repository](https://github.com/carla-simulator/carla/releases)
     - Extract it into `~/software/CARLA_0.9.13`
@@ -158,14 +160,8 @@ You can customize the environment by providing an XML or JSON configuration. Det
 For the naming convention, we refer to [MACAD-Gym](https://arxiv.org/abs/1911.04175). The currently provided scenarios were refactored from the same work to maintain consistency in line with the original effort in providing reproducibility and benchmarking scenarios. You can customize the configurations and eventually contribute with new configurations starting from provided XML [examples](/carla_gym/scenarios) and respecting the current naming convention. Here is an example (reported from the official [repo](https://github.com/praveen-palanisamy/macad-gym/)):
 ![MACAD-Gym Naming Conventions](docs/images/macad-gym-naming-conventions.png)
 
-### Developer Contribution Guide
-Your effort is well appreciated. If you want to contribute to the development of carla-gym, please follow the instructions provided in the CONTRIBUTING.md file.
-
-
-Thank you for your interest and effort in contributing to
-
 ### Contributing
-
+Your effort is well appreciated. If you want to contribute to the development of Carla-gym:
 - Fork & branch
 - Happy coding time
 - Check all is in order running `pre-commit run --all-files`
