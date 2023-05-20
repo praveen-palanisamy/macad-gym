@@ -1,223 +1,176 @@
-![MACAD-Gym learning environment 1](docs/images/macad-gym-urban_4way_intrx_2c1p1m.png)
-[MACAD-Gym](https://arxiv.org/abs/1911.04175) is a training platform for Multi-Agent Connected Autonomous
- Driving (MACAD) built on top of the CARLA Autonomous Driving simulator.
+<p align="center">
+  <img src="docs/images/carla.png" alt="Carla Logo"/>
+</p>
 
-MACAD-Gym provides OpenAI Gym-compatible learning environments for various
-driving scenarios for training Deep RL algorithms in homogeneous/heterogeneous,
-communicating/non-communicating and other multi-agent settings. New environments and scenarios
- can be easily added using a simple, JSON-like configuration.
+[![PyPI version](https://badge.fury.io/py/carla-gym.svg)](https://pypi.python.org/pypi/carla-gym/)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](https://github.com/johnMinelli/carla-gym/LICENSE)
 
-[![PyPI version fury.io](https://badge.fury.io/py/macad-gym.svg)](https://pypi.python.org/pypi/macad-gym/)
-[![PyPI format](https://img.shields.io/pypi/pyversions/macad-gym.svg)](https://pypi.python.org/pypi/macad-gym/)
-[![Downloads](https://pepy.tech/badge/macad-gym)](https://pepy.tech/project/macad-gym)
-### Quick Start
+Carla-gym is an interface to instantiate Reinforcement Learning (RL) environments on top of the CARLA Autonomous Driving simulator. It allows the training of agents (single or multi), the use of predefined or custom scenarios for reproducibility and benchmarking, and extensive control and customization over the virtual world. New environments and scenarios can be easily configured through XML documents (OPENScenario-like) or JSON configurations.
 
-Install MACAD-Gym using `pip install macad-gym`.
- If you have `CARLA_SERVER` setup, you can get going using the following 3 lines of code. If not, follow the
-[Getting started steps](#getting-started).
+### Installation
+##### Prerequisites
+- **CARLA Autonomous Driving Simulator Server** installed locally. Otherwise, refer to the [Getting started](#getting-started) section below.
+- `CARLA_SERVER` environment variable pointing to the CARLA executable.
 
-#### Training RL Agents
+You can install the package in the Python virtual environment of your choice with the following command:
+
+`pip install carla-gym`
+
+
+### Usage
+The package allows you to interact with the CARLA simulator as a PettingZoo environment. You can instantiate an environment as follows:
 
 ```python
-import gym
-import macad_gym
-env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
+import carla_gym
 
-# Your agent code here
+env = carla_gym.env(**args)           # AEC API
+env = carla_gym.parallel_env(**args)  # Parallel API
 ```
 
- Any RL library that supports the OpenAI-Gym API can be used to train agents in MACAD-Gym. The [MACAD-Agents](https://github.com/praveen-palanisamy/macad-agents) repository provides sample agents as a starter.
+Examples of starter agents can be found in the examples folder. Any RL library that supports the standard multi-agent interface can be used to train the agents.
 
-#### Visualizing the Environment
+The environment expects mandatory configuration for initialization. This can be provided as an .xml file or as a json dictionary, which overrides the .xml configurations. Standard configurations are provided within the package and can be imported as follows:
 
-To test-drive the environments, you can run the environment script directly. For example, to test-drive the `HomoNcomIndePOIntrxMASS3CTWN3-v0` environment, run:
+```python
+import importlib
+from carla_gym.core.constants import DEFAULT_MULTIENV_CONFIG
 
-```bash
-python -m macad_gym.envs.homo.ncom.inde.po.intrx.ma.stop_sign_3c_town03
+# XML
+with importlib.resources.open_text("carla_gym.scenarios", "stop_sign_1b2c1p_town03.xml") as file:
+  env = carla_gym.env(xml_config_path=file.name)
+
+# JSON
+env = carla_gym.env(configs=DEFAULT_MULTIENV_CONFIG)
+```
+For additional information about the configuration, please refer to [Scenario configuration](#scenario-configuration) section, or for information about the initialization settings, refer to [Arguments](#arguments) section.
+
+##### Functionalities:
+- CARLA server self-hosting
+- Multi-GPU support
+- Configuration through XML OpenScenario-like or JSON
+- Scenario specification supports both single and multiple agents
+- Agents support automatic (autopilot) control, manual (keyboard) control, and default control as RL agents
+- Supported agents: Vehicles (4w/2w), Pedestrian (manual control TODO), and Traffic lights
+- Additional World actors with automatic control and set origin-destination
+- Random traffic of vehicles and pedestrians
+- Camera rendering for multiple agents and spectator view
+
+### Guide
+- [CARLA setup](#carla-setup)
+- [Environment specifications](#Environment-specifications)
+  - [Arguments](#arguments)
+  - [Action space](#action-space)
+  - [Observation space](#observation-space)
+- [Scenario configuration](#scenario-configuration)
+  - [Naming Convention](#naming-convention)
+- [Contributing](#contributing)
+
+### CARLA setup
+CARLA server supports Ubuntu (18.04/20.04/22.04 or later)/Debian/W10/W11. You can refer to the [official CARLA docs](https://carla.readthedocs.io/en/latest/start_quickstart/) for the server installation process or follow the steps below:
+
+(for Ubuntu 18.04/20.04/22.04/+)
+1.  Install the system requirements:
+    - Miniconda/Anaconda 3.x : `wget -P ~ https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; bash ~/Miniconda3-latest-Linux-x86_64.sh`
+	- cmake : `sudo apt install cmake`
+	- zlib : `sudo apt install zlib1g-dev`
+	- [optional] ffmpeg : `sudo apt install ffmpeg`
+2. Install CARLA (0.9.x)
+    - `mkdir ~/software && cd ~/software`
+    - Download the 0.9.13 release version from [official repository](https://github.com/carla-simulator/carla/releases)
+    - Extract it into `~/software/CARLA_0.9.13`
+3. Set the `CARLA_SERVER` environment variable:
+    - `echo "export CARLA_SERVER=${HOME}/software/CARLA_0.9.13/CarlaUE4.sh" >> ~/.bashrc`
+
+*NOTE: Currently Carla-gym supports CARLA 0.9.13*
+*NOTE: Independently from Carla-gym, installing the required `carla` dependency (PyPI package containing CARLA client API) ensures it matches the version number of your CARLA server.*
+
+### Environment specifications
+```python
+carla_gym.env(
+  configs: dict = None,
+  xml_config_path: str = None,
+  max_steps: int = 500,
+  render_mode: str = None,
+  maps_path: str = "/Game/Carla/Maps/",
+  sync_server: bool = True,
+  fixed_delta_seconds: float = 0.05,
+  render_width: int = 800,
+  render_height: int = 600,
+  actor_render_width: int = 84,
+  actor_render_height: int = 84,
+  discrete_action_space: bool = True,
+  verbose: bool = False
+)
+```
+- Note that for a flexible customization the JSON `configs` specifications override the ones parsed from the XML file specified in `xml_config_path`.
+- For more information about sync/async mode of CARLA environment, refer to the [Carla official docs](https://carla.readthedocs.io/en/latest/adv_synchrony_timestep/#setting-synchronous-mode).
+
+#### Arguments
+`configs`: Scenarios configuration dictionary. Example provided in `carla_gym.core.constants.DEFAULT_MULTIENV_CONFIG`.
+`xml_config_path`: Filepath to a compatible XML file with scenarios configs. Example provided in `carla_gym.scenarios.default_1c_town01.xml`.
+`max_steps`: Maximum number of steps in the scenarios before the end of the episode.
+`render_mode`: Mode of rendering. Only 'human' is available.
+`maps_path`: Path where to find the external CARLA maps.
+`sync_server`: Whether the CARLA server should be in synchronous or asynchronous mode.
+`fixed_delta_seconds`: Fixes the time elapsed between two steps of the simulation to ensure reliable physics. Use 0.0 to work with a variable time-step.
+`render_width`: Spectator view rendering width.
+`render_height`: Spectator view rendering height.
+`actor_render_width`: Actor camera view rendering width.
+`actor_render_height`: Actor camera view rendering height.
+`discrete_action_space`: Whether the action space is discrete or continuous.
+`verbose`: Whether detailed logs should be given in output.
+
+#### Action space
+In any given turn, an agent can choose from one of those 9 discrete actions:
+```
++-------------------+--------------------+-------------------+
+| Action (Discrete) | Action (Continuous)|      Behavior     |
++-------------------+--------------------+-------------------+
+|         0         |    [0.0, 0.0]      |    No operation   |
+|         1         |    [0.0, -0.5]     |      Turn left    |
+|         2         |    [0.0, 0.5]      |     Turn right    |
+|         3         |    [1.0, 0.0]      |       Forward     |
+|         4         |    [-0.5, 0.0]     |        Brake      |
+|         5         |   [0.5, -0.05]     |    Forward left   |
+|         6         |    [0.5, 0.05]     |   Forward right   |
+|         7         |   [-0.5, -0.5]     |     Brake left    |
+|         8         |    [-0.5, 0.5]     |     Brake right   |
++-------------------+--------------------+-------------------+
+```
+otherwise, using continuous format:
+```
+Box(high=np.array([1.0, 1.0]), low=np.array([-1.0, -1.0]), shape=(2,), dtype=np.float32)
 ```
 
-### Usage guide
+#### Observation space
+The observation of each agent is composed of an image from the camera attached to it:
+- Depth camera: `Box(0.0, 255.0, shape=(actor_render_height, actor_render_width, 1 * framestack))`
+- RGB camera: `Box(-1.0, 1.0, shape=(actor_render_height, actor_render_width, 3 * framestack))`
 
-- [Getting Started](#getting-started)
-- [Learning Platform and Agent Interface](#learning-platform-and-agent-interface)
-  - [Environments](#environments)
-  - [Agent interface](#agent-interface)
-- [Citing MACAD-Gym](#citing)
-- [Developer Contribution Guide](CONTRIBUTING.md)
+Optionally, additional information about the last navigation command, current speed, and distance to the goal can be included. Straightforward customization can be done by modifying the configuration provided at initialization (See [section](#scenario-configuration) below) or overriding the `multi_env.MultiActorCarlaEnv._encode_obs()` and `multi_env.MultiActorCarlaEnv._encode_obs()` functions.
 
-### Getting Started
+### Scenario configuration
+You can customize the environment by providing an XML or JSON configuration. Details to create a custom XML configuration can be found in [default_1c_town01.xml](/carla_gym/scenarios/default_1c_town01.xml).
 
-> Assumes an Ubuntu (18.04/20.04/22.04 or later) system.
-> If you are on Windows 10/11, use the CARLA Windows package and set the `CARLA_SERVER` environment variable to the CARLA installation directory.
-
-1. Install the system requirements:
-	- Miniconda/Anaconda 3.x
-		- `wget -P ~ https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; bash ~/Miniconda3-latest-Linux-x86_64.sh`
-	- cmake (`sudo apt install cmake`)
-	- zlib (`sudo apt install zlib1g-dev`)
-	- [optional] ffmpeg (`sudo apt install ffmpeg`)
-
-1. Setup CARLA (0.9.x)
-
-    3.1 `mkdir ~/software && cd ~/software`
-
-    3.2 Example: Download the 0.9.13 release version from: [Here](https://github.com/carla-simulator/carla/releases)
-    Extract it into `~/software/CARLA_0.9.13`
-
-    3.3 `echo "export CARLA_SERVER=${HOME}/software/CARLA_0.9.13/CarlaUE4.sh" >> ~/.bashrc`
-
-1. Install MACAD-Gym:
-   - **Option1 for users** : `pip install macad-gym`
-   - **Option2 for developers**:
-     - Fork/Clone the repository to your workspace:
-        `git clone https://github.com/praveen-palanisamy/macad-gym.git && cd macad-gym`
-     - Create a new conda env named "macad-gym" and install the required packages:
-      `conda env create -f conda_env.yml`
-     - Activate the `macad-gym` conda python env:
-      `source activate macad-gym`
-     - Install the `macad-gym` package:
-	  `pip install -e .`
-     - Install CARLA PythonAPI: `pip install carla==0.9.13`
-     > NOTE: Change the carla client PyPI package version number to match with your CARLA server version
-
-
-### Learning Platform and Agent Interface
-
-The MACAD-Gym platform provides learning environments for training agents in both,
-single-agent and multi-agent settings for various autonomous driving tasks and
-scenarios that enables training agents in homogeneous/heterogeneous
-The learning environments follows naming convention for the ID to be consistent
-and to support versioned benchmarking of agent algorithms.
-The naming convention is illustrated below with `HeteCommCoopPOUrbanMgoalMAUSID`
-as an example:
+#### Naming Convention
+For the naming convention, we refer to [MACAD-Gym](https://arxiv.org/abs/1911.04175). The currently provided scenarios were refactored from the same work to maintain consistency in line with the original effort in providing reproducibility and benchmarking scenarios. You can customize the configurations and eventually contribute with new configurations starting from provided XML [examples](/carla_gym/scenarios) and respecting the current naming convention. Here is an example (reported from the official [repo](https://github.com/praveen-palanisamy/macad-gym/)):
 ![MACAD-Gym Naming Conventions](docs/images/macad-gym-naming-conventions.png)
 
-The number of training environments in MACAD-Gym is expected to grow over time
-(PRs are very welcome!).
-
-#### Environments
-
-The environment interface is simple and follows the widely adopted OpenAI-Gym
-interface. You can create an instance of a learning environment using the
-following 3 lines of code:
-
-```python
-import gym
-import macad_gym
-env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
-```
-
-Like any OpenAI Gym environment, you can obtain the observation space and action
-spaces as shown below:
-
-```bash
->>> print(env.observation_spaces)
-Dict(car1:Box(168, 168, 3), car2:Box(168, 168, 3), car3:Box(168, 168, 3))
->>> print(env.action_spaces)
-Dict(car1:Discrete(9), car2:Discrete(9), car3:Discrete(9))
-```
-
-To get a list of available environments, you can use
-the `list_available_envs()` function as shown in the code snippet below:
-
-```python
-import gym
-import macad_gym
-macad_gym.list_available_envs()
-```
-This will print the available environments. Sample output is provided below for reference:
-
-```bash
-Environment-ID: Short description
-{'HeteNcomIndePOIntrxMATLS1B2C1PTWN3-v0': 'Heterogeneous, Non-communicating, '
-                                          'Independent,Partially-Observable '
-                                          'Intersection Multi-Agent scenario '
-                                          'with Traffic-Light Signal, 1-Bike, '
-                                          '2-Car,1-Pedestrian in Town3, '
-                                          'version 0',
- 'HomoNcomIndePOIntrxMASS3CTWN3-v0': 'Homogenous, Non-communicating, '
-                                     'Independed, Partially-Observable '
-                                     'Intersection Multi-Agent scenario with '
-                                     'Stop-Sign, 3 Cars in Town3, version 0'}
-```
-
-#### Agent interface
-The Agent-Environment interface is compatible with the OpenAI-Gym interface
-thus, allowing for easy experimentation with existing RL agent algorithm
-implementations and libraries. You can use any existing Deep RL library that supports the Open AI Gym API to train your agents.
-
-The basic agent-environment interaction loop is as follows:
+### Developer Contribution Guide
+Your effort is well appreciated. If you want to contribute to the development of carla-gym, please follow the instructions provided in the CONTRIBUTING.md file.
 
 
-```python
-import gym
-import macad_gym
+Thank you for your interest and effort in contributing to
+
+### Contributing
+
+- Fork & branch
+- Happy coding time
+- Check all is in order running `pre-commit run --all-files`
+- Make sure all tests pass before submitting your contribution
+- Open a pull request
 
 
-env = gym.make("HomoNcomIndePOIntrxMASS3CTWN3-v0")
-configs = env.configs
-env_config = configs["env"]
-actor_configs = configs["actors"]
-
-
-class SimpleAgent(object):
-    def __init__(self, actor_configs):
-        """A simple, deterministic agent for an example
-        Args:
-            actor_configs: Actor config dict
-        """
-        self.actor_configs = actor_configs
-        self.action_dict = {}
-
-
-    def get_action(self, obs):
-        """ Returns `actions` containing actions for each agent in the env
-        """
-        for actor_id in self.actor_configs.keys():
-            # ... Process obs of each agent and generate action ...
-            if env_config["discrete_actions"]:
-                self.action_dict[actor_id] = 3  # Drive forward
-            else:
-                self.action_dict[actor_id] = [1, 0]  # Full-throttle
-        return self.action_dict
-
-
-agent = SimpleAgent(actor_configs)  # Plug-in your agent or use MACAD-Agents
-for ep in range(2):
-    obs = env.reset()
-    done = {"__all__": False}
-    step = 0
-    while not done["__all__"]:
-        obs, reward, done, info = env.step(agent.get_action(obs))
-        print(f"Step#:{step}  Rew:{reward}  Done:{done}")
-        step += 1
-env.close()
-```
-
-### Citing:
-
-If you find this work useful in your research, please cite:
-
-```bibtex
-@misc{palanisamy2019multiagent,
-    title={Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning},
-    author={Praveen Palanisamy},
-    year={2019},
-    eprint={1911.04175},
-    archivePrefix={arXiv},
-    primaryClass={cs.LG}
-}
-```
-
-<details><summary>Citation in other Formats: (Click to View)</summary>
-<p>
-<div id="gs_citt"><table><tbody><tr><th scope="row" class="gs_cith">MLA</th><td><div tabindex="0" class="gs_citr">Palanisamy, Praveen. "Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning." <i>arXiv preprint arXiv:1911.04175</i> (2019).</div></td></tr><tr><th scope="row" class="gs_cith">APA</th><td><div tabindex="0" class="gs_citr">Palanisamy, P. (2019). Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning. <i>arXiv preprint arXiv:1911.04175</i>.</div></td></tr><tr><th scope="row" class="gs_cith">Chicago</th><td><div tabindex="0" class="gs_citr">Palanisamy, Praveen. "Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning." <i>arXiv preprint arXiv:1911.04175</i> (2019).</div></td></tr><tr><th scope="row" class="gs_cith">Harvard</th><td><div tabindex="0" class="gs_citr">Palanisamy, P., 2019. Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning. <i>arXiv preprint arXiv:1911.04175</i>.</div></td></tr><tr><th scope="row" class="gs_cith">Vancouver</th><td><div tabindex="0" class="gs_citr">Palanisamy P. Multi-Agent Connected Autonomous Driving using Deep Reinforcement Learning. arXiv preprint arXiv:1911.04175. 2019 Nov 11.</div></td></tr></tbody></table></div><div id="gs_citi"><a class="gs_citi" href="https://scholar.googleusercontent.com/scholar.bib?q=info:xm26aHYhVDgJ:scholar.google.com/&amp;output=citation&amp;scisdr=CgXTGHMuEN628ARjSCI:AAGBfm0AAAAAXetmUCK7vBmr1OtOq0KVG6IXDlyHhBdl&amp;scisig=AAGBfm0AAAAAXetmUIGOLisMm--ltk35iSX92VU3dlmg&amp;scisf=4&amp;ct=citation&amp;cd=-1&amp;hl=en">BibTeX</a> <a class="gs_citi" href="https://scholar.googleusercontent.com/scholar.enw?q=info:xm26aHYhVDgJ:scholar.google.com/&amp;output=citation&amp;scisdr=CgXTGHMuEN628ARjSCI:AAGBfm0AAAAAXetmUCK7vBmr1OtOq0KVG6IXDlyHhBdl&amp;scisig=AAGBfm0AAAAAXetmUIGOLisMm--ltk35iSX92VU3dlmg&amp;scisf=3&amp;ct=citation&amp;cd=-1&amp;hl=en">EndNote</a> <a class="gs_citi" href="https://scholar.googleusercontent.com/scholar.ris?q=info:xm26aHYhVDgJ:scholar.google.com/&amp;output=citation&amp;scisdr=CgXTGHMuEN628ARjSCI:AAGBfm0AAAAAXetmUCK7vBmr1OtOq0KVG6IXDlyHhBdl&amp;scisig=AAGBfm0AAAAAXetmUIGOLisMm--ltk35iSX92VU3dlmg&amp;scisf=2&amp;ct=citation&amp;cd=-1&amp;hl=en">RefMan</a> <a class="gs_citi" href="https://scholar.googleusercontent.com/scholar.rfw?q=info:xm26aHYhVDgJ:scholar.google.com/&amp;output=citation&amp;scisdr=CgXTGHMuEN628ARjSCI:AAGBfm0AAAAAXetmUCK7vBmr1OtOq0KVG6IXDlyHhBdl&amp;scisig=AAGBfm0AAAAAXetmUIGOLisMm--ltk35iSX92VU3dlmg&amp;scisf=1&amp;ct=citation&amp;cd=-1&amp;hl=en" target="RefWorksMain">RefWorks</a> </div>
-</p>
-</details>
-
-### **NOTEs**:
-- MACAD-Gym supports multi-GPU setups and it will choose the GPU that is less loaded to launch the simulation needed for the RL training environment
-
-- MACAD-Gym is for CARLA 0.9.x & above . If you are
-looking for an OpenAI Gym-compatible agent learning environment for CARLA 0.8.x (stable release),
-use [this carla_gym environment](https://github.com/PacktPublishing/Hands-On-Intelligent-Agents-with-OpenAI-Gym/tree/master/ch8/environment).
+If you have any questions, suggestions, or feedback, please feel free to [open an issue](https://github.com/johnMinelli/macad-gym/issues).

@@ -104,10 +104,10 @@ Environment specifications can be provided as additional arguments when the envi
 #### Environment parameters
 
 ``` python
-carla_gym.env(configs: dict = None, xml_config_path: str = None, maps_path: str = "./", render_mode: str = None,
-        render_width: int = 800, render_height: int = 600, actor_render_width: int = 84, actor_render_height: int = 84,
-        discrete_action_space: bool = True, max_steps: int = 500, sync_server: bool = True,
-        fixed_delta_seconds: float = 0.05, verbose: bool = False)
+carla_gym.env(configs: dict = None, xml_config_path: str = None, max_steps: int = 500, render_mode: str = None,
+    maps_path: str = "/Game/Carla/Maps/", sync_server: bool = True, fixed_delta_seconds: float = 0.05,
+    render_width: int = 800, render_height: int = 600, actor_render_width: int = 84, actor_render_height: int = 84,
+    discrete_action_space: bool = True, verbose: bool = False)
 ```
 
 ### Action Space
@@ -160,16 +160,16 @@ class MultiActorCarlaEnv:
         self,
         configs: dict = None,
         xml_config_path: str = None,
-        maps_path: str = "/Game/Carla/Maps/",
+        max_steps: int = 500,
         render_mode: str = None,
+        maps_path: str = "/Game/Carla/Maps/",
+        sync_server: bool = True,
+        fixed_delta_seconds: float = 0.05,
         render_width: int = 800,
         render_height: int = 600,
         actor_render_width: int = 84,
         actor_render_height: int = 84,
         discrete_action_space: bool = True,
-        max_steps: int = 500,
-        sync_server: bool = True,
-        fixed_delta_seconds: float = 0.05,
         verbose: bool = False,
     ):
         """Carla-Gym environment parallel implementation.
@@ -182,17 +182,17 @@ class MultiActorCarlaEnv:
         Note: For more information about sync/async mode of CARLA environment refer to https://carla.readthedocs.io/en/latest/adv_synchrony_timestep/#setting-synchronous-mode
         Args:
           configs (Optional[Dict]): Scenarios configuration dictionary. Example provided in `carla_gym.core.constants.DEFAULT_MULTIENV_CONFIG`.
-          xml_config_path (Optional[str]): Filepath to an OPENscenario compatible xml file with scenarios configs. Example provided in `carla_gym.scenarios.default_1c_town01.xml`.
-          maps_path (Optional[str]): Path where to find the external CARLA maps.
+          xml_config_path (Optional[str]): Filepath to a compatible XML file with scenarios configs. Example provided in `carla_gym.scenarios.default_1c_town01.xml`.
+          max_steps (Optional[int]): Maximum number of steps in the scenarios before the end of the episode.
           render_mode (Optional[str]): Mode of rendering. Only 'human' is available.
+          maps_path (Optional[str]): Path where to find the external CARLA maps.
+          sync_server (Optional[bool]): Whether the CARLA server should be in synchronous or asynchronous mode.
+          fixed_delta_seconds (Optional[float]): Fixes the time elapsed between two steps of the simulation to ensure reliable physics. Use 0.0 to work with a variable time-step.
           render_width (Optional[int]): Spectator view rendering width.
           render_height (Optional[int]): Spectator view rendering height.
           actor_render_width (Optional[int]): Actor camera view rendering width.
           actor_render_height (Optional[int]): Actor camera view rendering height.
-          discrete_action_space (Optional[bool]): Whether the action space is discrete or continuous otherwise.
-          max_steps (Optional[int]): Maximum number of steps in the scenarios before the end of the episode.
-          sync_server (Optional[bool]): Whether the CARLA server should be in synchronous or asynchronous mode.
-          fixed_delta_seconds (Optional[float]): Fixes the time elapsed between two steps of the simulation to ensure reliable physics. Use 0.0 to work with a variable time-step.
+          discrete_action_space (Optional[bool]): Whether the action space is discrete or continuous.
           verbose (Optional[bool]): Whether detailed logs should be given in output.
         """
         assert configs is not None or xml_config_path is not None, "Missing configuration!"

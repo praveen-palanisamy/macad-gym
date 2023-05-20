@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 from carla_gym.multi_env import (env, parallel_env)
+from carla_gym.core.constants import DEFAULT_MULTIENV_CONFIG
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 LOG_DIR = os.path.join(os.getcwd(), "logs")

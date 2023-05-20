@@ -1,26 +1,36 @@
 <?xml version="1.0"?>
 <config>
-<!--The name of defined actors should match the name of scenario objects you want to control-->
+<!--Actors are the objects you want to control -->
     <actors>
-<!--    Default parameters for actor definition` -->
-<!--    Available reward class in `carla_gym.carla_api.reward.Reward` -->
-<!--    Available camera types in `carla_gym.core.world_objects.camera_manager.CAMERA_TYPES` -->
-<!--    Auto_control do not support goal-oriented navigation -->
+<!--    The following are default parameters for actor definition -->
+<!--    Name attribute is the unique identifier of an actor should match a world object in scenario -->
+<!--    Render attribute determine if the agent camera should be live rendered in a window -->
+<!--    Enable_planner attribute determine if the agent compute the path to destination or uses a LANE_FOLLOW behaviour -->
+<!--    Available camera types or positions in `carla_gym.core.world_objects.camera_manager.CAMERA_TYPES` -->
+<!--    Image observation composed of stacked frames. Supported values are only 1 or 2 -->
+<!--    Sensors for world objects like vehicles -->
+<!--    Early_terminate_on_collision flag to set an agent as 'terminated'/'done' when its collision sensor is triggered -->
 <!--    Manual_control can be activated only by a single actor per time -->
+<!--    Auto_control do not support goal-oriented navigation -->
+<!--    Squash_action_logits attribute indicates if sigmoid function should be used in the trnnslation from discrete to continuous actions -->
+<!--    Available reward class in `carla_gym.carla_api.reward.Reward` -->
+<!--    Send_measurements attribute determine the agent observation False->obs=[cam_image], True->obs=[cam_image, *measures]. See `multi_env.MultiActorCarlaEnv._encode_obs()` -->
         <actor name="vehicle1" render="False" enable_planner="True" camera_type="rgb" camera_position="0"
                framestack="1" lane_sensor="True" collision_sensor="True" early_terminate_on_collision="True"
                manual_control="False" auto_control="False" squash_action_logits="False" reward_function="corl2017"
                send_measurements="False" log_images="False" log_measurements="False" verbose="False" />
     </actors>
     <scenarios>
+<!--    Scenario selected randomly in list at reset of the environment. -->
 <!--    Available weather distributions in `carla_gym.core.constant.WEATHERS` -->
+<!--    NPC numbers for spawning random traffic -->
         <scenario name="HomoNcomIndePOUrbanMA2CTWN1" town="Town01" npc_pedestrians="10" npc_vehicles="10" weather="Default">
-<!--        Name attribute is the unique identifier -->
-<!--        Type attribute in [default(vehicle_4W), vehicle_2W, pedestrian, traffic_light] -->
-<!--        Autopilot do not support goal-oriented navigation -->
+<!--        Name attribute is the unique identifier of a scenario -->
+<!--        Type attributes available are [default(vehicle_4W), vehicle_2W, pedestrian, traffic_light] -->
+<!--        Autopilot flag is incopatible with goal-oriented navigation -->
             <object name="vehicle1" type="vehicle_4W" start_x="217.50997924804688" start_y="198.75999450683594" start_z="0.50" yaw="-0.16" end_x="299.39996337890625" end_y="199.05999755859375" end_z="0.50" model="vehicle.*" />
             <object name="vehicle2" type="vehicle_4W" outopilot="True" start_x="299.39996337890625" start_y="199.05999755859375" start_z="0.50" yaw="0" end_x="334.8299865722656" end_y="217.0800018310547" end_z="0.5" model="vehicle.lincoln.mkz_2017" />
-<!--        Override weather attribute to make it custom -->
+<!--        Override weather attribute to customize it -->
             <weather cloudiness="0" precipitation="0" precipitation_deposits="0" wind_intensity="0" sun_azimuth_angle="0" sun_altitude_angle="75" />
         </scenario>
     </scenarios>
